@@ -72,6 +72,11 @@ shaders/terrain.gdshader   terreno orgânico (campo contínuo sobre a grade)
   ui/garage.gd             Garage – vender carga, abas Upgrades/Módulos (pausa o jogo)
   ui/upgrade_card.gd       UpgradeCard – nível, antes → depois, botão de compra
   ui/virtual_joystick.gd   VirtualJoystick – desenho do joystick flutuante
+  ui/pixel_art.gd          PixelArt – primitivas, estilos 9-slice (metal, placas, botões) e ícones
+  ui/segmented_bar.gd      SegmentedBar – barras segmentadas (níveis, atributos, energia)
+  ui/ship_preview.gd       ShipPreview – vitrine da nave na garagem
+  gameplay/ship_art.gd     ShipArt – sprite procedural da nave (quadros da broca)
+assets/fonts/              Press Start 2P e Jersey 10 (OFL 1.1, licenças incluídas)
   ui/ui_theme.gd, gem_icon.gd, pad_button.gd – tema e componentes desenhados em código
   debug/autopilot.gd       Autopilot – bot de teste (--autotest) e captura de tela
   main.gd                  Main – raiz, argumentos de linha de comando

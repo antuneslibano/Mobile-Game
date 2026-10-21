@@ -6,7 +6,7 @@
 script = ExtResource("1_def")
 id = &"collect"
 display_name = "Coleta"
-description = "Mais recursos por bloco destruído."
+description = "Mais recursos por material escavado."
 currency = &"credits"
 base_cost = 80.0
 cost_growth = 1.6

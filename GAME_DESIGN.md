@@ -268,19 +268,22 @@ Proteção contra duplicação: o ganho é calculado e gravado atomicamente com 
 corrida, marcado com um `run_id`.
 
 ## 8. Direção de arte
-- Pixel art procedural original (gerada em código, sem assets externos), em "pixels de
-  arte" de 3 px.
-- **Terreno orgânico (Fase 3):** a grade de blocos continua sendo o modelo de jogo, mas é
-  desenhada por um shader (`shaders/terrain.gdshader`) que a trata como campo contínuo:
-  contornos arredondados e irregulares (solidez bilinear suavizada + ruído + leve
-  deslocamento de ~0,2 célula), bordas entre materiais deformadas por ruído (~0,85 célula),
-  minérios como aglomerados de pepitas sobre a rocha hospedeira, cristais em lascas,
-  veios incandescentes na rocha magmática, luz de cima nas superfícies expostas, sombra
-  embaixo, contorno escuro e oclusão nas cavernas. Rachaduras progressivas no shader.
-- Máquina: amarelo industrial `#F2B33D`, metal `#6E7A86`, luzes azuis `#4FC3FF`.
-- Paletas por bioma: Crosta (marrons/terrosos), Cristalinas (azul-violeta frio),
-  Magmática (preto-basalto e laranja), Abismo (verde-petróleo e roxo profundo).
-- Aviso grande com o nome do bioma ao entrar em um novo.
+Referência visual definida pelo autor (nave e tela de upgrades em pixel art industrial).
+
+- **Nave**: sprite procedural (`ShipArt`, 35×20 px, 2× em jogo) apontando a broca para a
+  frente — casco branco, placas amarelas, cabine azul, bloco traseiro escuro com luzes
+  azuis, bocais amarelos, pods cinza em cima/embaixo, broca cônica listrada com espiral
+  animada. Gira para a direção escavada (espelhada para a cabine ficar em cima).
+  Chamas azuis nos bocais, aura na Sobrecarga, acessórios visíveis dos módulos.
+- **Interface** (`PixelArt`, `UiTheme`): janelas de aço escuro com bisel e rebites, placa de
+  título laranja, valores em caixas escuras com moeda dourada / cristal azul, botão vermelho
+  de fechar, cartões com ícone em moldura laranja, "Nv. X", barra segmentada, preço em botão
+  dourado e seta verde de compra; vitrine da nave com cantoneiras e faixas de advertência;
+  barras de atributos segmentadas (Energia, Velocidade, Poder de mineração, Coleta).
+- **Fontes**: Press Start 2P (títulos/números/botões, maiúsculas sem acento) e Jersey 10
+  (textos) — ambas OFL. Sem suavização (pixels nítidos).
+- **Terreno** orgânico por shader em micro-células, pixels de arte de 3 px; paletas por bioma
+  como antes.
 
 ## 9. Áudio (Fase 5)
 Buses: `Master` → `Music`, `SFX`, `UI`. Sons originais sintetizados (placeholders

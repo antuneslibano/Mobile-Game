@@ -5,8 +5,8 @@
 [resource]
 script = ExtResource("1_def")
 id = &"speed"
-display_name = "Velocidade"
-description = "Mais golpes por segundo."
+display_name = "Turbina"
+description = "Aumenta a velocidade de perfuração da nave."
 currency = &"credits"
 base_cost = 40.0
 cost_growth = 1.5

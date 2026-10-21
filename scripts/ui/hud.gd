@@ -5,7 +5,7 @@ extends CanvasLayer
 
 signal garage_requested
 
-const TOP_HEIGHT: float = 170.0
+const TOP_HEIGHT: float = 200.0
 const SIDE_MARGIN: float = 20.0
 const BOOST_SIZE: float = 150.0
 const BANNER_TIME: float = 2.8
@@ -17,7 +17,7 @@ var _max_label: Label
 var _biome_label: Label
 var _credits_label: Label
 var _crystals_label: Label
-var _energy_bar: ProgressBar
+var _energy_bar: SegmentedBar
 var _garage_button: Button
 var _heat_label: Label
 var _heat_tint: ColorRect
@@ -124,12 +124,12 @@ func _build() -> void:
 	depth_box.add_theme_constant_override("separation", -4)
 	depth_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(depth_box)
-	_depth_label = _label("0 m", UiTheme.FONT_BIG, UiTheme.TEXT)
+	_depth_label = UiTheme.label("0 m", UiTheme.FONT_BIG, UiTheme.TEXT, 700)
 	depth_box.add_child(_depth_label)
 	var sub := HBoxContainer.new()
 	sub.add_theme_constant_override("separation", 14)
 	depth_box.add_child(sub)
-	_biome_label = _label("Crosta", UiTheme.FONT_SMALL, UiTheme.ACCENT)
+	_biome_label = UiTheme.label("Crosta", UiTheme.FONT_SMALL, UiTheme.ACCENT, 700)
 	sub.add_child(_biome_label)
 	_max_label = _label("máx 0 m", UiTheme.FONT_SMALL, UiTheme.TEXT_DIM)
 	sub.add_child(_max_label)
@@ -138,37 +138,37 @@ func _build() -> void:
 	sub.add_child(_heat_label)
 
 	var money := VBoxContainer.new()
-	money.add_theme_constant_override("separation", 2)
+	money.add_theme_constant_override("separation", 6)
 	money.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_child(money)
-	_credits_label = _currency_row(money, UiTheme.CREDITS, "Créditos")
-	_crystals_label = _currency_row(money, UiTheme.CRYSTALS, "Cristais")
+	var cbox: Array = UiTheme.currency_box(Economy.CREDITS)
+	(cbox[0] as Control).custom_minimum_size = Vector2(190, 0)
+	money.add_child(cbox[0])
+	_credits_label = cbox[1]
+	var kbox: Array = UiTheme.currency_box(Economy.CRYSTALS)
+	(kbox[0] as Control).custom_minimum_size = Vector2(190, 0)
+	money.add_child(kbox[0])
+	_crystals_label = kbox[1]
 
 	var energy_row := HBoxContainer.new()
 	energy_row.add_theme_constant_override("separation", 10)
 	top_v.add_child(energy_row)
-	energy_row.add_child(_label("ENERGIA", UiTheme.FONT_SMALL, UiTheme.BLUE))
-	_energy_bar = ProgressBar.new()
-	_energy_bar.max_value = 100.0
-	_energy_bar.value = 100.0
-	_energy_bar.show_percentage = false
-	_energy_bar.custom_minimum_size = Vector2(0, 22)
+	energy_row.add_child(UiTheme.label("ENERGIA", UiTheme.FONT_SMALL, UiTheme.BLUE, 700))
+	_energy_bar = SegmentedBar.new(10, UiTheme.BLUE, 30.0)
 	_energy_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_energy_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_energy_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	energy_row.add_child(_energy_bar)
 	_garage_button = Button.new()
 	_garage_button.name = "GarageButton"
 	_garage_button.text = "GARAGEM"
-	_garage_button.custom_minimum_size = Vector2(210, 52)
-	_garage_button.add_theme_font_size_override("font_size", UiTheme.FONT_SMALL)
-	_garage_button.focus_mode = Control.FOCUS_NONE
-	UiTheme.accent_button(_garage_button)
+	_garage_button.custom_minimum_size = Vector2(220, 60)
+	_garage_button.add_theme_font_size_override("font_size", UiTheme.font_size(UiTheme.FONT_SMALL, 700))
+	UiTheme.style_button(_garage_button, &"gold")
 	_garage_button.pressed.connect(func() -> void: garage_requested.emit())
 	energy_row.add_child(_garage_button)
 
 	# Botão de impulso (canto inferior direito). O restante da tela é área do joystick.
-	_boost = PadButton.new(&"boost", PadButton.Icon.BOOST, "0%", UiTheme.BLUE)
+	_boost = PadButton.new(&"boost", &"boost", "0%", &"blue")
 	_boost.name = "BoostButton"
 	_boost.size_flags_horizontal = Control.SIZE_SHRINK_END
 	_root.add_child(_boost)
@@ -250,7 +250,8 @@ func _process(delta: float) -> void:
 		set_energy(e.energy, e.max_energy)
 		var ready: bool = e.is_ready()
 		var glow: float = 1.25 + 0.35 * sin(Time.get_ticks_msec() * 0.012)
-		_energy_bar.modulate = Color(glow, glow, glow * 1.1) if (ready or e.is_boosting()) else Color.WHITE
+		_energy_bar.glow = ready or e.is_boosting()
+		_energy_bar.modulate = Color(glow, glow, glow) if ready else Color.WHITE
 		_boost.modulate = Color(glow, glow, glow) if ready else Color(1, 1, 1, 1.0 if e.is_boosting() else 0.5)
 		if e.is_boosting():
 			_boost.text = "%.1fs" % e.boost_left
@@ -319,5 +320,4 @@ func set_currencies(credits: int, crystals: int) -> void:
 
 
 func set_energy(value: float, max_value: float) -> void:
-	_energy_bar.max_value = max_value
-	_energy_bar.value = value
+	_energy_bar.value = value / max_value if max_value > 0.0 else 0.0

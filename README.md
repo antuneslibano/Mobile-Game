@@ -158,5 +158,8 @@ Instalar: `adb install -r build/deepforge.apk`, ou copie o APK para o celular e 
 
 ## Licença dos assets
 
-Toda a arte é gerada por código neste repositório (`scripts/render/tile_art.gd`,
-`drill_visual.gd`, `background.gd`). Nenhum asset de terceiros é usado.
+- Toda a arte (nave, terreno, interface, ícones) é gerada por código neste repositório
+  (`scripts/gameplay/ship_art.gd`, `scripts/ui/pixel_art.gd`, `shaders/terrain.gdshader`,
+  `scripts/render/`). Nenhuma imagem de terceiros é usada.
+- Fontes (SIL Open Font License 1.1, incluídas com as licenças em `assets/fonts/`):
+  **Press Start 2P** (títulos, números e botões) e **Jersey 10** (textos).

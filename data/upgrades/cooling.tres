@@ -6,7 +6,7 @@
 script = ExtResource("1_def")
 id = &"cooling"
 display_name = "Refrigeração"
-description = "Reduz a penalidade de calor da Zona Magmática."
+description = "Reduz a perda de eficiência pelo calor."
 currency = &"credits"
 base_cost = 400.0
 cost_growth = 1.55

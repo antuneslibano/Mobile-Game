@@ -4,7 +4,7 @@ extends Node2D
 
 const LIFE: float = 1.1
 const RISE_PX: float = 70.0
-const FONT_SIZE: int = 24
+const FONT_SIZE: int = 30
 const LINE_PX: float = 26.0
 ## Ganhos do mesmo recurso dentro desta janela somam no mesmo texto (sem amontoar).
 const MERGE_SEC: float = 0.5
@@ -68,7 +68,7 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	var font: Font = ThemeDB.fallback_font
+	var font: Font = UiTheme.font(500)
 	for it in _items:
 		var t: float = float(it["t"]) / LIFE
 		var text: String = it["text"]

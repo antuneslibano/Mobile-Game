@@ -3,6 +3,21 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.5.0] — Nova nave e interface no estilo da referência
+
+### Adicionado
+- **Nave nova** em pixel art procedural (casco branco, placas amarelas, cabine azul, bocais
+  amarelos, pods com luzes, broca cônica com espiral animada), girando para a direção escavada.
+- **Interface refeita** no estilo da referência: painéis de aço com rebites, placa laranja de
+  título, moedas em caixas (moeda dourada / cristal), botão vermelho de fechar, vitrine da
+  nave com barras de atributos, cartões com moldura laranja, "Nv. X", barra segmentada,
+  preço dourado e seta verde; HUD, joystick e botão de Sobrecarga no mesmo estilo.
+- Fontes pixel OFL: Press Start 2P e Jersey 10.
+- Ícones pixel art para todos os upgrades.
+
+### Alterado
+- Upgrades renomeados: "Dano da broca" → **Broca**, "Velocidade" → **Turbina**.
+
 ## [0.4.0] — Escavação livre e energia conquistada
 
 ### Adicionado

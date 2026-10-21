@@ -6,7 +6,7 @@
 script = ExtResource("1_def")
 id = &"crit"
 display_name = "Crítico"
-description = "Aumenta a chance de golpe crítico (dano dobrado)."
+description = "Mais chance de golpe crítico (dano dobrado)."
 currency = &"credits"
 base_cost = 60.0
 cost_growth = 1.55

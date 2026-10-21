@@ -1,15 +1,23 @@
 class_name Garage
 extends CanvasLayer
-## Garagem: vender a carga e comprar upgrades. Pausa o jogo enquanto aberta.
+## Garagem no estilo da referência visual: placa de título laranja, moedas em caixas, botão
+## vermelho de fechar, vitrine da nave com barras de atributos, carga/venda, abas
+## Upgrades/Módulos e cartões em pixel art. Pausa o jogo enquanto aberta.
 ## Só chama GameState (regras) e lê Progression (textos); não calcula economia.
 
 signal closed
 
+## Referências para as barras de atributos (valor no nível máximo de cada upgrade).
+const STAT_MAX_DAMAGE: float = 104.0
+const STAT_MAX_HITS: float = 17.0
+const STAT_MAX_COLLECT: float = 1.5
+
 var _root: Control
+var _title: Label
 var _credits: Label
 var _crystals: Label
-var _cargo_list: GridContainer
-var _cargo_empty: Label
+var _stat_bars: Dictionary = {}          ## StringName → SegmentedBar
+var _cargo_label: Label
 var _sell: Button
 var _tab_upgrades: Button
 var _tab_modules: Button
@@ -22,6 +30,7 @@ var _cards: Array[UpgradeCard] = []
 var _slots_label: Label
 var _module_buttons: Dictionary = {}     ## StringName → Button
 var _module_status: Dictionary = {}      ## StringName → Label
+var _module_bars: Dictionary = {}        ## StringName → SegmentedBar
 var _synergy_label: Label
 
 
@@ -81,7 +90,7 @@ func _process(delta: float) -> void:
 func sell_all() -> int:
 	var value: int = GameState.sell_cargo()
 	if value > 0:
-		_show_toast("+%s Créditos" % UpgradeCard._short(value), UiTheme.CREDITS)
+		_show_toast("+%s Créditos" % UiTheme.short_number(value), UiTheme.CREDITS)
 	return value
 
 
@@ -89,9 +98,22 @@ func buy(id: StringName) -> bool:
 	var ok: bool = GameState.buy_upgrade(id)
 	if ok:
 		var def: UpgradeDef = UpgradeRegistry.get_def(id)
-		_show_toast("%s → Nv %d" % [def.display_name, GameState.economy.get_level(id)], Color("8dff8a"))
+		_show_toast("%s → Nv. %d" % [def.display_name, GameState.economy.get_level(id)], UiTheme.GREEN)
 	_refresh()
 	return ok
+
+
+func toggle_module(id: StringName) -> bool:
+	var ok: bool = GameState.toggle_module(id)
+	if not ok:
+		var reason: String = "Compre o módulo na aba Upgrades" if not GameState.economy.owns_module(id) else "Todos os slots estão ocupados"
+		_show_toast(reason, UiTheme.RED)
+	_refresh()
+	return ok
+
+
+func show_modules_tab() -> void:
+	_show_tab(false)
 
 
 # --- Construção ----------------------------------------------------------------------
@@ -104,7 +126,7 @@ func _build() -> void:
 	add_child(_root)
 
 	var dim := ColorRect.new()
-	dim.color = Color(0.03, 0.02, 0.04, 0.82)
+	dim.color = Color(0.02, 0.02, 0.04, 0.8)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	_root.add_child(dim)
@@ -112,71 +134,102 @@ func _build() -> void:
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	for side: String in ["left", "right"]:
-		margin.add_theme_constant_override("margin_" + side, 14)
-	margin.add_theme_constant_override("margin_top", 18 + int(_safe_top()))
-	margin.add_theme_constant_override("margin_bottom", 18)
+		margin.add_theme_constant_override("margin_" + side, 8)
+	margin.add_theme_constant_override("margin_top", 10 + int(_safe_top()))
+	margin.add_theme_constant_override("margin_bottom", 10)
 	_root.add_child(margin)
 
-	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", UiTheme.panel_box(UiTheme.PANEL, UiTheme.ACCENT.darkened(0.3), 22, 4))
-	margin.add_child(panel)
+	var window := PanelContainer.new()
+	window.add_theme_stylebox_override("panel", PixelArt.style(&"frame"))
+	margin.add_child(window)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 12)
-	panel.add_child(v)
+	window.add_child(v)
 
-	# Cabeçalho.
+	# Cabeçalho: placa laranja + moedas + fechar.
 	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", 10)
+	header.add_theme_constant_override("separation", 8)
 	v.add_child(header)
-	var title := _label("GARAGEM", 40, UiTheme.ACCENT)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(title)
+	var plate := PanelContainer.new()
+	plate.add_theme_stylebox_override("panel", PixelArt.style(&"plate"))
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(plate)
+	_title = UiTheme.label("UPGRADES", 40, Color("2a1606"), 700)
+	_title.add_theme_constant_override("outline_size", 0)
+	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	plate.add_child(_title)
+	var cbox: Array = UiTheme.currency_box(Economy.CREDITS)
+	(cbox[0] as Control).custom_minimum_size = Vector2(170, 0)
+	header.add_child(cbox[0])
+	_credits = cbox[1]
+	var kbox: Array = UiTheme.currency_box(Economy.CRYSTALS)
+	(kbox[0] as Control).custom_minimum_size = Vector2(110, 0)
+	header.add_child(kbox[0])
+	_crystals = kbox[1]
 	var close_b := Button.new()
 	close_b.name = "CloseButton"
-	close_b.text = "FECHAR"
-	close_b.focus_mode = Control.FOCUS_NONE
-	close_b.custom_minimum_size = Vector2(150, 64)
+	close_b.icon = PixelArt.icon(&"close")
+	close_b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	close_b.add_theme_constant_override("icon_max_width", 34)
+	close_b.custom_minimum_size = Vector2(72, 72)
+	UiTheme.style_button(close_b, &"red")
 	close_b.pressed.connect(close)
 	header.add_child(close_b)
 
-	var wallet := HBoxContainer.new()
-	wallet.add_theme_constant_override("separation", 10)
-	v.add_child(wallet)
-	wallet.add_child(GemIcon.new(UiTheme.CREDITS))
-	_credits = _label("0", UiTheme.FONT_NORMAL, UiTheme.CREDITS)
-	_credits.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	wallet.add_child(_credits)
-	wallet.add_child(GemIcon.new(UiTheme.CRYSTALS))
-	_crystals = _label("0", UiTheme.FONT_NORMAL, UiTheme.CRYSTALS)
-	wallet.add_child(_crystals)
+	# Vitrine da nave + atributos.
+	var showcase := HBoxContainer.new()
+	showcase.add_theme_constant_override("separation", 10)
+	v.add_child(showcase)
+	var preview := ShipPreview.new()
+	preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	showcase.add_child(preview)
+	var stats := PanelContainer.new()
+	stats.add_theme_stylebox_override("panel", PixelArt.style(&"inset"))
+	stats.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	showcase.add_child(stats)
+	var sv := VBoxContainer.new()
+	sv.add_theme_constant_override("separation", 6)
+	sv.alignment = BoxContainer.ALIGNMENT_CENTER
+	stats.add_child(sv)
+	for entry: Array in [[&"energy", "ENERGIA", UiTheme.BLUE], [&"speed", "VELOCIDADE", UiTheme.ORANGE], [&"power", "PODER DE MINERAÇÃO", Color("f04a3a")], [&"collect", "COLETA", Color("3fc45a")]]:
+		sv.add_child(UiTheme.label(entry[1], 19, UiTheme.TEXT_DIM, 600))
+		var bar := SegmentedBar.new(6, entry[2], 22.0)
+		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		sv.add_child(bar)
+		_stat_bars[entry[0]] = bar
 
-	# Carga.
-	var cargo_panel := PanelContainer.new()
-	cargo_panel.add_theme_stylebox_override("panel", UiTheme.panel_box(Color("1a1520"), UiTheme.PANEL_EDGE, 16, 2))
-	v.add_child(cargo_panel)
+	# Carga e venda.
+	var cargo := PanelContainer.new()
+	cargo.add_theme_stylebox_override("panel", PixelArt.style(&"inset"))
+	v.add_child(cargo)
+	var ch := HBoxContainer.new()
+	ch.add_theme_constant_override("separation", 10)
+	cargo.add_child(ch)
 	var cv := VBoxContainer.new()
-	cv.add_theme_constant_override("separation", 8)
-	cargo_panel.add_child(cv)
-	cv.add_child(_label("CARGA", UiTheme.FONT_SMALL, UiTheme.TEXT_DIM))
-	_cargo_list = GridContainer.new()
-	_cargo_list.columns = 2
-	_cargo_list.add_theme_constant_override("h_separation", 24)
-	cv.add_child(_cargo_list)
-	_cargo_empty = _label("Vazia — mine blocos para coletar minério.", UiTheme.FONT_SMALL, UiTheme.TEXT_DIM)
-	cv.add_child(_cargo_empty)
+	cv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ch.add_child(cv)
+	cv.add_child(UiTheme.label("CARGA", 20, UiTheme.ORANGE, 700))
+	_cargo_label = UiTheme.label("", 19, UiTheme.TEXT_DIM, 500)
+	_cargo_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_cargo_label.custom_minimum_size = Vector2(200, 0)
+	cv.add_child(_cargo_label)
 	_sell = Button.new()
 	_sell.name = "SellButton"
-	_sell.focus_mode = Control.FOCUS_NONE
-	_sell.custom_minimum_size = Vector2(0, 76)
+	_sell.custom_minimum_size = Vector2(230, 70)
+	_sell.icon = PixelArt.icon(&"coin")
+	_sell.add_theme_constant_override("icon_max_width", 30)
+	_sell.add_theme_font_size_override("font_size", UiTheme.font_size(24, 700))
+	_sell.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_sell.pressed.connect(func() -> void: sell_all())
-	cv.add_child(_sell)
+	ch.add_child(_sell)
 
 	# Abas.
 	var tabs := HBoxContainer.new()
 	tabs.add_theme_constant_override("separation", 10)
 	v.add_child(tabs)
-	_tab_upgrades = _tab_button("UPGRADES", true)
-	_tab_modules = _tab_button("MÓDULOS", false)
+	_tab_upgrades = _tab_button("UPGRADES")
+	_tab_modules = _tab_button("MÓDULOS")
 	tabs.add_child(_tab_upgrades)
 	tabs.add_child(_tab_modules)
 
@@ -189,75 +242,127 @@ func _build() -> void:
 	_scroll.add_child(pages)
 
 	_upgrades_page = VBoxContainer.new()
-	_upgrades_page.add_theme_constant_override("separation", 10)
+	_upgrades_page.add_theme_constant_override("separation", 8)
 	_upgrades_page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pages.add_child(_upgrades_page)
 	for def in UpgradeRegistry.all():
-		var card := UpgradeCard.new(def)
-		card.buy_requested.connect(func(id: StringName) -> void: buy(id))
-		_upgrades_page.add_child(card)
-		_cards.append(card)
+		if def.id in ModuleSystem.ALL:
+			continue
+		_add_card(def)
+	_upgrades_page.add_child(UiTheme.label("MÓDULOS", 24, UiTheme.ORANGE, 700))
+	for id in ModuleSystem.ALL:
+		_add_card(UpgradeRegistry.get_def(id))
 
 	_modules_page = VBoxContainer.new()
-	_modules_page.add_theme_constant_override("separation", 10)
+	_modules_page.add_theme_constant_override("separation", 8)
+	_modules_page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pages.add_child(_modules_page)
-	_slots_label = _label("", UiTheme.FONT_NORMAL, UiTheme.ACCENT)
+	_slots_label = UiTheme.label("", 26, UiTheme.ORANGE, 700)
 	_modules_page.add_child(_slots_label)
 	for id in ModuleSystem.ALL:
 		_modules_page.add_child(_module_card(id))
-	var syn_panel := PanelContainer.new()
-	syn_panel.add_theme_stylebox_override("panel", UiTheme.panel_box(Color("201a2a"), Color("c57bff").darkened(0.4), 16, 3))
-	_modules_page.add_child(syn_panel)
-	_synergy_label = _label("", UiTheme.FONT_SMALL, UiTheme.TEXT)
+	var syn := PanelContainer.new()
+	syn.add_theme_stylebox_override("panel", PixelArt.style(&"inset"))
+	_modules_page.add_child(syn)
+	_synergy_label = UiTheme.label("", 19, UiTheme.TEXT, 500)
 	_synergy_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_synergy_label.custom_minimum_size = Vector2(400, 0)
-	syn_panel.add_child(_synergy_label)
+	syn.add_child(_synergy_label)
 
-	_toast = _label("", UiTheme.FONT_NORMAL, UiTheme.TEXT)
+	_toast = UiTheme.label("", UiTheme.FONT_NORMAL, UiTheme.TEXT, 700)
 	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_toast.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_toast.position = Vector2(0, -150)
 	_toast.modulate.a = 0.0
 	_root.add_child(_toast)
+
+
+func _add_card(def: UpgradeDef) -> void:
+	var card := UpgradeCard.new(def)
+	card.buy_requested.connect(func(id: StringName) -> void: buy(id))
+	_upgrades_page.add_child(card)
+	_cards.append(card)
 
 
 func _module_card(id: StringName) -> PanelContainer:
 	var def: UpgradeDef = UpgradeRegistry.get_def(id)
 	var card := PanelContainer.new()
 	card.name = "Module_" + String(id)
-	card.add_theme_stylebox_override("panel", UiTheme.panel_box(Color("261f2d"), def.color.darkened(0.45), 16, 3))
+	card.add_theme_stylebox_override("panel", PixelArt.style(&"inset"))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	card.add_child(row)
+	var frame := PanelContainer.new()
+	frame.add_theme_stylebox_override("panel", PixelArt.style(&"icon_frame"))
+	frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	frame.add_child(UiTheme.icon_rect(id, 54))
+	row.add_child(frame)
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.add_theme_constant_override("separation", 4)
 	row.add_child(info)
-	info.add_child(_label(def.display_name, UiTheme.FONT_NORMAL, UiTheme.TEXT))
-	var desc := _label(def.description, 20, UiTheme.TEXT_DIM)
-	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	desc.custom_minimum_size = Vector2(280, 0)
-	info.add_child(desc)
-	var status := _label("", UiTheme.FONT_SMALL, UiTheme.TEXT_DIM)
+	info.add_child(UiTheme.label(def.display_name.to_upper(), 24, UiTheme.TEXT, 700))
+	var bar := SegmentedBar.new(10, UiTheme.ORANGE, 21.0)
+	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.add_child(bar)
+	_module_bars[id] = bar
+	var status := UiTheme.label("", 19, UiTheme.TEXT_DIM, 600)
 	info.add_child(status)
 	_module_status[id] = status
 	var b := Button.new()
 	b.name = "Toggle"
-	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = Vector2(170, 76)
+	b.custom_minimum_size = Vector2(170, 70)
 	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	b.add_theme_font_size_override("font_size", UiTheme.font_size(22, 700))
 	b.pressed.connect(func() -> void: toggle_module(id))
 	row.add_child(b)
 	_module_buttons[id] = b
 	return card
 
 
-func toggle_module(id: StringName) -> bool:
-	var ok: bool = GameState.toggle_module(id)
-	if not ok:
-		var reason: String = "Compre o módulo na aba Upgrades" if not GameState.economy.owns_module(id) else "Todos os slots estão ocupados"
-		_show_toast(reason, Color("ff8a8a"))
-	_refresh()
-	return ok
+func _tab_button(text: String) -> Button:
+	var b := Button.new()
+	b.text = UiTheme.display_text(text)
+	b.custom_minimum_size = Vector2(0, 64)
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b.pressed.connect(func() -> void: _show_tab(b == _tab_upgrades))
+	return b
+
+
+func _show_tab(upgrades: bool) -> void:
+	_title.text = UiTheme.display_text("UPGRADES" if upgrades else "MÓDULOS")
+	UiTheme.style_button(_tab_upgrades, &"gold" if upgrades else &"steel")
+	UiTheme.style_button(_tab_modules, &"steel" if upgrades else &"gold")
+	_upgrades_page.visible = upgrades
+	_modules_page.visible = not upgrades
+	_scroll.scroll_vertical = 0
+
+
+# --- Atualização ----------------------------------------------------------------------
+
+func _refresh() -> void:
+	if not visible:
+		return
+	var econ: Economy = GameState.economy
+	_credits.text = UiTheme.short_number(econ.credits)
+	_crystals.text = UiTheme.short_number(econ.crystals)
+	var s: DrillStats = GameState.stats
+	(_stat_bars[&"energy"] as SegmentedBar).value = (s.energy_gain - 1.0) / (Balance.ENERGY_GAIN_PER_LEVEL * 20.0) * 0.83 + 0.17
+	(_stat_bars[&"speed"] as SegmentedBar).value = s.hits_per_second / STAT_MAX_HITS
+	(_stat_bars[&"power"] as SegmentedBar).value = s.damage / STAT_MAX_DAMAGE * 0.83 + 0.17
+	(_stat_bars[&"collect"] as SegmentedBar).value = (s.collect_mult - 1.0) / STAT_MAX_COLLECT * 0.83 + 0.17
+
+	var parts: PackedStringArray = []
+	for key in ResourceRegistry.order():
+		var n: int = int(econ.cargo.get(key, 0))
+		if n > 0:
+			parts.append("%s ×%d" % [ResourceRegistry.get_def(key).display_name, n])
+	var any: bool = not parts.is_empty()
+	_cargo_label.text = " · ".join(parts) if any else "Vazia — cave para coletar minério."
+	_sell.text = "VENDER +%s" % UiTheme.short_number(econ.cargo_value()) if any else "VENDER"
+	_sell.disabled = not any
+	UiTheme.style_button(_sell, &"gold")
+	for card in _cards:
+		card.refresh(econ)
+	_refresh_modules(econ)
 
 
 func _refresh_modules(econ: Economy) -> void:
@@ -267,22 +372,17 @@ func _refresh_modules(econ: Economy) -> void:
 		var st: Label = _module_status[id]
 		var lvl: int = econ.get_level(id)
 		var on: bool = econ.equipped_modules.has(id)
+		(_module_bars[id] as SegmentedBar).value = float(lvl) / float(UpgradeRegistry.get_def(id).max_level)
 		if lvl == 0:
-			st.text = "Não adquirido"
+			st.text = "Não adquirido (compre em Upgrades)"
 			b.text = "—"
 			b.disabled = true
 		else:
-			st.text = "Nível %d · %s" % [lvl, "EQUIPADO" if on else "na garagem"]
+			st.text = "Nv. %d · %s" % [lvl, "EQUIPADO" if on else "na garagem"]
 			b.text = "REMOVER" if on else "EQUIPAR"
 			b.disabled = not on and econ.equipped_modules.size() >= Balance.MODULE_SLOTS
-		st.add_theme_color_override("font_color", Color("8dff8a") if on else UiTheme.TEXT_DIM)
-		if on:
-			UiTheme.accent_button(b, Color("c57bff"))
-		else:
-			for sname: String in ["normal", "hover", "pressed", "hover_pressed"]:
-				b.remove_theme_stylebox_override(sname)
-			for cname: String in ["font_color", "font_hover_color", "font_pressed_color"]:
-				b.remove_theme_color_override(cname)
+		st.add_theme_color_override("font_color", UiTheme.GREEN if on else UiTheme.TEXT_DIM)
+		UiTheme.style_button(b, &"red" if on else &"green")
 	var lines: PackedStringArray = []
 	for d in SynergyRules.DEFS:
 		var active: bool = SynergyRules.is_active(d["id"], econ.equipped_modules, GameState.stats)
@@ -290,72 +390,12 @@ func _refresh_modules(econ: Economy) -> void:
 	_synergy_label.text = "\n\n".join(lines)
 
 
-func show_modules_tab() -> void:
-	_show_tab(false)
-
-
-func _tab_button(text: String, active: bool) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.toggle_mode = true
-	b.button_pressed = active
-	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = Vector2(0, 64)
-	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	b.pressed.connect(func() -> void: _show_tab(b == _tab_upgrades))
-	return b
-
-
-func _show_tab(upgrades: bool) -> void:
-	_tab_upgrades.button_pressed = upgrades
-	_tab_modules.button_pressed = not upgrades
-	_upgrades_page.visible = upgrades
-	_modules_page.visible = not upgrades
-	_scroll.scroll_vertical = 0
-
-
-func _label(text: String, size: int, color: Color) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.add_theme_font_size_override("font_size", size)
-	l.add_theme_color_override("font_color", color)
-	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return l
-
-
-func _refresh() -> void:
-	if not visible:
-		return
-	var econ: Economy = GameState.economy
-	_credits.text = UpgradeCard._short(econ.credits)
-	_crystals.text = UpgradeCard._short(econ.crystals)
-	for child in _cargo_list.get_children():
-		child.queue_free()
-	var any: bool = false
-	for key in ResourceRegistry.order():
-		var n: int = int(econ.cargo.get(key, 0))
-		if n <= 0:
-			continue
-		any = true
-		var def: ResourceDef = ResourceRegistry.get_def(key)
-		_cargo_list.add_child(_label("%s ×%d" % [def.display_name, n], UiTheme.FONT_SMALL, def.color.lightened(0.2)))
-		_cargo_list.add_child(_label("%s" % UpgradeCard._short(def.sell_value * n), UiTheme.FONT_SMALL, UiTheme.CREDITS))
-	_cargo_empty.visible = not any
-	var value: int = econ.cargo_value()
-	_sell.text = "VENDER TUDO   +%s" % UpgradeCard._short(value) if any else "NADA PARA VENDER"
-	_sell.disabled = not any
-	if any:
-		UiTheme.accent_button(_sell, UiTheme.CREDITS)
-	for card in _cards:
-		card.refresh(econ)
-	_refresh_modules(econ)
-
-
 func _show_toast(text: String, color: Color) -> void:
 	_toast.text = text
 	_toast.add_theme_color_override("font_color", color)
-	_toast.size = Vector2(_root.get_viewport_rect().size.x, 50)
-	_toast.position = Vector2(0, _root.get_viewport_rect().size.y - 140)
+	var vp: Vector2 = _root.get_viewport_rect().size
+	_toast.size = Vector2(vp.x, 50)
+	_toast.position = Vector2(0, vp.y - 120)
 	_toast_t = 1.6
 
 
