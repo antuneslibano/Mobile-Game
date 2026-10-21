@@ -5,9 +5,12 @@ extends Node
 ##   --autotest=S        executa o bot de teste por S segundos e encerra
 ##   --shots=T:path,...  (com --autotest) capturas de tela em T segundos
 ##   --no-drive          (com --autotest) não pilota; útil só para capturas
+##   --no-shop           (com --autotest) não vende nem compra upgrades
+##   --open-garage-at=T  (com --autotest) abre a garagem em T segundos
 
 @onready var game: Game = $Game
 @onready var hud: Hud = $Hud
+var garage: Garage
 
 
 func _ready() -> void:
@@ -15,6 +18,10 @@ func _ready() -> void:
 	var world_seed: int = int(args.get("seed", "-1"))
 	GameState.new_run(world_seed)
 	game.input.hud = hud
+	garage = Garage.new()
+	garage.name = "Garage"
+	add_child(garage)
+	hud.garage_requested.connect(garage.open)
 	game.start_run(GameState.world_seed, int(args.get("start-row", "-1")))
 	if args.has("autotest"):
 		var bot := Autopilot.new()
@@ -22,6 +29,9 @@ func _ready() -> void:
 		bot.game = game
 		bot.duration = float(args["autotest"])
 		bot.drive = not args.has("no-drive")
+		bot.shop = not args.has("no-shop")
+		bot.garage = garage
+		bot.open_garage_at = float(args.get("open-garage-at", "-1"))
 		for part: String in String(args.get("shots", "")).split(",", false):
 			var sep: int = part.find(":")
 			if sep > 0:
@@ -41,3 +51,9 @@ static func _parse_args(raw: PackedStringArray) -> Dictionary:
 		else:
 			out[body] = "1"
 	return out
+
+
+func _notification(what: int) -> void:
+	# "Voltar" no Android: fecha a garagem se aberta (tratado nela); senão encerra.
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST and (garage == null or not garage.is_open()):
+		get_tree().quit()

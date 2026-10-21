@@ -1,7 +1,9 @@
 class_name Hud
 extends CanvasLayer
-## HUD: barra superior (profundidade, moedas, energia) e controles inferiores grandes.
+## HUD: barra superior (profundidade, moedas, energia, garagem) e controles inferiores.
 ## Apenas exibe estado e expõe áreas de toque; não altera regras de jogo.
+
+signal garage_requested
 
 const TOP_HEIGHT: float = 170.0
 const BOTTOM_HEIGHT: float = 200.0
@@ -15,6 +17,7 @@ var _biome_label: Label
 var _credits_label: Label
 var _crystals_label: Label
 var _energy_bar: ProgressBar
+var _garage_button: Button
 var _bottom: HBoxContainer
 var _hint: Label
 var _fps_label: Label
@@ -29,10 +32,14 @@ func _ready() -> void:
 	EventBus.depth_changed.connect(_on_depth_changed)
 	EventBus.biome_changed.connect(_on_biome_changed)
 	EventBus.block_destroyed.connect(func(_c: Vector2i, _id: int, _d: Dictionary) -> void: _dismiss_hint())
+	EventBus.wallet_changed.connect(set_currencies)
+	EventBus.cargo_changed.connect(_on_cargo_changed)
 	get_viewport().size_changed.connect(_apply_layout)
 	_apply_layout()
 	_on_depth_changed(GameState.depth_m, GameState.max_depth_m)
 	_on_biome_changed(GameState.biome_id)
+	set_currencies(GameState.economy.credits, GameState.economy.crystals)
+	_on_cargo_changed(GameState.economy.cargo_count(), GameState.economy.cargo_value())
 
 
 # --- API usada pelo InputController -------------------------------------------------
@@ -119,6 +126,15 @@ func _build() -> void:
 	_energy_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_energy_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	energy_row.add_child(_energy_bar)
+	_garage_button = Button.new()
+	_garage_button.name = "GarageButton"
+	_garage_button.text = "GARAGEM"
+	_garage_button.custom_minimum_size = Vector2(210, 52)
+	_garage_button.add_theme_font_size_override("font_size", UiTheme.FONT_SMALL)
+	_garage_button.focus_mode = Control.FOCUS_NONE
+	UiTheme.accent_button(_garage_button)
+	_garage_button.pressed.connect(func() -> void: garage_requested.emit())
+	energy_row.add_child(_garage_button)
 
 	# Controles inferiores.
 	_bottom = HBoxContainer.new()
@@ -224,7 +240,10 @@ func _on_biome_changed(biome_id: int) -> void:
 	_biome_label.add_theme_color_override("font_color", biome.ui_color)
 
 
-## Fase 2 conectará o inventário/economia aqui.
+func _on_cargo_changed(count: int, value: int) -> void:
+	_garage_button.text = "GARAGEM" if count == 0 else "GARAGEM  +%d" % value
+
+
 func set_currencies(credits: int, crystals: int) -> void:
 	_credits_label.text = str(credits)
 	_crystals_label.text = str(crystals)

@@ -3,8 +3,8 @@
 Jogo mobile Android 2D vertical, offline e single-player, de escavação incremental.
 Pilote uma perfuradora industrial através de quatro biomas até o Núcleo do planeta.
 
-> **Status: Fase 1 concluída** — projeto, máquina, terreno, câmera, controles e mineração.
-> Economia, garagem e upgrades chegam na Fase 2 (veja [Roadmap](#roadmap)).
+> **Status: Fase 2 concluída** — mineração, recursos, garagem, economia e upgrades.
+> Módulos, energia e calor chegam na Fase 3 (veja [Roadmap](#roadmap)).
 
 ## Requisitos
 
@@ -34,6 +34,7 @@ godot --path . -- --seed=42          # mundo fixo
 | Mover | arrastar o dedo para o lado da máquina | arrastar o mouse / `←` `→` / `A` `D` |
 | Perfurar lateralmente | segurar o dedo ao lado, contra uma parede | `←`/`→` + `Espaço` |
 | Botões inferiores | `◀`, `PERFURAR`, `▶` (multitoque) | clique |
+| Garagem (vender e comprar) | botão **GARAGEM** no topo | clique; `Esc` fecha |
 
 Degraus de um bloco são escalados automaticamente. A máquina se alinha sozinha à
 coluna mais próxima quando não há direção, para cavar poços retos.
@@ -49,8 +50,8 @@ Executa, em modo headless:
 | Etapa | Comando | O que verifica |
 |---|---|---|
 | Importação | `godot --headless --path . --import` | projeto abre, cache de classes, sem erros de parser |
-| Unitários | `godot --headless --path . -s res://tests/run_tests.gd` | 25 testes: dados, determinismo da seed, biomas, cavernas, threads, modificações/JSON, dano, fórmulas, física da perfuradora (sem atravessar blocos a 60/30/20 FPS), paredes, pulo, perfuração lateral, efeito perceptível de dano, atlas |
-| Integração | `godot --headless --path . --fixed-fps 60 res://tests/scene_test.tscn` | cena principal com toques simulados: perfurar, arrastar, multitoque nos botões, barra superior ignorada, descida real, eventos de bloco, câmera |
+| Unitários | `godot --headless --path . -s res://tests/run_tests.gd` | 35 testes: dados, determinismo da seed, biomas, cavernas, threads, modificações/JSON, dano, fórmulas, física da perfuradora (sem atravessar blocos a 60/30/20 FPS), paredes, pulo, perfuração lateral, atlas, economia (coleta, frações, venda sem duplicação), progressão (custos, compra atômica, limites, bloqueios, antes/depois) e simulação de balanceamento de 10 min |
+| Integração | `godot --headless --path . --fixed-fps 60 res://tests/scene_test.tscn` | cena principal com toques simulados: perfurar, arrastar, multitoque, barra superior ignorada, descida real, eventos de bloco, câmera; garagem: abrir/pausar, vender, comprar e o efeito na máquina, módulo bloqueado, fechar |
 | Sessão | `godot --headless --path . --fixed-fps 60 -- --seed=42 --autotest=30` | bot joga 30 s, verifica a invariante de colisão a cada passo e imprime métricas |
 
 ### Argumentos de depuração (após `--`)
@@ -62,6 +63,8 @@ Executa, em modo headless:
 | `--shots=T:arquivo.png,...` | capturas de tela (requer renderização real, não `--headless`) |
 | `--start-row=N` | começa na linha N (inspecionar biomas profundos) |
 | `--no-drive` | com `--autotest`, não pilota (só capturas) |
+| `--no-shop` | com `--autotest`, não vende nem compra |
+| `--open-garage-at=T` | com `--autotest`, abre a garagem em T segundos |
 
 Captura de telas sem monitor (Linux):
 
@@ -136,20 +139,18 @@ Instalar: `adb install -r build/deepforge.apk`, ou copie o APK para o celular e 
 | Fase | Conteúdo | Status |
 |---|---|---|
 | 1 | Projeto, máquina, terreno, câmera, controle, mineração | ✅ concluída |
-| 2 | Recursos, inventário, garagem, economia, upgrades | pendente |
+| 2 | Recursos, inventário, garagem, economia, upgrades | ✅ concluída |
 | 3 | Biomas (efeitos), módulos, energia/impulso, calor, sinergias | pendente |
 | 4 | Prestígio, persistência, testes, balanceamento | pendente |
 | 5 | Arte, efeitos, áudio, otimização, exportação Android | pendente |
 
-## Limitações conhecidas (Fase 1)
+## Limitações conhecidas (Fase 2)
 
-- Créditos, Cristais e energia aparecem no HUD como placeholders; drops já são emitidos
-  (`EventBus.block_destroyed`) mas ainda não há inventário.
-- Sem salvamento: cada execução começa uma nova corrida com seed aleatória.
-- Sem áudio (infraestrutura de buses na Fase 5).
-- Não é possível voltar à superfície por um caminho fechado (a garagem da Fase 2 terá retorno).
+- **Sem salvamento** (Fase 4): fechar o app perde a corrida, inclusive upgrades.
+- Energia, impulso, módulos, calor e refrigeração aparecem como "Em breve" (Fase 3).
+- A Zona Magmática (300 m+) é muito lenta só com os upgrades atuais — intencional até a Fase 3.
+- Sem áudio (Fase 5) e com o ícone padrão do Godot.
 - Desempenho ainda não perfilado em aparelho Android real.
-- Ícone do app ainda é o padrão do Godot (ícones adaptativos na Fase 5).
 
 ## Licença dos assets
 

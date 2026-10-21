@@ -35,13 +35,13 @@ static func _build() -> void:
 	air.breakable = false
 	list[AIR] = air
 
-	list[DIRT] = BlockDef.make(DIRT, &"dirt", "Terra", 6.0, 0.0, {&"dirt": 1}, BlockDef.Art.DIRT,
+	list[DIRT] = BlockDef.make(DIRT, &"dirt", "Terra", 12.0, 0.0, {&"dirt": 1}, BlockDef.Art.DIRT,
 			Color("8a5a3b"), Color("5e3b26"), Color("a7744d"))
-	list[STONE] = BlockDef.make(STONE, &"stone", "Pedra", 14.0, 1.0, {&"stone": 1}, BlockDef.Art.STONE,
+	list[STONE] = BlockDef.make(STONE, &"stone", "Pedra", 30.0, 1.0, {&"stone": 1}, BlockDef.Art.STONE,
 			Color("7d7570"), Color("57504c"), Color("9d958f"))
-	list[COPPER] = BlockDef.make(COPPER, &"copper", "Cobre", 18.0, 1.0, {&"copper": 1}, BlockDef.Art.ORE,
+	list[COPPER] = BlockDef.make(COPPER, &"copper", "Cobre", 36.0, 1.0, {&"copper": 1}, BlockDef.Art.ORE,
 			Color("7d7570"), Color("57504c"), Color("e08a4f"))
-	list[IRON] = BlockDef.make(IRON, &"iron", "Ferro", 26.0, 2.0, {&"iron": 1}, BlockDef.Art.ORE,
+	list[IRON] = BlockDef.make(IRON, &"iron", "Ferro", 48.0, 2.0, {&"iron": 1}, BlockDef.Art.ORE,
 			Color("6f6a68"), Color("4c4745"), Color("d7c3b0"))
 
 	var bedrock := BlockDef.make(BEDROCK, &"bedrock", "Rocha-mãe", INF, 0.0, {}, BlockDef.Art.BEDROCK,
@@ -49,35 +49,35 @@ static func _build() -> void:
 	bedrock.breakable = false
 	list[BEDROCK] = bedrock
 
-	var chest := BlockDef.make(CHEST, &"chest", "Baú soterrado", 10.0, 0.0,
-			{&"copper": 3, &"iron": 2}, BlockDef.Art.CHEST, Color("8b5a2b"), Color("4f3218"), Color("f2c14e"))
+	var chest := BlockDef.make(CHEST, &"chest", "Baú soterrado", 14.0, 0.0,
+			{&"copper": 3, &"iron": 2, &"crystal": 1}, BlockDef.Art.CHEST, Color("8b5a2b"), Color("4f3218"), Color("f2c14e"))
 	chest.special = &"treasure"
 	list[CHEST] = chest
 
-	list[CRYSTAL_ROCK] = BlockDef.make(CRYSTAL_ROCK, &"crystal_rock", "Rocha cristalina", 30.0, 3.0,
-			{&"stone": 1}, BlockDef.Art.STONE, Color("4a4f72"), Color("31344f"), Color("6c74a3"))
-	list[HARD_ROCK] = BlockDef.make(HARD_ROCK, &"hard_rock", "Rocha dura", 45.0, 5.0,
-			{&"stone": 2}, BlockDef.Art.STONE, Color("5b5468"), Color("3d374a"), Color("7a7290"))
-	list[CRYSTAL] = BlockDef.make(CRYSTAL, &"crystal", "Cristal", 35.0, 3.0,
+	list[CRYSTAL_ROCK] = BlockDef.make(CRYSTAL_ROCK, &"crystal_rock", "Rocha cristalina", 60.0, 4.0,
+			{&"stone": 3}, BlockDef.Art.STONE, Color("4a4f72"), Color("31344f"), Color("6c74a3"))
+	list[HARD_ROCK] = BlockDef.make(HARD_ROCK, &"hard_rock", "Rocha dura", 110.0, 7.0,
+			{&"stone": 5}, BlockDef.Art.STONE, Color("5b5468"), Color("3d374a"), Color("7a7290"))
+	list[CRYSTAL] = BlockDef.make(CRYSTAL, &"crystal", "Cristal", 70.0, 4.0,
 			{&"crystal": 1}, BlockDef.Art.CRYSTAL, Color("4a4f72"), Color("31344f"), Color("6fe3ff"))
-	list[AMETHYST] = BlockDef.make(AMETHYST, &"amethyst", "Ametista", 50.0, 4.0,
+	list[AMETHYST] = BlockDef.make(AMETHYST, &"amethyst", "Ametista", 100.0, 6.0,
 			{&"amethyst": 1, &"crystal": 1}, BlockDef.Art.CRYSTAL, Color("3b3d52"), Color("26273a"), Color("c57bff"))
 
-	list[BASALT] = BlockDef.make(BASALT, &"basalt", "Basalto", 70.0, 8.0,
+	list[BASALT] = BlockDef.make(BASALT, &"basalt", "Basalto", 220.0, 14.0,
 			{&"basalt": 1}, BlockDef.Art.STONE, Color("35302f"), Color("1f1b1b"), Color("4d4644"))
-	list[MAGMA_ROCK] = BlockDef.make(MAGMA_ROCK, &"magma_rock", "Rocha magmática", 90.0, 10.0,
+	list[MAGMA_ROCK] = BlockDef.make(MAGMA_ROCK, &"magma_rock", "Rocha magmática", 320.0, 18.0,
 			{&"basalt": 1}, BlockDef.Art.MAGMA, Color("3a2522"), Color("221514"), Color("ff7a2e"))
-	list[GOLD] = BlockDef.make(GOLD, &"gold", "Ouro", 85.0, 9.0,
+	list[GOLD] = BlockDef.make(GOLD, &"gold", "Ouro", 260.0, 16.0,
 			{&"gold": 1}, BlockDef.Art.ORE, Color("35302f"), Color("1f1b1b"), Color("ffd54a"))
-	list[RUBY] = BlockDef.make(RUBY, &"ruby", "Rubi", 110.0, 11.0,
+	list[RUBY] = BlockDef.make(RUBY, &"ruby", "Rubi", 360.0, 20.0,
 			{&"ruby": 1}, BlockDef.Art.CRYSTAL, Color("35302f"), Color("1f1b1b"), Color("ff3d5a"))
 
-	list[ABYSS_STONE] = BlockDef.make(ABYSS_STONE, &"abyss_stone", "Pedra abissal", 150.0, 16.0,
+	list[ABYSS_STONE] = BlockDef.make(ABYSS_STONE, &"abyss_stone", "Pedra abissal", 700.0, 30.0,
 			{&"abyss_stone": 1}, BlockDef.Art.STONE, Color("1f3a3c"), Color("122426"), Color("2f5658"))
-	list[VOIDITE] = BlockDef.make(VOIDITE, &"voidite", "Vazionita", 200.0, 18.0,
+	list[VOIDITE] = BlockDef.make(VOIDITE, &"voidite", "Vazionita", 1000.0, 34.0,
 			{&"voidite": 1}, BlockDef.Art.CRYSTAL, Color("1f3a3c"), Color("122426"), Color("9d5cff"))
-	var artifact := BlockDef.make(ARTIFACT, &"artifact", "Artefato", 120.0, 12.0,
-			{&"artifact": 1}, BlockDef.Art.ARTIFACT, Color("1f3a3c"), Color("122426"), Color("5effc9"))
+	var artifact := BlockDef.make(ARTIFACT, &"artifact", "Artefato", 500.0, 24.0,
+			{&"artifact": 1, &"crystal": 3}, BlockDef.Art.ARTIFACT, Color("1f3a3c"), Color("122426"), Color("5effc9"))
 	artifact.special = &"artifact"
 	list[ARTIFACT] = artifact
 

@@ -22,7 +22,7 @@ const MAX_DAMAGED_CELLS: int = 64
 
 # --- Perfuradora (atributos base, Fase 1) -------------------------------------
 const DRILL_BASE_DAMAGE: float = 4.0
-const DRILL_BASE_HITS_PER_SEC: float = 6.0
+const DRILL_BASE_HITS_PER_SEC: float = 5.0
 const DRILL_BASE_CRIT_CHANCE: float = 0.05
 const DRILL_BASE_CRIT_MULT: float = 2.0
 const DRILL_MOVE_SPEED_BLOCKS: float = 4.5
@@ -35,6 +35,9 @@ const ALIGN_GAIN: float = 14.0           ## Ganho do auto-alinhamento à coluna.
 const ALIGN_TOLERANCE_BLOCKS: float = 0.18
 const SIDE_DRILL_MULT: float = 0.6
 const MIN_DAMAGE_RATIO: float = 0.15
+
+# --- Energia (Fase 3) ------------------------------------------------------------
+const ENERGY_BASE_MAX: float = 100.0
 
 # --- Controles ---------------------------------------------------------------
 const STEER_DEADZONE_PX: float = 40.0
@@ -49,3 +52,4 @@ const CAMERA_SHAKE_MAX_PX: float = 9.0
 const MAX_PARTICLES: int = 260
 const HIT_PARTICLES: int = 3
 const BREAK_PARTICLES: int = 14
+const PICKUP_TEXT_MAX: int = 14

@@ -3,6 +3,27 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.2.0] — Fase 2: recursos, inventário, garagem, economia e upgrades
+
+### Adicionado
+- 12 recursos com preço (`ResourceRegistry`); Cristais vão direto para a carteira.
+- `Economy` (carteira, carga sem limite, níveis) e `Progression` (custo exponencial, compra
+  atômica, atributos, textos antes → depois), ambos puros e testados.
+- 10 upgrades em `data/upgrades/*.tres`; Dano, Velocidade, Crítico e Coleta funcionais;
+  os demais aparecem como "Em breve" (Fase 3).
+- Garagem acessível de qualquer profundidade: carga detalhada, VENDER TUDO, abas
+  Upgrades/Módulos, cartões com antes → depois, pausa o jogo, fecha com "voltar" do Android.
+- Botão GARAGEM no HUD com o valor da carga; Créditos e Cristais reais no HUD.
+- Textos flutuantes de coleta ("+1 Cobre").
+- Testes: economia (5), progressão (5) incluindo simulação de balanceamento de 10 min;
+  teste de integração ampliado para venda e compra pela garagem (29 verificações).
+- Bot de teste vende e compra (`--no-shop` para desligar), `--open-garage-at=T`.
+
+### Alterado (balanceamento)
+- Blocos mais resistentes por bioma (ex.: basalto 70 → 220 HP, dureza 8 → 14) e golpes
+  base 6 → 5/s; rochas das Cavernas rendem mais pedra. Ver GAME_DESIGN.md §5.4 e §7.2.1.
+- "Voltar" do Android não fecha mais o jogo com a garagem aberta.
+
 ## [0.1.2] — APK menor
 
 ### Alterado

@@ -11,6 +11,14 @@ var move_speed_blocks: float = Balance.DRILL_MOVE_SPEED_BLOCKS
 var side_drill_mult: float = Balance.SIDE_DRILL_MULT
 ## Multiplicador global de eficiência (impulso, calor... nas próximas fases).
 var efficiency: float = 1.0
+## Multiplicador de recursos coletados (upgrade Coleta).
+var collect_mult: float = 1.0
+## Energia máxima (usada a partir da Fase 3).
+var max_energy: float = Balance.ENERGY_BASE_MAX
+## Redução da penalidade de calor, 0..0.9 (Fase 3).
+var cooling: float = 0.0
+## Níveis de módulos: StringName → int (Fase 3).
+var module_levels: Dictionary = {}
 
 
 static func base() -> DrillStats:
@@ -26,4 +34,8 @@ func duplicate_stats() -> DrillStats:
 	s.move_speed_blocks = move_speed_blocks
 	s.side_drill_mult = side_drill_mult
 	s.efficiency = efficiency
+	s.collect_mult = collect_mult
+	s.max_energy = max_energy
+	s.cooling = cooling
+	s.module_levels = module_levels.duplicate()
 	return s

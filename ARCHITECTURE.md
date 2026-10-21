@@ -18,6 +18,7 @@
 ```
 project.godot              configuração (retrato 720×1280, Compatibility, autoloads)
 icon.svg                   ícone original
+data/upgrades/*.tres       definições de upgrades (editáveis no Inspector)
 scenes/
   main.tscn                raiz: Game + HUD
   game/game.tscn           mundo: fundo, terreno, overlay, perfuradora, FX, câmera, input
@@ -33,6 +34,13 @@ scripts/
     block_registry.gd      BlockRegistry – tabela de blocos
     biome_def.gd           BiomeDef (Resource)
     biome_registry.gd      BiomeRegistry – faixas, paletas, regras
+    resource_def.gd        ResourceDef (Resource) – recurso coletável e preço
+    resource_registry.gd   ResourceRegistry – tabela de recursos
+    upgrade_def.gd         UpgradeDef (Resource) – definição de upgrade
+    upgrade_registry.gd    UpgradeRegistry – lista ordenada (caminhos explícitos)
+  economy/                 regras de economia, sem nós
+    economy.gd             Economy – carteira, carga, níveis de upgrade
+    progression.gd         Progression – custos, compra atômica, atributos, antes/depois
   world/                   modelo e renderização do terreno
     world_generator.gd     WorldGenerator – (seed,x,y) → id, puro
     chunk_data.gd          ChunkData – ids de um chunk
@@ -52,8 +60,12 @@ scripts/
     input_controller.gd    InputController – toque/mouse/teclado → DrillIntent
   camera/depth_camera.gd   DepthCamera – seguimento suave, limites, tremor
   fx/debris_fx.gd          DebrisFx – partículas em pool (struct-of-arrays, 1 nó)
+  fx/pickup_fx.gd          PickupFx – textos "+2 Cobre" (1 nó, pool limitado)
   game/game.gd             Game – composição e ligação dos sistemas do mundo
-  ui/hud.gd                Hud – leitura de estado, áreas de toque
+  ui/hud.gd                Hud – leitura de estado, áreas de toque, botão da garagem
+  ui/garage.gd             Garage – vender carga, abas Upgrades/Módulos (pausa o jogo)
+  ui/upgrade_card.gd       UpgradeCard – nível, antes → depois, botão de compra
+  ui/ui_theme.gd, gem_icon.gd, pad_button.gd – tema e componentes desenhados em código
   debug/autopilot.gd       Autopilot – bot de teste (--autotest) e captura de tela
   main.gd                  Main – raiz, argumentos de linha de comando
 tests/
@@ -73,9 +85,11 @@ Main (Node, main.gd)
 │   ├── Drill (Node2D, drill.gd, z=2)          scenes/gameplay/drill.tscn
 │   │   └── Visual (Node2D, drill_visual.gd)
 │   ├── DebrisFx (Node2D, z=3)
+│   ├── PickupFx (Node2D, z=4)
 │   ├── DepthCamera (Camera2D)
 │   └── InputController (Node)
-└── Hud (CanvasLayer, layer=10, hud.gd)        scenes/ui/hud.tscn
+├── Hud (CanvasLayer, layer=10, hud.gd)        scenes/ui/hud.tscn
+└── Garage (CanvasLayer, layer=20, garage.gd)  criado por main.gd; PROCESS_MODE_ALWAYS
 ```
 
 ## 4. Fluxo de dados
@@ -90,7 +104,18 @@ toque/mouse/teclado ──► InputController ──► DrillIntent ──► Dr
                      Drill.block_hit/destroyed ──► Game ──► DebrisFx, MiningOverlay, DepthCamera.shake
                                                      └──► EventBus.block_hit / block_destroyed
                      Game._process ──► GameState.update_depth() ──► EventBus.depth_changed ──► Hud
+
+Fase 2 — economia:
+  Drill.block_destroyed ──► Game ──► GameState.collect_drops() ──► Economy.collect(drops × coleta)
+                                                    └─► EventBus.resources_collected ──► PickupFx
+                                                    └─► EventBus.wallet_changed / cargo_changed ──► Hud, Garage
+  Garage (botão) ──► GameState.sell_cargo() / buy_upgrade() ──► Progression.try_buy()
+                                         └─► GameState.stats = Progression.build_stats(níveis)
+                                         └─► EventBus.stats_changed ──► Game ──► Drill.stats
 ```
+
+Regra: **toda mutação de economia passa por GameState**, que publica os eventos. `Economy`
+e `Progression` são puros (testados sem cena); a UI apenas lê e chama GameState.
 
 ## 5. Sinais (EventBus)
 
@@ -101,6 +126,13 @@ toque/mouse/teclado ──► InputController ──► DrillIntent ──► Dr
 | `depth_changed` | `depth_m: int, max_depth_m: int` | GameState | Hud, Prestígio (4) |
 | `biome_changed` | `biome_id: int` | GameState | Hud, Áudio (5), Calor (3) |
 | `run_started` | `seed: int` | GameState | Hud |
+| `resources_collected` | `cell: Vector2i, gained: Dictionary` | GameState | PickupFx (via Game), Áudio (5) |
+| `wallet_changed` | `credits: int, crystals: int` | GameState | Hud, Garage |
+| `cargo_changed` | `item_count: int, value: int` | GameState | Hud, Garage |
+| `cargo_sold` | `credits_gained: int` | GameState | Áudio (5), Save (4) |
+| `upgrade_purchased` | `id: StringName, new_level: int` | GameState | Save (4) se `important`, Áudio (5) |
+| `stats_changed` | – | GameState | Game → Drill |
+| `garage_opened` / `garage_closed` | – | Garage | InputController (limpa toques), Save (4) |
 
 Sinais locais: `WorldModel.cell_changed(cell)`, `WorldModel.chunk_generated(index)`,
 `Drill.block_hit(...)`, `Drill.block_destroyed(...)`, `Drill.blocked_by_unbreakable(cell)`.
@@ -147,8 +179,8 @@ ignorados (`Hud.is_point_blocking`). Teclado (`←→AD`, `↓ S Espaço`) é so
 
 | Fase | Encaixe |
 |---|---|
-| 2 – Economia | `Inventory` e `ProgressionService` como autoloads; `UpgradeDef` (Resource) em `data/upgrades/`; Garagem em `scenes/ui/garage.tscn`; ouvintes de `EventBus.block_destroyed`. |
-| 3 – Módulos/energia/calor | `ModuleDef` + `ModuleSystem` (nós filhos de `Drill` que reagem a `block_hit`); `SynergyRules` declarativas; `HeatRules` em `gameplay/`; `DrillVisual.set_modules()`. |
+| 2 – Economia | ✅ `Economy` + `Progression` (puros) sob `GameState`; `UpgradeDef` em `data/upgrades/`; `Garage` (CanvasLayer em código). |
+| 3 – Módulos/energia/calor | `ModuleDef` + `ModuleSystem` (nós filhos de `Drill` que reagem a `block_hit`); `SynergyRules` declarativas; `HeatRules` em `gameplay/`; `DrillVisual.set_modules()`. Upgrades já existem e só precisam de `available_from_phase = 3` → liberação; efeitos leem `DrillStats.max_energy`, `cooling`, `module_levels`. Aba Módulos da garagem já existe. |
 | 4 – Prestígio/persistência | `SaveService` (temp + rename, `schema_version`, validação), `WorldModel.export_mods()/import_mods()`, `PrestigeService` com `run_id`. |
 | 5 – Polimento | `AudioService` + buses `Music/SFX/UI`, preset de qualidade (`Balance.QUALITY`), export Android. |
 

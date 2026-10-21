@@ -7,6 +7,7 @@ extends Node2D
 @onready var overlay: MiningOverlay = $MiningOverlay
 @onready var drill: Drill = $Drill
 @onready var fx: DebrisFx = $DebrisFx
+@onready var pickups: PickupFx = $PickupFx
 @onready var camera: DepthCamera = $DepthCamera
 @onready var input: InputController = $InputController
 
@@ -18,6 +19,8 @@ func _ready() -> void:
 	drill.block_destroyed.connect(_on_block_destroyed)
 	drill.blocked_by_unbreakable.connect(_on_unbreakable)
 	input.drill = drill
+	EventBus.stats_changed.connect(_apply_stats)
+	EventBus.resources_collected.connect(_on_resources_collected)
 
 
 ## start_row >= 0 (apenas debug) abre um bolsão e começa naquela profundidade.
@@ -32,6 +35,7 @@ func start_run(world_seed: int, start_row: int = -1) -> void:
 		world.set_block(spawn, BlockRegistry.AIR)
 		world.set_block(spawn + Vector2i.UP, BlockRegistry.AIR)
 	drill.setup(world, spawn, world_seed)
+	_apply_stats()
 	camera.target = drill
 	camera.snap_to_target()
 	terrain.setup(world, camera)
@@ -68,9 +72,18 @@ func _on_block_destroyed(cell: Vector2i, block_id: int) -> void:
 	camera.add_shake(0.32 if def.special != &"" else 0.22)
 	GameState.register_block_broken()
 	EventBus.block_destroyed.emit(cell, block_id, def.drops.duplicate())
+	GameState.collect_drops(cell, def.drops)
 
 
 func _on_unbreakable(cell: Vector2i) -> void:
 	var dir := Vector2(drill.drill_dir)
 	fx.sparks(WorldModel.cell_center(cell) - dir * Balance.BLOCK_PX * 0.5, 5)
 	camera.add_shake(0.08)
+
+
+func _apply_stats() -> void:
+	drill.stats = GameState.stats
+
+
+func _on_resources_collected(cell: Vector2i, gained: Dictionary) -> void:
+	pickups.show_gain(WorldModel.cell_center(cell) + Vector2(0, -Balance.BLOCK_PX * 0.3), gained)

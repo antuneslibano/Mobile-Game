@@ -12,6 +12,11 @@ var _intent := DrillIntent.new()
 var _touches: Dictionary = {}   ## índice → { "kind": StringName, "pos": Vector2 }
 
 
+func _ready() -> void:
+	# A garagem pausa o jogo: toques soltos durante a pausa não chegariam aqui.
+	EventBus.garage_opened.connect(func() -> void: _touches.clear())
+
+
 func get_intent() -> DrillIntent:
 	return override_intent if override_intent != null else _intent
 

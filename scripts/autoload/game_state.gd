@@ -1,11 +1,15 @@
 extends Node
-## Estado da corrida atual. Na Fase 4 é serializado pelo SaveService.
+## Estado da corrida atual (profundidade, economia, upgrades).
+## Toda mutação passa por aqui para que os eventos sejam publicados no EventBus.
+## Na Fase 4 é serializado pelo SaveService.
 
 var world_seed: int = 0
 var depth_m: int = 0
 var max_depth_m: int = 0
 var biome_id: int = BiomeRegistry.CRUST
 var blocks_broken: int = 0
+var economy := Economy.new()
+var stats: DrillStats = DrillStats.base()
 
 
 ## Inicia uma nova corrida. seed < 0 = aleatória.
@@ -19,9 +23,13 @@ func new_run(p_seed: int = -1) -> void:
 	max_depth_m = 0
 	blocks_broken = 0
 	biome_id = BiomeRegistry.CRUST
+	economy = Economy.new()
+	stats = Progression.build_stats(economy.upgrade_levels)
 	EventBus.run_started.emit(world_seed)
 	EventBus.depth_changed.emit(depth_m, max_depth_m)
 	EventBus.biome_changed.emit(biome_id)
+	_emit_economy()
+	EventBus.stats_changed.emit()
 
 
 func update_depth(d: int) -> void:
@@ -38,3 +46,38 @@ func update_depth(d: int) -> void:
 
 func register_block_broken() -> void:
 	blocks_broken += 1
+
+
+# --- Economia -------------------------------------------------------------------
+
+## Coleta os drops de um bloco aplicando o multiplicador de Coleta.
+func collect_drops(cell: Vector2i, drops: Dictionary) -> Dictionary:
+	var gained: Dictionary = economy.collect(drops, stats.collect_mult)
+	if not gained.is_empty():
+		EventBus.resources_collected.emit(cell, gained)
+		_emit_economy()
+	return gained
+
+
+func sell_cargo() -> int:
+	var value: int = economy.sell_all()
+	if value > 0:
+		EventBus.cargo_sold.emit(value)
+	_emit_economy()
+	return value
+
+
+func buy_upgrade(id: StringName) -> bool:
+	var def: UpgradeDef = UpgradeRegistry.get_def(id)
+	if def == null or not Progression.try_buy(economy, def):
+		return false
+	stats = Progression.build_stats(economy.upgrade_levels)
+	EventBus.upgrade_purchased.emit(id, economy.get_level(id))
+	EventBus.stats_changed.emit()
+	_emit_economy()
+	return true
+
+
+func _emit_economy() -> void:
+	EventBus.wallet_changed.emit(economy.credits, economy.crystals)
+	EventBus.cargo_changed.emit(economy.cargo_count(), economy.cargo_value())

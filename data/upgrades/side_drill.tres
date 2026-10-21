@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="UpgradeDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/upgrade_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"side_drill"
+display_name = "Broca lateral"
+description = "Módulo: golpeia blocos ao lado ao perfurar."
+currency = &"credits"
+base_cost = 300.0
+cost_growth = 1.55
+max_level = 10
+stat = &"side_drill"
+step = 1.0
+available_from_phase = 3
+important = true
+color = Color(0.949, 0.702, 0.2392, 1)

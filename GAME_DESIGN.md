@@ -99,23 +99,23 @@ Cristalinas ~29%, Magmática ~21%, Abismo ~23% (teste `test_biome_content_and_ca
 | id | Bloco | HP | Dureza | Drops | Bioma |
 |---|---|---|---|---|---|
 | 0 | Ar | – | – | – | – |
-| 1 | Terra | 6 | 0 | terra ×1 | Crosta |
-| 2 | Pedra | 14 | 1 | pedra ×1 | Crosta |
-| 3 | Cobre | 18 | 1 | cobre ×1 | Crosta |
-| 4 | Ferro | 26 | 2 | ferro ×1 | Crosta |
+| 1 | Terra | 12 | 0 | terra ×1 | Crosta |
+| 2 | Pedra | 30 | 1 | pedra ×1 | Crosta |
+| 3 | Cobre | 36 | 1 | cobre ×1 | Crosta |
+| 4 | Ferro | 48 | 2 | ferro ×1 | Crosta |
 | 5 | Rocha-mãe | ∞ | – | – | paredes/fundo |
-| 6 | Baú soterrado | 10 | 0 | cobre ×3, ferro ×2 | Crosta (raro, especial) |
-| 7 | Rocha cristalina | 30 | 3 | pedra ×1 | Cristalinas |
-| 8 | Rocha dura | 45 | 5 | pedra ×2 | Cristalinas |
-| 9 | Cristal | 35 | 3 | cristal ×1 | Cristalinas |
-| 10 | Ametista | 50 | 4 | ametista ×1, cristal ×1 | Cristalinas |
-| 11 | Basalto | 70 | 8 | basalto ×1 | Magmática |
-| 12 | Rocha magmática | 90 | 10 | basalto ×1 | Magmática |
-| 13 | Ouro | 85 | 9 | ouro ×1 | Magmática |
-| 14 | Rubi | 110 | 11 | rubi ×1 | Magmática |
-| 15 | Pedra abissal | 150 | 16 | pedra abissal ×1 | Abismo |
-| 16 | Vazionita | 200 | 18 | vazionita ×1 | Abismo |
-| 17 | Artefato | 120 | 12 | artefato ×1 | Abismo (raro, especial) |
+| 6 | Baú soterrado | 14 | 0 | cobre ×3, ferro ×2, cristal ×1 | Crosta (raro, especial) |
+| 7 | Rocha cristalina | 60 | 4 | pedra ×3 | Cristalinas |
+| 8 | Rocha dura | 110 | 7 | pedra ×5 | Cristalinas |
+| 9 | Cristal | 70 | 4 | cristal ×1 | Cristalinas |
+| 10 | Ametista | 100 | 6 | ametista ×1, cristal ×1 | Cristalinas |
+| 11 | Basalto | 220 | 14 | basalto ×1 | Magmática |
+| 12 | Rocha magmática | 320 | 18 | basalto ×1 | Magmática |
+| 13 | Ouro | 260 | 16 | ouro ×1 | Magmática |
+| 14 | Rubi | 360 | 20 | rubi ×1 | Magmática |
+| 15 | Pedra abissal | 700 | 30 | pedra abissal ×1 | Abismo |
+| 16 | Vazionita | 1000 | 34 | vazionita ×1 | Abismo |
+| 17 | Artefato | 500 | 24 | artefato ×1, cristal ×3 | Abismo (raro, especial) |
 
 ### 5.5 Distribuição de minérios (`[T]` em `WorldGenerator.ORE_TABLES`)
 Cada bioma tem uma tabela `(bloco, chance base, profundidade mínima)`. Um veio
@@ -126,7 +126,7 @@ Cada bioma tem uma tabela `(bloco, chance base, profundidade mínima)`. Um veio
 | Atributo (Fase 1, base) `[T]` | Valor |
 |---|---|
 | Dano por golpe | 4 |
-| Golpes por segundo | 6 |
+| Golpes por segundo | 5 |
 | Chance de crítico | 5% |
 | Multiplicador crítico | 2.0× |
 | Velocidade horizontal | 4.5 blocos/s |
@@ -149,31 +149,65 @@ Feedback: tremor da máquina e da câmera, poeira/lascas na cor do bloco, faísc
 críticos e em rocha-mãe, rachaduras em 4 estágios sobre o bloco, partículas de
 destruição.
 
-## 7. Progressão (Fases 2–4, especificado agora para preparar a arquitetura)
+## 7. Progressão
 
-### 7.1 Moedas
-- **Créditos** – venda de minérios na garagem.
-- **Cristais** – depósitos especiais (cristal, ametista, baús, artefatos).
-- **Núcleos Antigos** – apenas por prestígio.
+### 7.1 Moedas e recursos (Fase 2 — implementado)
+- **Créditos** – venda da carga na garagem (`ResourceRegistry`, preço por unidade `[T]`).
+- **Cristais** – vão direto para a carteira ao coletar cristal (blocos de cristal, ametista,
+  baús e artefatos). Não ocupam carga.
+- **Núcleos Antigos** – apenas por prestígio (Fase 4).
 
-### 7.2 Upgrades
-Custo: `custo(n) = custo_base × crescimento^n`, arredondado. Limite `max_level`.
-Efeito: `valor(n) = base + passo × n` (ou multiplicativo, por upgrade).
+| Recurso | Preço (Créditos) | Recurso | Preço |
+|---|---|---|---|
+| Terra | 1 | Basalto | 30 |
+| Pedra | 2 | Ouro | 60 |
+| Cobre | 8 | Rubi | 120 |
+| Ferro | 15 | Pedra abissal | 90 |
+| Ametista | 40 | Vazionita | 200 |
+| Artefato | 500 | Cristal | → Cristais |
 
-| Upgrade | Moeda | Custo base | Cresc. | Máx | Efeito por nível |
-|---|---|---|---|---|---|
-| Dano | Créditos | 25 | 1.35 | 50 | +2 dano |
-| Velocidade | Créditos | 40 | 1.40 | 30 | +8% golpes/s |
-| Crítico | Créditos | 60 | 1.45 | 20 | +2% chance |
-| Capacidade de energia | Créditos | 50 | 1.40 | 20 | +15 energia |
-| Coleta | Créditos | 80 | 1.50 | 15 | +10% recursos |
-| Impulso | Cristais | 3 | 1.60 | 10 | +0.5 s duração, +10% força |
-| Broca lateral | Créditos | 300 | 1.55 | 10 | desbloqueia/melhora módulo |
-| Drone | Cristais | 10 | 1.70 | 10 | desbloqueia/melhora módulo |
-| Pulso sísmico | Cristais | 15 | 1.70 | 10 | desbloqueia/melhora módulo |
-| Refrigeração | Créditos | 400 | 1.55 | 15 | −6% penalidade de calor |
+A **carga não tem limite** e a **garagem abre de qualquer profundidade** (botão no HUD),
+pausando o jogo. Assim sessões curtas sempre terminam com uma compra.
 
-Toda compra mostra **antes → depois**.
+Coleta: `ganho = drops × multiplicador_de_coleta`; a parte fracionária acumula por recurso
+entre coletas (determinístico, sem sorteio): com +10%, 10 blocos de terra rendem 11.
+
+### 7.2 Upgrades (`data/upgrades/*.tres`)
+Custo do nível n → n+1: `round(custo_base × crescimento^n)`. Limite `max_level`.
+Fórmulas em `Progression` (único lugar onde upgrades viram atributos).
+
+| Upgrade | Moeda | Custo base | Cresc. | Máx | Efeito por nível | Status |
+|---|---|---|---|---|---|---|
+| Dano | Créditos | 25 | 1.45 | 50 | +2 dano | ✅ Fase 2 |
+| Velocidade | Créditos | 40 | 1.50 | 30 | +8% golpes/s | ✅ Fase 2 |
+| Crítico | Créditos | 60 | 1.55 | 20 | +2% chance (máx. 75%) | ✅ Fase 2 |
+| Coleta | Créditos | 80 | 1.60 | 15 | +10% recursos | ✅ Fase 2 |
+| Capacidade de energia | Créditos | 50 | 1.40 | 20 | +15 energia | Fase 3 |
+| Impulso | Cristais | 3 | 1.60 | 10 | +10% força/duração | Fase 3 |
+| Broca lateral | Créditos | 300 | 1.55 | 10 | nível do módulo | Fase 3 |
+| Drone | Cristais | 10 | 1.70 | 10 | nível do módulo | Fase 3 |
+| Pulso sísmico | Cristais | 15 | 1.70 | 10 | nível do módulo | Fase 3 |
+| Refrigeração | Créditos | 400 | 1.55 | 15 | −6% penalidade de calor | Fase 3 |
+
+Upgrades de fases futuras aparecem na garagem como **"Em breve"** (já com prévia).
+Toda compra mostra **antes → depois** do atributo efetivo. A compra é atômica: ou debita
+e sobe o nível, ou não muda nada.
+
+### 7.2.1 Ritmo-alvo (validado por simulação)
+`test_balance_simulation_greedy_player` simula 10 min de um jogador que perfura sem parar e,
+a cada 15 s, vende tudo e compra o upgrade mais barato. Resultado atual (seed 2024):
+
+| Marco | Tempo |
+|---|---|
+| 50 m | ~42 s |
+| 100 m (fim da Crosta) | ~1,5 min |
+| 150 m | ~5 min |
+| 200 m | ~6,5 min |
+| 10 min | ~300 m, 17 upgrades |
+
+A Zona Magmática (dureza 14+) é um paredão intencional para a base atual: Refrigeração,
+módulos e impulso (Fase 3) e prestígio (Fase 4) são as respostas. O teste exige 50 m entre
+30 s e 5 min, 120–450 m em 10 min e ao menos 10 upgrades.
 
 ### 7.3 Módulos (Fase 3)
 3 slots iniciais. Broca lateral (golpeia blocos adjacentes), Drone minerador

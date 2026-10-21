@@ -51,4 +51,29 @@ static func _build() -> Theme:
 	t.set_stylebox("fill", "ProgressBar", bar_fill)
 	t.set_color("font_color", "ProgressBar", TEXT)
 	t.set_font_size("font_size", "ProgressBar", FONT_SMALL)
+
+	# Botões: grandes, contrastados, com estado pressionado visível.
+	t.set_stylebox("normal", "Button", panel_box(Color("2e2636"), PANEL_EDGE.lightened(0.2), 16, 3))
+	t.set_stylebox("hover", "Button", panel_box(Color("3a3044"), ACCENT.darkened(0.2), 16, 3))
+	t.set_stylebox("pressed", "Button", panel_box(ACCENT.darkened(0.25), ACCENT, 16, 3))
+	t.set_stylebox("hover_pressed", "Button", panel_box(ACCENT.darkened(0.2), ACCENT, 16, 3))
+	t.set_stylebox("disabled", "Button", panel_box(Color("1c1722"), Color("2c2533"), 16, 3))
+	t.set_stylebox("focus", "Button", StyleBoxEmpty.new())
+	t.set_color("font_color", "Button", TEXT)
+	t.set_color("font_hover_color", "Button", TEXT)
+	t.set_color("font_pressed_color", "Button", BG)
+	t.set_color("font_hover_pressed_color", "Button", BG)
+	t.set_color("font_disabled_color", "Button", TEXT_DIM.darkened(0.3))
+	t.set_font_size("font_size", "Button", FONT_NORMAL)
 	return t
+
+
+## Botão de destaque (ação principal: vender, comprar).
+static func accent_button(b: Button, color: Color = ACCENT) -> void:
+	b.add_theme_stylebox_override("normal", panel_box(color.darkened(0.1), color.lightened(0.25), 16, 3))
+	b.add_theme_stylebox_override("hover", panel_box(color, color.lightened(0.35), 16, 3))
+	b.add_theme_stylebox_override("pressed", panel_box(color.darkened(0.35), color, 16, 3))
+	b.add_theme_stylebox_override("hover_pressed", panel_box(color.darkened(0.35), color, 16, 3))
+	b.add_theme_color_override("font_color", BG)
+	b.add_theme_color_override("font_hover_color", BG)
+	b.add_theme_color_override("font_pressed_color", BG)

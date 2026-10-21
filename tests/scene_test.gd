@@ -116,6 +116,36 @@ func _run() -> void:
 	_check(cam_y > 0.0 and absf(cam_y - game.drill.global_position.y) < 700.0, "câmera acompanha a profundidade")
 	_check(hud.get_node("Root").find_child("*", true, false) != null, "HUD construído")
 
+	# --- Garagem / economia (Fase 2) ---
+	var econ: Economy = GameState.economy
+	_check(econ.cargo_count() > 0, "carga coletada ao quebrar blocos (%d itens)" % econ.cargo_count())
+	var garage: Garage = main.get("garage")
+	var gbutton: Button = hud.find_child("GarageButton", true, false)
+	_check(gbutton != null and gbutton.text.begins_with("GARAGEM  +"), "botão da garagem mostra valor da carga (%s)" % gbutton.text)
+	gbutton.pressed.emit()
+	await _frames(2)
+	_check(garage.is_open() and get_tree().paused, "garagem abre e pausa o jogo")
+	var value: int = econ.cargo_value()
+	var sell: Button = garage.find_child("SellButton", true, false)
+	sell.pressed.emit()
+	await _frames(1)
+	_check(econ.credits == value and econ.cargo_count() == 0, "vender tudo credita %d Créditos" % value)
+	sell.pressed.emit()
+	_check(econ.credits == value, "vender de novo não duplica")
+	econ.credits += 1000
+	var dmg_before: float = game.drill.stats.damage
+	var card: UpgradeCard = garage.find_child("Card_damage", true, false)
+	_check(card != null, "cartão de upgrade de dano existe")
+	var bought: bool = garage.buy(&"damage")
+	await _frames(1)
+	_check(bought and econ.get_level(&"damage") == 1, "comprou Dano nível 1")
+	_check(game.drill.stats.damage > dmg_before, "perfuradora recebeu o novo dano (%.0f → %.0f)" % [dmg_before, game.drill.stats.damage])
+	_check(not garage.buy(&"drone"), "módulo da Fase 3 bloqueado")
+	var close_b: Button = garage.find_child("CloseButton", true, false)
+	close_b.pressed.emit()
+	await _frames(2)
+	_check(not garage.is_open() and not get_tree().paused, "garagem fecha e retoma o jogo")
+
 	print("")
 	print("%d verificações, %d falhas" % [_checks, _fail])
 	main.queue_free()

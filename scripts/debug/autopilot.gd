@@ -11,6 +11,11 @@ var duration: float = 30.0
 ## Capturas: Array de [tempo_s, caminho_png].
 var shots: Array = []
 var drive: bool = true
+## Vende e compra o upgrade mais barato periodicamente (simula a garagem).
+var shop: bool = true
+## Abre a garagem neste instante (s) para capturas; < 0 = nunca.
+var open_garage_at: float = -1.0
+var garage: Garage
 
 var _t: float = 0.0
 var _intent := DrillIntent.new()
@@ -21,9 +26,12 @@ var _hits: int = 0
 var _crits: int = 0
 var _finished: bool = false
 var _rng := RandomNumberGenerator.new()
+var _next_shop: float = 12.0
+var _bought: int = 0
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_rng.seed = 1234
 	if drive:
 		game.input.override_intent = _intent
@@ -52,8 +60,29 @@ func _physics_process(delta: float) -> void:
 			else:
 				_intent.move = -1.0 if _rng.randf() < 0.5 else 1.0
 				_plan_left = 0.9
+	if shop and _t >= _next_shop:
+		_next_shop += 12.0
+		_shop()
+	if open_garage_at >= 0.0 and _t >= open_garage_at and garage != null:
+		open_garage_at = -1.0
+		garage.open()
 	if _t >= duration:
 		_finish()
+
+
+func _shop() -> void:
+	GameState.sell_cargo()
+	var progress: bool = true
+	while progress:
+		progress = false
+		var best: UpgradeDef = null
+		for u in UpgradeRegistry.all():
+			if Progression.buy_status(GameState.economy, u) == Progression.BuyStatus.OK:
+				if best == null or Progression.cost(u, GameState.economy.get_level(u.id)) < Progression.cost(best, GameState.economy.get_level(best.id)):
+					best = u
+		if best != null and GameState.buy_upgrade(best.id):
+			_bought += 1
+			progress = true
 
 
 func _process(_delta: float) -> void:
@@ -85,6 +114,9 @@ func _finish() -> void:
 	print("[autotest] chunks_gerados=%d geração_média=%.3fms geração_máx=%.3fms carregados=%d renderers=%d mods=%d" % [
 			w.stats_generated, avg_ms, float(w.stats_gen_max_usec) / 1000.0, w.loaded_chunk_indices().size(),
 			game.terrain.active_count(), w.modified_cell_count()])
+	print("[autotest] créditos=%d cristais=%d carga=%d upgrades_comprados=%d níveis=%s" % [
+			GameState.economy.credits, GameState.economy.crystals, GameState.economy.cargo_count(), _bought,
+			str(GameState.economy.upgrade_levels)])
 	print("[autotest] quadros=%d partículas_vivas=%d violações=%d" % [_frames, game.fx.alive_count(), _violations])
 	print("[autotest] RESULTADO: %s" % ("PASSOU" if ok else "FALHOU"))
 	# Aguarda capturas pendentes.
