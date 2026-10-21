@@ -16,6 +16,9 @@ var shop: bool = true
 ## Abre a garagem neste instante (s) para capturas; < 0 = nunca.
 var open_garage_at: float = -1.0
 var garage_tab_modules: bool = false
+var world_map: WorldMap
+var open_map_at: float = -1.0
+var map_page: int = -1
 var garage: Garage
 
 var _t: float = 0.0
@@ -69,6 +72,11 @@ func _physics_process(delta: float) -> void:
 	if shop and _t >= _next_shop:
 		_next_shop += 12.0
 		_shop()
+	if open_map_at >= 0.0 and _t >= open_map_at and world_map != null:
+		open_map_at = -1.0
+		world_map.open()
+		if map_page >= 0:
+			world_map.go_to_page(map_page, true)
 	if open_garage_at >= 0.0 and _t >= open_garage_at and garage != null:
 		open_garage_at = -1.0
 		garage.open()

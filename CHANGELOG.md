@@ -3,6 +3,30 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.6.0] — Minérios, terrenos e mapa mundial
+
+### Adicionado
+- **Mapa mundial** em carrossel: uma região por página com ilustração (ilha flutuante),
+  deslizar horizontal com encaixe suave, setas laterais e indicadores de página; painel com
+  nome, descrição, dificuldade, progresso, camadas de profundidade, principais recursos,
+  riscos ambientais, equipamentos recomendados e botão EXPLORAR (desativado se bloqueada).
+- **Seis regiões** com camadas próprias: Vale das Raízes, Dunas de Âmbar, Cordilheira de
+  Ferro, Pântano das Profundezas, Abismo de Obsidiana e Vazio Cristalino. Desbloqueio por
+  profundidade alcançada na região anterior (sem moedas novas).
+- **Salvamento do perfil** (antes não havia): economia, upgrades, módulos, carga, região atual
+  e progresso por região; escrita atômica com cópia de segurança.
+- Terrenos novos (areia, argila, gelo, lama) e depósitos novos (carvão, prata, quartzo,
+  esmeralda, titânio, urânio, obsidiana, diamante, cristal raro) e especiais (fóssil, meteorito).
+- Ícones de catálogo dos minérios para os painéis; botão de mapa no HUD.
+- Testes: `test_regions.gd`, `test_save.gd` e verificações do mapa no teste de cena.
+
+### Alterado
+- **Terra e Pedra** são terreno (textura macia × pedra compacta), mantendo a recompensa
+  que já existia. Depósitos viram **pequenas pepitas/lascas** embutidas na rocha, com
+  contorno e cores distintas — sem nomes nem molduras durante a mineração.
+- Biomas fixos substituídos pelas camadas da região escolhida; calor começa por região.
+- "Vazionita" passa a se chamar **Minério arcano**.
+
 ## [0.5.0] — Nova nave e interface no estilo da referência
 
 ### Adicionado

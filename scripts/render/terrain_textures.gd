@@ -43,24 +43,36 @@ static func get_noise() -> ImageTexture:
 	return _noise
 
 
-static func build_palette() -> Image:
-	var img := Image.create(PALETTE_COLS, BlockRegistry.COUNT + BiomeRegistry.COUNT, false, Image.FORMAT_RGBA8)
+static func build_palette(layers: Array[BiomeDef] = []) -> Image:
+	if layers.is_empty():
+		layers = BiomeRegistry.layers()
+	var img := Image.create(PALETTE_COLS, BlockRegistry.COUNT + BiomeRegistry.MAX_LAYERS, false, Image.FORMAT_RGBA8)
 	for def: BlockDef in BlockRegistry.all():
 		var light: Color = def.color_accent if def.art == BlockDef.Art.STONE else def.color_base.lightened(0.16)
 		var row: Array[Color] = [
 			def.color_base, def.color_dark, light,
 			def.color_accent, def.color_accent.darkened(0.35), def.color_accent.lightened(0.45),
-			Color(float(def.art) / 255.0, 0, 0, 1), Color.BLACK,
+			Color(float(def.art) / 255.0, 0, 0, 1),
+			# Coluna 7: brilho próprio (urânio).
+			Color(1, 0, 0, 1) if def.id == BlockRegistry.URANIUM else Color.BLACK,
 		]
 		for c in PALETTE_COLS:
 			img.set_pixel(c, def.id, row[c])
-	for b in BiomeRegistry.COUNT:
-		var biome: BiomeDef = BiomeRegistry.get_def(b)
+	for b in BiomeRegistry.MAX_LAYERS:
+		var biome: BiomeDef = layers[mini(b, layers.size() - 1)]
 		var r: int = biome_row() + b
 		img.set_pixel(0, r, biome.back_color)
 		img.set_pixel(1, r, biome.back_color.darkened(0.3))
 		img.set_pixel(2, r, biome.back_color.lightened(0.07))
 	return img
+
+
+## Atualiza as cores de fundo das camadas para a região ativa.
+static func apply_layers(layers: Array[BiomeDef]) -> void:
+	if _palette == null:
+		_palette = ImageTexture.create_from_image(build_palette(layers))
+	else:
+		_palette.update(build_palette(layers))
 
 
 ## RGBA: r = bordas (~28 px), g/b = deformação de materiais (~110 px), a = textura (~25 px).

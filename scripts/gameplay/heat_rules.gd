@@ -1,13 +1,17 @@
 class_name HeatRules
 extends RefCounted
-## Calor ambiental a partir de 300 m (GAME_DESIGN.md §7.5). Reduz a velocidade de
-## perfuração; nunca destrói recursos. Refrigeração reduz a penalidade.
+## Calor ambiental a partir de uma profundidade que depende da região (300 m por padrão;
+## desde a superfície no Abismo de Obsidiana). Reduz a velocidade de perfuração; nunca
+## destrói recursos. Refrigeração reduz a penalidade.
+
+## Profundidade de início do calor na região ativa.
+static var heat_start_m: int = Balance.HEAT_START_M
 
 
 static func heat_at(depth_m: int) -> float:
-	if depth_m < Balance.HEAT_START_M:
+	if depth_m < heat_start_m:
 		return 0.0
-	return clampf(float(depth_m - Balance.HEAT_START_M) * Balance.HEAT_PER_M, 0.0, Balance.HEAT_MAX)
+	return clampf(float(depth_m - heat_start_m) * Balance.HEAT_PER_M, 0.0, Balance.HEAT_MAX)
 
 
 ## Fração de eficiência perdida (0..HEAT_PENALTY_MAX), já com a refrigeração aplicada.

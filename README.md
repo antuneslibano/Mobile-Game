@@ -35,6 +35,12 @@ godot --path . -- --seed=42          # mundo fixo
 | Para cima | nada — **a broca não sobe** | – |
 | Sobrecarga (só com a barra de energia cheia) | botão no canto inferior direito | `Shift` |
 | Garagem (vender, upgrades, módulos) | botão **GARAGEM** no topo | clique; `Esc` fecha |
+| Mapa mundial (escolher região) | botão de mapa ao lado da garagem; deslize para os lados | arraste/setas na tela; `Esc` fecha |
+
+Ao abrir, o jogo mostra o **mapa mundial**: deslize para escolher entre seis regiões
+(uma por página) e toque em **EXPLORAR**. Regiões bloqueadas mostram o requisito (profundidade
+na região anterior). O progresso (economia, upgrades, módulos, carga, profundidade máxima por
+região) é **salvo automaticamente** em `user://deepforge_profile.json`.
 
 Você desenha o próprio túnel: a máquina escava na direção do joystick e avança conforme o
 material cede. A energia enche cavando — minérios e cristais enchem muito mais.
@@ -50,8 +56,8 @@ Executa, em modo headless:
 | Etapa | Comando | O que verifica |
 |---|---|---|
 | Importação | `godot --headless --path . --import` | projeto abre, cache de classes, sem erros de parser |
-| Unitários | `godot --headless --path . -s res://tests/run_tests.gd` | 47 testes: escavação livre (diagonal desenha o túnel, horizontal nivelado, nada escavado acima, para cima não move, sem atravessar a 20 FPS), joystick em qualquer ângulo, energia que não regenera e Sobrecarga só com barra cheia, carga por valor do material, calor, módulos, sinergia, slots; dados, determinismo da seed, biomas, cavernas, threads, modificações/JSON, dano, fórmulas, física da perfuradora (sem atravessar blocos a 60/30/20 FPS), paredes, pulo, perfuração lateral, atlas, economia (coleta, frações, venda sem duplicação), progressão (custos, compra atômica, limites, bloqueios, antes/depois) e simulação de balanceamento de 10 min |
-| Integração | `godot --headless --path . --fixed-fps 60 res://tests/scene_test.tscn` | 38 verificações (inclui joystick na diagonal) com toques simulados: joystick (zona morta, baixo, lados, analógico, para cima), multitoque joystick + impulso, setas removidas, barra superior ignorada, descida real, eventos de bloco, câmera; garagem: vender, comprar, efeito na máquina, módulos (equipar automático, slots, remover/equipar) |
+| Unitários | `godot --headless --path . -s res://tests/run_tests.gd` | regiões (registro, camadas contíguas, desbloqueio, progresso, terreno × depósito, gerador por região, ícones), salvamento (ida e volta, arquivo corrompido, `.bak`, validação da economia), escavação livre (diagonal desenha o túnel, horizontal nivelado, nada escavado acima, para cima não move, sem atravessar a 20 FPS), joystick em qualquer ângulo, energia que não regenera e Sobrecarga só com barra cheia, carga por valor do material, calor, módulos, sinergia, slots; dados, determinismo da seed, biomas, cavernas, threads, modificações/JSON, dano, fórmulas, física da perfuradora (sem atravessar blocos a 60/30/20 FPS), paredes, pulo, perfuração lateral, atlas, economia (coleta, frações, venda sem duplicação), progressão (custos, compra atômica, limites, bloqueios, antes/depois) e simulação de balanceamento de 10 min |
+| Integração | `godot --headless --path . --fixed-fps 60 res://tests/scene_test.tscn` | 58 verificações com toques simulados: mapa (abre ao iniciar, deslizar troca/encaixa a página, arrasto curto não troca, setas, região bloqueada desativa EXPLORAR, desbloqueio, mergulho em outra região com as camadas certas, mineração lá, perfil salvo/restaurado), joystick (zona morta, baixo, lados, analógico, para cima), multitoque joystick + impulso, setas removidas, barra superior ignorada, descida real, eventos de bloco, câmera; garagem: vender, comprar, efeito na máquina, módulos (equipar automático, slots, remover/equipar) |
 | Sessão | `godot --headless --path . --fixed-fps 60 -- --seed=42 --autotest=30` | bot joga 30 s, verifica a invariante de colisão a cada passo e imprime métricas |
 
 ### Argumentos de depuração (após `--`)
@@ -67,6 +73,10 @@ Executa, em modo headless:
 | `--open-garage-at=T` | com `--autotest`, abre a garagem em T segundos |
 | `--garage-tab=modules` | abre a garagem na aba Módulos |
 | `--grant-credits=N`, `--grant-crystals=N` | moedas iniciais (só builds de depuração) |
+| `--region=ID` | começa na região (`vale`, `dunas`, `cordilheira`, `pantano`, `abismo`, `vazio`) |
+| `--unlock-all` | libera todas as regiões (só builds de depuração; desliga o salvamento nessa sessão) |
+| `--no-map` | não abre o mapa ao iniciar |
+| `--map-at=T`, `--map-page=N` | com `--autotest`, abre o mapa em T segundos na página N |
 
 Captura de telas sem monitor (Linux):
 
@@ -144,12 +154,16 @@ Instalar: `adb install -r build/deepforge.apk`, ou copie o APK para o celular e 
 | 1 | Projeto, máquina, terreno, câmera, controle, mineração | ✅ concluída |
 | 2 | Recursos, inventário, garagem, economia, upgrades | ✅ concluída |
 | 3 | Escavação livre, terreno orgânico, joystick, módulos, energia/Sobrecarga, calor, sinergias | ✅ concluída |
-| 4 | Prestígio, persistência, testes, balanceamento | pendente |
+| — | Mapa mundial com 6 regiões, terrenos × depósitos, salvamento do perfil | ✅ |
+| 4 | Prestígio, testes, balanceamento | pendente |
 | 5 | Arte, efeitos, áudio, otimização, exportação Android | pendente |
 
-## Limitações conhecidas (Fase 3)
+## Limitações conhecidas
 
-- **Sem salvamento** (Fase 4): fechar o app perde a corrida, inclusive upgrades e módulos.
+- O salvamento guarda o perfil, não o túnel: ao reabrir, a exploração recomeça na superfície
+  da região (com tudo o que foi comprado e o progresso de cada região).
+- Riscos ambientais do mapa são informativos (descrevem as camadas), exceto o Calor.
+- Fontes de título não têm acentos maiúsculos (ex.: "DUNAS DE AMBAR" na placa).
 - O shader do terreno ainda não foi medido em aparelho Android real; se houver queda de
   FPS em aparelhos básicos, a Fase 5 adiciona um preset de qualidade.
 - Contornos seguem micro-células de 12 px suavizadas: em close aparecem como pixel art

@@ -34,8 +34,9 @@ func _ready() -> void:
 func start_run(world_seed: int, start_row: int = -1) -> void:
 	if world != null:
 		world.shutdown()
-	world = WorldModel.new(world_seed)
-	background.setup(world_seed)
+	var region: RegionDef = GameState.region()
+	world = WorldModel.new(world_seed, region)
+	background.setup(world_seed, region)
 	var spawn: Vector2 = Drill.surface_spawn()
 	if start_row >= 0:
 		spawn.y = (start_row + 0.5) * Balance.BLOCK_PX

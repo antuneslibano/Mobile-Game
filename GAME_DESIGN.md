@@ -91,41 +91,90 @@ qualquer dispositivo. Ingredientes:
 Cavernas: `cave_noise(x, y) > limiar_do_bioma` ⇒ ar. Proporção medida: Crosta ~17%,
 Cristalinas ~29%, Magmática ~21%, Abismo ~23% (teste `test_biome_content_and_caves`).
 
-### 5.3 Biomas
-| Bioma | Faixa | Materiais | Limiar de caverna `[T]` | Calor (Fase 3) |
+### 5.3 Regiões e camadas (`RegionRegistry`)
+O mundo de cada exploração é gerado com as **camadas de profundidade da região escolhida**
+no mapa mundial (mesmo gerador, mineração, economia e garagem). Cada região tem 4–5 camadas
+contíguas de 0 m até a profundidade máxima; cada camada define material principal/secundário,
+limiar de caverna e tabela de minérios. Valores `[T]` em `scripts/data/region_registry.gd`.
+
+| # | Região | Tema | Dificuldade | 100% em | Calor desde | Desbloqueio |
+|---|---|---|---|---|---|---|
+| 1 | Vale das Raízes | savana | ★ Fácil | 250 m | 300 m | livre |
+| 2 | Dunas de Âmbar | deserto | ★★ Moderada | 300 m | 200 m | 80 m no Vale |
+| 3 | Cordilheira de Ferro | montanhas | ★★★ Difícil | 350 m | 300 m | 120 m nas Dunas |
+| 4 | Pântano das Profundezas | pântano | ★★★ Difícil | 350 m | 300 m | 160 m na Cordilheira |
+| 5 | Abismo de Obsidiana | vulcânico | ★★★★ Muito difícil | 450 m | 0 m | 200 m no Pântano |
+| 6 | Vazio Cristalino | cristalino | ★★★★★ Extrema | 500 m | 300 m | 250 m no Abismo |
+
+- **Desbloqueio** usa só a progressão existente (profundidade máxima alcançada na região
+  anterior) — sem moedas novas. Regiões bloqueadas aparecem no mapa com cadeado e o requisito.
+- **Progresso** = profundidade máxima da região ÷ "100% em" (exibido em % no mapa).
+- **Riscos ambientais** são informativos e descrevem as camadas (areia movediça = areia
+  solta, desmoronamento = muitas cavernas, rochas resistentes = camadas duras…), exceto
+  **Calor**, que usa a mecânica real (§7.5) com início por região.
+- **Equipamentos recomendados** apontam upgrades existentes da garagem.
+
+Camadas (resumo):
+
+| Região | Camadas |
+|---|---|
+| Vale | Solo superficial (terra) · Areia instável · Argila compactada · Cavernas fossilizadas · Zona abissal |
+| Dunas | Dunas (areia) · Arenito · Argila vermelha · Rocha queimada |
+| Cordilheira | Encosta rochosa · Rocha dura · Veios de titânio · Raízes da montanha |
+| Pântano | Lama · Turfa · Argila submersa · Grutas esmeralda |
+| Abismo | Crosta vulcânica · Rios de magma · Campos de obsidiana · Câmara do núcleo |
+| Vazio | Gelo cristalino · Rocha cristalina · Fendas do vazio · Coração do vazio |
+
+### 5.4 Materiais: terreno × depósito (`BlockRegistry`)
+`hp` = vida; `hardness` = armadura subtraída de cada golpe.
+
+**Terreno** (`BlockDef.is_terrain()`): forma o cenário e é desenhado como textura contínua —
+nunca como minério. Terra e Pedra **mantêm a recompensa que já existia** (entulho de baixo
+valor na carga: Terra 1, Pedra 2); os terrenos novos não rendem nada.
+
+| Material | HP | Dureza | Recompensa | Visual |
 |---|---|---|---|---|
-| Crosta | 0–100 m | terra, pedra, cobre, ferro, baú | 0.67 | 0 |
-| Cavernas Cristalinas | 100–300 m | rocha cristalina, rocha dura, cristal, ametista | 0.60 | 0 |
-| Zona Magmática | 300–600 m | basalto, rocha magmática, ouro, rubi | 0.65 | 1 → 3 |
-| Abismo Ancestral | 600–1000 m | pedra abissal, vazionita, artefato | 0.63 | 3 |
+| Terra | 12 | 0 | terra ×1 (existente) | solo macio, pedrinhas e raízes |
+| Pedra | 30 | 1 | pedra ×1 (existente) | pedras compactas iluminadas, rachaduras |
+| Rocha cristalina / dura | 60 / 110 | 4 / 7 | pedra ×3 / ×5 (existente) | pedras |
+| Basalto / Rocha magmática | 220 / 320 | 14 / 18 | basalto ×1 (existente) | pedras escuras / veios incandescentes |
+| Pedra abissal | 700 | 30 | pedra abissal ×1 (existente) | pedras |
+| Areia | 10 | 0 | – | grãos e faixas de vento |
+| Argila | 34 | 1 | – | camadas horizontais |
+| Gelo | 60 | 3 | – | facetas com brilho |
+| Lama | 14 | 0 | – | escura, reflexos úmidos |
 
-### 5.4 Blocos (`BlockRegistry`)
-`hp` = vida; `hardness` = armadura subtraída de cada golpe. `drops` define recursos
-(usados a partir da Fase 2). Valores `[T]`:
+**Depósitos coletáveis** (de Cobre em diante): pequenas pepitas/lascas embutidas na rocha
+hospedeira, com contorno escuro e cor própria; nunca ícones grandes nem nomes na mina.
 
-| id | Bloco | HP | Dureza | Drops | Bioma |
-|---|---|---|---|---|---|
-| 0 | Ar | – | – | – | – |
-| 1 | Terra | 12 | 0 | terra ×1 | Crosta |
-| 2 | Pedra | 30 | 1 | pedra ×1 | Crosta |
-| 3 | Cobre | 36 | 1 | cobre ×1 | Crosta |
-| 4 | Ferro | 48 | 2 | ferro ×1 | Crosta |
-| 5 | Rocha-mãe | ∞ | – | – | paredes/fundo |
-| 6 | Baú soterrado | 14 | 0 | cobre ×3, ferro ×2, cristal ×1 | Crosta (raro, especial) |
-| 7 | Rocha cristalina | 60 | 4 | pedra ×3 | Cristalinas |
-| 8 | Rocha dura | 110 | 7 | pedra ×5 | Cristalinas |
-| 9 | Cristal | 70 | 4 | cristal ×1 | Cristalinas |
-| 10 | Ametista | 100 | 6 | ametista ×1, cristal ×1 | Cristalinas |
-| 11 | Basalto | 220 | 14 | basalto ×1 | Magmática |
-| 12 | Rocha magmática | 320 | 18 | basalto ×1 | Magmática |
-| 13 | Ouro | 260 | 16 | ouro ×1 | Magmática |
-| 14 | Rubi | 360 | 20 | rubi ×1 | Magmática |
-| 15 | Pedra abissal | 700 | 30 | pedra abissal ×1 | Abismo |
-| 16 | Vazionita | 1000 | 34 | vazionita ×1 | Abismo |
-| 17 | Artefato | 500 | 24 | artefato ×1, cristal ×3 | Abismo (raro, especial) |
+| Depósito | HP | Dureza | Drops | Forma |
+|---|---|---|---|---|
+| Carvão | 30 | 1 | carvão | pepitas |
+| Cobre | 36 | 1 | cobre | pepitas |
+| Ferro | 48 | 2 | ferro | pepitas |
+| Prata | 70 | 4 | prata | pepitas |
+| Quartzo | 60 | 3 | quartzo | lascas |
+| Cristal | 70 | 4 | cristal ×2 | lascas |
+| Ametista | 100 | 6 | ametista, cristal ×2 | lascas |
+| Esmeralda | 180 | 10 | esmeralda, cristal | lascas |
+| Ouro | 260 | 16 | ouro | pepitas |
+| Titânio | 300 | 15 | titânio | pepitas |
+| Rubi | 360 | 20 | rubi | lascas |
+| Urânio | 380 | 18 | urânio | pepitas com brilho |
+| Obsidiana | 420 | 20 | obsidiana | placas vítreas com fissuras |
+| Diamante | 600 | 26 | diamante, cristal ×2 | lascas |
+| Minério arcano | 1000 | 34 | minério arcano | placas com fissuras roxas |
+| Cristal raro | 800 | 28 | cristal raro, cristal ×4 | lascas multicoloridas |
 
-### 5.5 Distribuição de minérios (`[T]` em `WorldGenerator.ORE_TABLES`)
-Cada bioma tem uma tabela `(bloco, chance base, profundidade mínima)`. Um veio
+**Especiais** (raros, desenhados no próprio bloco): Baú soterrado, Artefato, **Fóssil**
+(osso; 120 créditos) e **Meteorito** (rocha com fissuras vermelhas; meteorito + cristal ×2).
+
+Classificação dos elementos da imagem de referência: areia, argila, gelo e lama/turfa são
+**terreno**; magma é **terreno** (rocha magmática); fósseis são **especial coletável**.
+O catálogo (ícones com moldura) é usado só nos painéis (mapa/inventário), nunca na mina.
+
+### 5.5 Distribuição de minérios (`[T]` nas camadas de `RegionRegistry`)
+Cada camada tem uma tabela `(bloco, chance base, profundidade mínima)`. Um veio
 (ruído de minério > 0.25) multiplica a chance por 3, formando aglomerados.
 
 ## 6. Perfuradora e mineração
@@ -282,8 +331,13 @@ Referência visual definida pelo autor (nave e tela de upgrades em pixel art ind
   barras de atributos segmentadas (Energia, Velocidade, Poder de mineração, Coleta).
 - **Fontes**: Press Start 2P (títulos/números/botões, maiúsculas sem acento) e Jersey 10
   (textos) — ambas OFL. Sem suavização (pixels nítidos).
-- **Terreno** orgânico por shader em micro-células, pixels de arte de 3 px; paletas por bioma
-  como antes.
+- **Terreno** orgânico por shader em micro-células, pixels de arte de 3 px. Cada terreno tem
+  textura própria (terra macia com pedrinhas, pedra em blocos iluminados, areia, argila em
+  camadas, gelo facetado, lama, rocha magmática com veios). Depósitos são pepitas inteiras
+  (pertencem à célula do centro, não são recortadas pela borda do material) ou lascas de
+  cristal, com contorno escuro e cores distintas.
+- **Mapa mundial**: ilhas flutuantes procedurais (`RegionArt`) sobre mar de nuvens, uma
+  região por página, placa com o nome, barra de progresso ou cadeado.
 
 ## 9. Áudio (Fase 5)
 Buses: `Master` → `Music`, `SFX`, `UI`. Sons originais sintetizados (placeholders

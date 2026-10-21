@@ -58,30 +58,30 @@ func test_bounds_walls_and_surface() -> void:
 
 
 func test_biome_content_and_caves() -> void:
-	var g := WorldGenerator.new(2024)
-	var expect: Dictionary = {
-		BiomeRegistry.CRUST: [BlockRegistry.DIRT, BlockRegistry.STONE, BlockRegistry.COPPER, BlockRegistry.IRON],
-		BiomeRegistry.CRYSTAL_CAVES: [BlockRegistry.CRYSTAL_ROCK, BlockRegistry.CRYSTAL, BlockRegistry.AMETHYST],
-		BiomeRegistry.MAGMA_ZONE: [BlockRegistry.BASALT, BlockRegistry.MAGMA_ROCK, BlockRegistry.GOLD, BlockRegistry.RUBY],
-		BiomeRegistry.ANCIENT_ABYSS: [BlockRegistry.ABYSS_STONE, BlockRegistry.VOIDITE],
-	}
-	for b: int in expect:
-		var biome: BiomeDef = BiomeRegistry.get_def(b)
-		var counts: Dictionary = {}
-		var air: int = 0
-		var total: int = 0
-		for y in range(biome.start_row + 10, biome.end_row - 5):
-			for x in range(1, Balance.WORLD_WIDTH - 1):
-				var id: int = g.generate_block(x, y)
-				counts[id] = int(counts.get(id, 0)) + 1
-				total += 1
-				if id == BlockRegistry.AIR:
-					air += 1
-		var cave_ratio: float = float(air) / float(total)
-		check(cave_ratio > 0.04 and cave_ratio < 0.45, "%s: proporção de cavernas %.2f" % [biome.display_name, cave_ratio])
-		for id: int in expect[b]:
-			check(int(counts.get(id, 0)) > 0, "%s contém %s" % [biome.display_name, BlockRegistry.get_def(id).key])
-		note("%s: cavernas %.0f%%, tipos %d" % [biome.display_name, cave_ratio * 100.0, counts.size()])
+	# Cada camada de cada região gera o seu material principal, os minérios da tabela e cavernas.
+	for r in RegionRegistry.all():
+		var g := WorldGenerator.new(2024, r)
+		for biome in r.layers:
+			if biome.end_row - biome.start_row < 30:
+				continue
+			var counts: Dictionary = {}
+			var air: int = 0
+			var total: int = 0
+			for y in range(biome.start_row + 5, mini(biome.end_row - 5, biome.start_row + 125)):
+				for x in range(1, Balance.WORLD_WIDTH - 1):
+					var id: int = g.generate_block(x, y)
+					counts[id] = int(counts.get(id, 0)) + 1
+					total += 1
+					if id == BlockRegistry.AIR:
+						air += 1
+			var cave_ratio: float = float(air) / float(total)
+			var tag: String = "%s/%s" % [r.display_name, biome.display_name]
+			check(cave_ratio > 0.03 and cave_ratio < 0.5, "%s: proporção de cavernas %.2f" % [tag, cave_ratio])
+			check(int(counts.get(biome.primary_block, 0)) > 0, "%s contém o material principal" % tag)
+			for entry: Array in biome.ore_table:
+				var ore: int = entry[0]
+				if float(entry[1]) >= 0.01:
+					check(int(counts.get(ore, 0)) > 0, "%s contém %s" % [tag, BlockRegistry.get_def(ore).key])
 
 
 func test_generation_time_budget() -> void:

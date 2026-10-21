@@ -113,6 +113,7 @@ func test_overdrive_digs_faster_and_wider() -> void:
 
 
 func test_heat_rules() -> void:
+	HeatRules.heat_start_m = Balance.HEAT_START_M
 	check_eq(HeatRules.heat_at(299), 0.0, "sem calor antes de 300 m")
 	check(absf(HeatRules.heat_at(400) - 1.0) < 0.001, "calor 1 em 400 m")
 	check_eq(HeatRules.heat_at(2000), Balance.HEAT_MAX, "calor limitado")

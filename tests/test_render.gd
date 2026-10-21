@@ -6,7 +6,7 @@ func test_terrain_textures_build() -> void:
 	var pal: Image = TerrainTextures.build_palette()
 	var noise: Image = TerrainTextures.build_noise()
 	var ms: float = float(Time.get_ticks_usec() - t0) / 1000.0
-	check_eq(pal.get_height(), BlockRegistry.COUNT + BiomeRegistry.COUNT, "paleta: uma linha por bloco + biomas")
+	check_eq(pal.get_height(), BlockRegistry.COUNT + BiomeRegistry.MAX_LAYERS, "paleta: uma linha por bloco + camadas")
 	for def: BlockDef in BlockRegistry.all():
 		if def.solid:
 			check(pal.get_pixel(0, def.id).a > 0.99, "cor base de %s" % def.key)

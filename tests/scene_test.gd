@@ -41,9 +41,17 @@ func _drag(index: int, pos: Vector2) -> void:
 
 func _run() -> void:
 	print("== scene_test")
+	# Não toca no salvamento real do jogador; começa de um perfil novo.
+	SaveService.enabled = false
+	GameState.reset_profile()
 	var main: Node = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	add_child(main)
 	await _frames(10)
+	var world_map: WorldMap = main.get("world_map")
+	_check(world_map != null and world_map.is_open() and get_tree().paused, "mapa mundial abre ao iniciar")
+	_check(world_map.current_region().id == RegionRegistry.VALE, "carrossel começa no Vale das Raízes")
+	_check(world_map.explore() and not world_map.is_open() and not get_tree().paused, "EXPLORAR fecha o mapa e inicia")
+	await _frames(4)
 	var game: Game = main.get_node("Game")
 	var hud: Hud = main.get_node("Hud")
 	var input: InputController = game.input
@@ -158,6 +166,69 @@ func _run() -> void:
 	close_b.pressed.emit()
 	await _frames(2)
 	_check(not garage.is_open() and not get_tree().paused, "garagem fecha e retoma o jogo")
+
+	# --- Mapa mundial: carrossel, bloqueio, desbloqueio e troca de região ---
+	var map_b: Button = hud.find_child("MapButton", true, false)
+	_check(map_b != null, "botão do mapa no HUD")
+	map_b.pressed.emit()
+	await _frames(2)
+	_check(world_map.is_open() and get_tree().paused, "mapa abre pelo HUD e pausa o jogo")
+	var carousel: RegionCarousel = world_map.find_child("Carousel", true, false)
+	var rect: Rect2 = carousel.get_global_rect()
+	var c: Vector2 = rect.get_center()
+	_touch(0, c, true)
+	for k in 8:
+		_drag(0, c - Vector2(40.0 * (k + 1), 0))
+		await _frames(1)
+	_touch(0, c - Vector2(320, 0), false)
+	await _frames(40)
+	_check(carousel.target == 1 and absf(carousel.pos - 1.0) < 0.01, "deslizar para a esquerda encaixa na página 2 (%.2f)" % carousel.pos)
+	var dunas: RegionDef = world_map.current_region()
+	_check(dunas.id == RegionRegistry.DUNAS, "página 2 é Dunas de Âmbar")
+	var explore_b: Button = world_map.find_child("ExploreButton", true, false)
+	_check(explore_b.disabled and not world_map.explore(), "região bloqueada: EXPLORAR desativado")
+	_touch(0, c, true)
+	for k in 8:
+		_drag(0, c + Vector2(40.0 * (k + 1), 0))
+		await _frames(1)
+	_touch(0, c + Vector2(320, 0), false)
+	await _frames(40)
+	_check(carousel.target == 0, "deslizar para a direita volta à página 1")
+	_touch(0, c, true)
+	_drag(0, c - Vector2(30, 0))
+	_touch(0, c - Vector2(30, 0), false)
+	await _frames(30)
+	_check(carousel.target == 0, "arrasto curto não troca de página")
+	var next_b: Button = carousel.find_child("Next", true, false)
+	next_b.pressed.emit()
+	await _frames(30)
+	_check(carousel.target == 1, "seta avança a página")
+
+	GameState.region_progress[RegionRegistry.VALE] = dunas.unlock_depth_m
+	world_map.go_to_page(1)
+	_check(not explore_b.disabled, "requisito cumprido: Dunas liberadas")
+	var vale_progress: int = GameState.region_depth(RegionRegistry.VALE)
+	_check(world_map.explore(), "explorar Dunas")
+	await _frames(6)
+	_check(GameState.region_id == RegionRegistry.DUNAS and not world_map.is_open() and not get_tree().paused, "mergulho nas Dunas iniciado")
+	_check(BiomeRegistry.get_def(0).display_name == dunas.layers[0].display_name, "camadas da região aplicadas")
+	_check(game.world != null and game.drill.depth_m() <= 1, "novo mundo, perfuradora na superfície")
+	_check(GameState.region_depth(RegionRegistry.VALE) == vale_progress, "progresso do Vale preservado")
+	var start_y: float = game.drill.position.y
+	var jc: Vector2 = o
+	_touch(0, jc, true)
+	_drag(0, jc + Vector2(0, 90))
+	await _frames(150)
+	_touch(0, jc + Vector2(0, 90), false)
+	_check(game.drill.position.y > start_y + 12.0, "mineração funciona na nova região")
+
+	# Perfil salvo e restaurado (progresso por região e região atual).
+	var prof: Dictionary = JSON.parse_string(JSON.stringify(GameState.to_profile()))
+	_check(SaveFile.is_valid(prof), "perfil válido")
+	GameState.reset_profile()
+	GameState.apply_profile(prof)
+	_check(GameState.region_id == RegionRegistry.DUNAS and GameState.region_depth(RegionRegistry.VALE) == vale_progress,
+			"perfil restaura região e progresso")
 
 	print("")
 	print("%d verificações, %d falhas" % [_checks, _fail])

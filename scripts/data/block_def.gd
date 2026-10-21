@@ -2,7 +2,11 @@ class_name BlockDef
 extends Resource
 ## Definição imutável de um tipo de bloco. Instâncias são criadas pelo BlockRegistry.
 
-enum Art { NONE, DIRT, STONE, ORE, CRYSTAL, BEDROCK, CHEST, ARTIFACT, MAGMA }
+## Estilo de desenho no shader de terreno (o valor numérico vai para a paleta).
+## Terreno: DIRT, STONE, BEDROCK, MAGMA, SAND, CLAY, ICE, MUD.
+## Depósitos coletáveis: ORE (pepitas metálicas), CRYSTAL (lascas), VEINED (rocha com veios
+## brilhantes), PRISM (cristal multicolorido), FOSSIL, CHEST, ARTIFACT.
+enum Art { NONE, DIRT, STONE, ORE, CRYSTAL, BEDROCK, CHEST, ARTIFACT, MAGMA, SAND, CLAY, ICE, MUD, FOSSIL, VEINED, PRISM }
 
 @export var id: int = 0
 @export var key: StringName = &""
@@ -19,6 +23,11 @@ enum Art { NONE, DIRT, STONE, ORE, CRYSTAL, BEDROCK, CHEST, ARTIFACT, MAGMA }
 @export var color_base: Color = Color.GRAY
 @export var color_dark: Color = Color.DIM_GRAY
 @export var color_accent: Color = Color.WHITE
+
+
+## Material que forma o cenário (não é depósito coletável), mesmo que conte na carga.
+func is_terrain() -> bool:
+	return art in [Art.DIRT, Art.STONE, Art.BEDROCK, Art.MAGMA, Art.SAND, Art.CLAY, Art.ICE, Art.MUD]
 
 
 static func make(p_id: int, p_key: StringName, p_name: String, p_hp: float, p_hardness: float,

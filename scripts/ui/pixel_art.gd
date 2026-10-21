@@ -298,10 +298,149 @@ static func _icon_img(id: StringName) -> Image:
 			poly(img, PackedVector2Array([Vector2(4, 3), Vector2(14, 3), Vector2(17, 7), Vector2(1, 7)]), Color("5fd0ff"))
 			poly(img, PackedVector2Array([Vector2(6, 7), Vector2(12, 7), Vector2(9, 15)]), Color("3fa8f0"))
 			rect(img, 5, 4, 3, 2, Color("c9f3ff"))
+		&"map":
+			poly(img, PackedVector2Array([Vector2(1, 4), Vector2(6, 2), Vector2(12, 4), Vector2(17, 2), Vector2(17, 14), Vector2(12, 16), Vector2(6, 14), Vector2(1, 16)]), Color("3fae49"))
+			poly(img, PackedVector2Array([Vector2(6, 2), Vector2(12, 4), Vector2(12, 16), Vector2(6, 14)]), Color("e9dcb0"))
+			rect(img, 8, 6, 2, 2, RED)
+			rect(img, 3, 9, 2, 2, Color("2a7a34"))
+			rect(img, 14, 7, 2, 3, Color("2a7a34"))
+		&"lock":
+			rect(img, 5, 2, 8, 2, Color("c3cad6"))
+			rect(img, 4, 3, 2, 6, Color("c3cad6"))
+			rect(img, 12, 3, 2, 6, Color("c3cad6"))
+			rect(img, 3, 8, 12, 9, RED)
+			rect(img, 3, 8, 12, 2, RED_HI)
+			rect(img, 8, 11, 2, 3, Color("2a0a08"))
+		&"star":
+			_star(img, GOLD, GOLD_HI)
+		&"star_empty":
+			_star(img, Color("3a3f4c"), Color("5a6070"))
+		&"pick":
+			for t in range(4, 16):
+				rect(img, t - 1, 19 - t - 1, 2, 2, Color("8a5a2b"))
+			poly(img, PackedVector2Array([Vector2(3, 6), Vector2(9, 1), Vector2(17, 5), Vector2(15, 7), Vector2(9, 4), Vector2(5, 8)]), Color("c3cad6"))
+		&"arrow_left":
+			poly(img, PackedVector2Array([Vector2(3, 9), Vector2(12, 1), Vector2(12, 17)]), Color.WHITE)
+		&"arrow_right":
+			poly(img, PackedVector2Array([Vector2(15, 9), Vector2(6, 1), Vector2(6, 17)]), Color.WHITE)
+		&"quicksand":
+			circle(img, 9, 11, 7.0, Color("d8b878"))
+			for t in 12:
+				var ang: float = t * 0.7
+				var rr: float = 1.0 + t * 0.45
+				rect(img, int(9 + cos(ang) * rr), int(11 + sin(ang) * rr * 0.6), 1, 1, Color("8a6a3a"))
+		&"cave_in":
+			rect(img, 2, 14, 14, 3, Color("6a6058"))
+			for p: Vector3 in [Vector3(5, 4, 2.5), Vector3(11, 2, 2.0), Vector3(13, 8, 2.5), Vector3(7, 10, 2.0)]:
+				circle(img, p.x, p.y, p.z, Color("9a8f86"))
+				rect(img, int(p.x) - 1, int(p.y) - 1, 1, 1, Color("c8beb4"))
+		&"unstable":
+			rect(img, 1, 9, 16, 8, Color("8a5a3b"))
+			rect(img, 1, 9, 16, 2, Color("a7744d"))
+			for t in 8:
+				rect(img, 4 + t, 9 + (t % 3) + t / 2, 1, 2, Color("2a1a10"))
+		&"heat":
+			poly(img, PackedVector2Array([Vector2(9, 1), Vector2(15, 10), Vector2(13, 16), Vector2(5, 16), Vector2(3, 10), Vector2(7, 6)]), Color("ff7a2e"))
+			poly(img, PackedVector2Array([Vector2(9, 7), Vector2(12, 12), Vector2(11, 16), Vector2(7, 16), Vector2(6, 12)]), Color("ffd36b"))
+		&"mud":
+			rect(img, 1, 11, 16, 6, Color("4d4a2c"))
+			circle(img, 6, 10, 3.0, Color("5a5634"))
+			circle(img, 12, 9, 2.5, Color("5a5634"))
+			rect(img, 4, 12, 2, 1, Color("8a8660"))
+			rect(img, 11, 13, 3, 1, Color("8a8660"))
+		&"hard_rock":
+			circle(img, 9, 10, 7.0, Color("5a5468"))
+			circle(img, 8, 9, 5.0, Color("7a7290"))
+			rect(img, 5, 6, 3, 2, Color("aaa2c0"))
+			rect(img, 10, 11, 4, 1, Color("2a2636"))
+		&"ice":
+			poly(img, PackedVector2Array([Vector2(9, 1), Vector2(16, 8), Vector2(9, 17), Vector2(2, 8)]), Color("8fc8ef"))
+			poly(img, PackedVector2Array([Vector2(9, 1), Vector2(16, 8), Vector2(9, 9), Vector2(2, 8)]), Color("d6f1ff"))
+		&"magma":
+			poly(img, PackedVector2Array([Vector2(9, 2), Vector2(15, 11), Vector2(9, 17), Vector2(3, 11)]), Color("ff5a1e"))
+			circle(img, 9, 12, 3.5, Color("ffd36b"))
 		_:
 			circle(img, 9, 9, 6.0, Color("8a93a3"))
 	outline(img)
 	return img
+
+
+static func _star(img: Image, c: Color, hi: Color) -> void:
+	var pts := PackedVector2Array()
+	for i in 10:
+		var r: float = 8.0 if i % 2 == 0 else 3.6
+		var a: float = -PI * 0.5 + i * PI / 5.0
+		pts.append(Vector2(9, 9.5) + Vector2.from_angle(a) * r)
+	poly(img, pts, c)
+	rect(img, 7, 6, 2, 2, hi)
+
+
+## Ícone de catálogo de um recurso (estilo da referência de minérios): pepitas cúbicas para
+## metais, lascas para gemas, osso, rocha com fissuras. Cores do material real.
+static func ore_icon(key: StringName) -> ImageTexture:
+	return texture(StringName("ore_" + String(key)), func() -> Image: return _ore_img(key))
+
+
+static func _ore_img(key: StringName) -> Image:
+	var img := new_img(20, 18)
+	var def: BlockDef = BlockRegistry.get_def(_block_for(key))
+	var acc: Color = def.color_accent
+	match def.art:
+		BlockDef.Art.CRYSTAL, BlockDef.Art.PRISM:
+			var shards: Array[Vector4] = [Vector4(10, 16, 3.5, 14), Vector4(5, 16, 2.5, 9), Vector4(15, 16, 2.5, 10), Vector4(2, 16, 1.5, 5), Vector4(18, 16, 1.5, 6)]
+			for i in shards.size():
+				var sh: Vector4 = shards[i]
+				var c: Color = acc
+				if def.art == BlockDef.Art.PRISM:
+					c = Color.from_hsv(float(i) / 5.0, 0.45, 1.0)
+				poly(img, PackedVector2Array([Vector2(sh.x - sh.z, sh.y), Vector2(sh.x - sh.z, sh.y - sh.w * 0.7), Vector2(sh.x, sh.y - sh.w), Vector2(sh.x + sh.z, sh.y - sh.w * 0.7), Vector2(sh.x + sh.z, sh.y)]), c.darkened(0.25))
+				poly(img, PackedVector2Array([Vector2(sh.x - sh.z, sh.y), Vector2(sh.x - sh.z, sh.y - sh.w * 0.7), Vector2(sh.x, sh.y - sh.w), Vector2(sh.x, sh.y)]), c.lightened(0.3))
+		BlockDef.Art.FOSSIL:
+			rect(img, 5, 8, 10, 3, acc)
+			for p: Vector2 in [Vector2(4, 7), Vector2(4, 11), Vector2(16, 7), Vector2(16, 11)]:
+				circle(img, p.x, p.y, 2.2, acc)
+			rect(img, 5, 8, 10, 1, acc.lightened(0.3))
+			rect(img, 3, 14, 14, 3, Color("8a7a66"))
+		BlockDef.Art.VEINED:
+			circle(img, 10, 10, 7.5, def.color_dark)
+			circle(img, 9, 9, 6.0, def.color_base.lightened(0.15))
+			for t in 9:
+				rect(img, 5 + t, 6 + (t * 7) % 9, 1, 1, acc)
+				rect(img, 6 + (t * 5) % 9, 4 + t, 1, 1, acc.lightened(0.3))
+		_:
+			var dark_metal: bool = acc.get_luminance() < 0.3
+			var cubes: Array[Vector3] = [Vector3(10, 8, 4), Vector3(5, 12, 3), Vector3(15, 12, 3), Vector3(10, 14, 3), Vector3(3, 15, 2)]
+			for cube: Vector3 in cubes:
+				var x: int = int(cube.x - cube.z)
+				var y: int = int(cube.y - cube.z)
+				var sz: int = int(cube.z * 2)
+				rect(img, x, y, sz, sz, acc.darkened(0.35))
+				rect(img, x, y, sz - 1, sz - 1, acc)
+				rect(img, x, y, sz - 1, maxi(1, sz / 3), acc.lightened(0.45 if not dark_metal else 0.25))
+	outline(img)
+	return img
+
+
+## Amostra do material (camadas no painel do mapa).
+static func material_swatch(block_id: int) -> ImageTexture:
+	return texture(StringName("swatch_%d" % block_id), func() -> Image:
+		var def: BlockDef = BlockRegistry.get_def(block_id)
+		var img := new_img(24, 12)
+		for y in 12:
+			for x in 24:
+				var n: float = WorldGenerator.hash01(x, y, block_id * 7 + 3)
+				var c: Color = def.color_base if n > 0.35 else def.color_dark
+				if n > 0.85:
+					c = def.color_base.lightened(0.2)
+				img.set_pixel(x, y, c)
+		return img)
+
+
+static func _block_for(key: StringName) -> int:
+	for def: BlockDef in BlockRegistry.all():
+		if def.key == key:
+			return def.id
+	return BlockRegistry.COPPER
 
 
 ## Cone de broca listrado entre base e ponta.

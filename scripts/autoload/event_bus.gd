@@ -24,3 +24,10 @@ signal modules_changed(equipped: Array[StringName])
 signal boost_started
 signal overdrive_ready
 signal heat_changed(heat: float, penalty: float)
+
+# Regiões e salvamento
+signal region_changed(region_id: StringName)
+signal region_progress_changed(region_id: StringName, max_depth_m: int)
+signal region_unlocked(region_id: StringName)
+signal map_opened
+signal map_closed

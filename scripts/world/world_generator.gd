@@ -18,6 +18,9 @@ const CAVE_Y_SCALE: float = 1.45
 const CAVE_FADE_ROWS: int = 10
 
 var seed_value: int = 0
+## Região e camadas usadas por este gerador (cópia própria: seguro em threads).
+var region: RegionDef
+var _layers: Array[BiomeDef] = []
 var _cave: FastNoiseLite
 var _mix: FastNoiseLite
 var _ore: FastNoiseLite
@@ -34,8 +37,10 @@ var _warp_y: PackedByteArray
 const WARP_SIZE: int = 256
 
 
-func _init(p_seed: int) -> void:
+func _init(p_seed: int, p_region: RegionDef = null) -> void:
 	seed_value = p_seed
+	region = p_region if p_region != null else RegionRegistry.all()[0]
+	_layers = region.layers
 	_cave = _make_noise(p_seed, 0.07, 2)
 	_mix = _make_noise(p_seed + 101, 0.11, 1)
 	_ore = _make_noise(p_seed + 202, 0.17, 1)
@@ -57,8 +62,8 @@ static func _warp_table(p_seed: int) -> PackedByteArray:
 ## Também garante que os registros estáticos estejam construídos antes de uso em threads.
 func _prepare_tables() -> void:
 	BlockRegistry.all()
-	for b in BiomeRegistry.COUNT:
-		var biome: BiomeDef = BiomeRegistry.get_def(b)
+	for b in _layers.size():
+		var biome: BiomeDef = _layers[b]
 		if b > 0:
 			_boundaries.append(biome.start_row)
 		var ids := PackedInt32Array()
@@ -105,11 +110,11 @@ func variant_at(x: int, y: int) -> int:
 ## Bioma real da célula, com borda serrilhada por ruído.
 func biome_at(x: int, y: int) -> int:
 	if y < 0:
-		return BiomeRegistry.CRUST
+		return 0
 	if not _near_boundary(y):
-		return BiomeRegistry.id_for_row(y)
+		return BiomeRegistry.id_for_row_in(_layers, y)
 	var jitter: int = roundi(_border.get_noise_2d(float(x), float(y) * 0.25) * BiomeRegistry.BORDER_JITTER_ROWS)
-	return BiomeRegistry.id_for_row(maxi(0, y + jitter))
+	return BiomeRegistry.id_for_row_in(_layers, maxi(0, y + jitter))
 
 
 func _near_boundary(y: int) -> bool:
@@ -131,7 +136,7 @@ func _cell(x: int, y: int, biome_id: int) -> int:
 		return BlockRegistry.AIR
 	if x <= 0 or x >= Balance.WORLD_WIDTH - 1 or y >= Balance.MAX_DEPTH_ROWS:
 		return BlockRegistry.BEDROCK
-	var biome: BiomeDef = BiomeRegistry.get_def(biome_id)
+	var biome: BiomeDef = _layers[clampi(biome_id, 0, _layers.size() - 1)]
 
 	# Cavernas
 	if y >= Balance.SAFE_SURFACE_ROWS:
@@ -161,15 +166,12 @@ func _cell(x: int, y: int, biome_id: int) -> int:
 
 	# Material base
 	var ratio: float = biome.secondary_ratio
-	if biome.id == BiomeRegistry.CRUST:
-		# Terra domina perto da superfície; pedra cresce com a profundidade.
-		ratio = lerpf(0.04, 0.8, clampf(float(y) / 100.0, 0.0, 1.0))
 	var m: float = (_mix.get_noise_2d(float(x), float(y)) + 1.0) * 0.5
 	return biome.secondary_block if m < ratio else biome.primary_block
 
 
 static func _is_special(id: int) -> bool:
-	return id == BlockRegistry.CHEST or id == BlockRegistry.ARTIFACT
+	return id == BlockRegistry.CHEST or id == BlockRegistry.ARTIFACT or id == BlockRegistry.FOSSIL
 
 
 ## Deformação (em células) da amostragem do layout para uma micro-célula.

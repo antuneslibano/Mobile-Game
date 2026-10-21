@@ -1,9 +1,11 @@
 class_name BiomeDef
 extends Resource
-## Definição de um bioma: faixa de profundidade, materiais, cavernas, paleta e calor.
+## Camada de profundidade de uma região: faixa, materiais, cavernas, minérios e paleta.
 
 @export var id: int = 0
 @export var display_name: String = ""
+## Texto curto da camada (painel do mapa: "Areia instável e areia movediça.").
+@export var description: String = ""
 @export var start_row: int = 0
 @export var end_row: int = 100
 @export var cave_threshold: float = 0.6

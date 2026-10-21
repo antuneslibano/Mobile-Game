@@ -47,8 +47,8 @@ var stats_gen_usec: int = 0
 var stats_gen_max_usec: int = 0
 
 
-func _init(p_seed: int) -> void:
-	generator = WorldGenerator.new(p_seed)
+func _init(p_seed: int, region: RegionDef = null) -> void:
+	generator = WorldGenerator.new(p_seed, region)
 
 
 # --- Conversões ----------------------------------------------------------------

@@ -23,16 +23,17 @@ func test_block_registry_is_consistent() -> void:
 
 
 func test_biomes_are_contiguous() -> void:
-	var prev_end: int = 0
-	for b in BiomeRegistry.COUNT:
-		var biome: BiomeDef = BiomeRegistry.get_def(b)
-		check_eq(biome.start_row, prev_end, "início do bioma %s" % biome.display_name)
-		check(biome.end_row > biome.start_row, "faixa válida %s" % biome.display_name)
-		prev_end = biome.end_row
-		for entry: Array in biome.ore_table:
-			check(entry.size() == 3, "entrada de minério com 3 campos")
-	check_eq(prev_end, Balance.MAX_DEPTH_ROWS, "último bioma termina na profundidade máxima")
-	check_eq(BiomeRegistry.id_for_row(0), BiomeRegistry.CRUST, "0 m é Crosta")
-	check_eq(BiomeRegistry.id_for_row(150), BiomeRegistry.CRYSTAL_CAVES, "150 m é Cavernas")
-	check_eq(BiomeRegistry.id_for_row(450), BiomeRegistry.MAGMA_ZONE, "450 m é Magmática")
-	check_eq(BiomeRegistry.id_for_row(800), BiomeRegistry.ANCIENT_ABYSS, "800 m é Abismo")
+	for r in RegionRegistry.all():
+		var prev_end: int = 0
+		for biome in r.layers:
+			check_eq(biome.start_row, prev_end, "%s: início da camada %s" % [r.display_name, biome.display_name])
+			check(biome.end_row > biome.start_row, "faixa válida %s" % biome.display_name)
+			prev_end = biome.end_row
+			for entry: Array in biome.ore_table:
+				check(entry.size() == 3, "entrada de minério com 3 campos")
+		check_eq(prev_end, Balance.MAX_DEPTH_ROWS, "%s: última camada termina na profundidade máxima" % r.display_name)
+	# Sem região escolhida, as camadas são as da primeira região (Vale das Raízes).
+	BiomeRegistry.set_layers(RegionRegistry.get_def(RegionRegistry.VALE).layers)
+	check_eq(BiomeRegistry.id_for_row(0), BiomeRegistry.CRUST, "0 m é a primeira camada")
+	check_eq(BiomeRegistry.id_for_row(60), 1, "60 m é a segunda camada do Vale")
+	check_eq(BiomeRegistry.id_for_row(800), BiomeRegistry.layer_count() - 1, "800 m é a última camada")

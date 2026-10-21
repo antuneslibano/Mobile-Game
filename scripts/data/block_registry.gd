@@ -20,7 +20,24 @@ const RUBY: int = 14
 const ABYSS_STONE: int = 15
 const VOIDITE: int = 16
 const ARTIFACT: int = 17
-const COUNT: int = 18
+# Terrenos novos (não coletáveis).
+const SAND: int = 18
+const CLAY: int = 19
+const ICE: int = 20
+const MUD: int = 21
+# Depósitos coletáveis novos.
+const SILVER: int = 22
+const COAL: int = 23
+const EMERALD: int = 24
+const DIAMOND: int = 25
+const QUARTZ: int = 26
+const OBSIDIAN: int = 27
+const URANIUM: int = 28
+const TITANIUM: int = 29
+const RARE_CRYSTAL: int = 30
+const FOSSIL: int = 31
+const METEORITE: int = 32
+const COUNT: int = 33
 
 static var _defs: Array[BlockDef] = []
 
@@ -74,12 +91,50 @@ static func _build() -> void:
 
 	list[ABYSS_STONE] = BlockDef.make(ABYSS_STONE, &"abyss_stone", "Pedra abissal", 700.0, 30.0,
 			{&"abyss_stone": 1}, BlockDef.Art.STONE, Color("1f3a3c"), Color("122426"), Color("2f5658"))
-	list[VOIDITE] = BlockDef.make(VOIDITE, &"voidite", "Vazionita", 1000.0, 34.0,
-			{&"voidite": 1}, BlockDef.Art.CRYSTAL, Color("1f3a3c"), Color("122426"), Color("9d5cff"))
+	list[VOIDITE] = BlockDef.make(VOIDITE, &"voidite", "Minério arcano", 1000.0, 34.0,
+			{&"voidite": 1}, BlockDef.Art.VEINED, Color("221a30"), Color("120d1c"), Color("b06cff"))
 	var artifact := BlockDef.make(ARTIFACT, &"artifact", "Artefato", 500.0, 24.0,
 			{&"artifact": 1, &"crystal": 3}, BlockDef.Art.ARTIFACT, Color("1f3a3c"), Color("122426"), Color("5effc9"))
 	artifact.special = &"artifact"
 	list[ARTIFACT] = artifact
+
+	# --- Terrenos (formam o cenário; sem depósito coletável) ---
+	list[SAND] = BlockDef.make(SAND, &"sand", "Areia", 10.0, 0.0, {}, BlockDef.Art.SAND,
+			Color("d8b878"), Color("b08c52"), Color("ecd39a"))
+	list[CLAY] = BlockDef.make(CLAY, &"clay", "Argila", 34.0, 1.0, {}, BlockDef.Art.CLAY,
+			Color("b0603c"), Color("7e3f26"), Color("cf7c52"))
+	list[ICE] = BlockDef.make(ICE, &"ice", "Gelo", 60.0, 3.0, {}, BlockDef.Art.ICE,
+			Color("6aa6d4"), Color("3f6fa3"), Color("b9e3ff"))
+	list[MUD] = BlockDef.make(MUD, &"mud", "Lama", 14.0, 0.0, {}, BlockDef.Art.MUD,
+			Color("4d4a2c"), Color("33311c"), Color("6a6640"))
+
+	# --- Depósitos coletáveis (base = rocha hospedeira; destaque = cor do minério) ---
+	list[SILVER] = BlockDef.make(SILVER, &"silver", "Prata", 70.0, 4.0, {&"silver": 1}, BlockDef.Art.ORE,
+			Color("6f6a68"), Color("4c4745"), Color("d9e2ee"))
+	list[COAL] = BlockDef.make(COAL, &"coal", "Carvão", 30.0, 1.0, {&"coal": 1}, BlockDef.Art.ORE,
+			Color("6f6a68"), Color("4c4745"), Color("3a3946"))
+	list[EMERALD] = BlockDef.make(EMERALD, &"emerald", "Esmeralda", 180.0, 10.0, {&"emerald": 1, &"crystal": 1}, BlockDef.Art.CRYSTAL,
+			Color("3b3d52"), Color("26273a"), Color("2fd46a"))
+	list[DIAMOND] = BlockDef.make(DIAMOND, &"diamond", "Diamante", 600.0, 26.0, {&"diamond": 1, &"crystal": 2}, BlockDef.Art.CRYSTAL,
+			Color("3b3d52"), Color("26273a"), Color("7fe0ff"))
+	list[QUARTZ] = BlockDef.make(QUARTZ, &"quartz", "Quartzo", 60.0, 3.0, {&"quartz": 1}, BlockDef.Art.CRYSTAL,
+			Color("6f6a68"), Color("4c4745"), Color("f1f1f4"))
+	list[OBSIDIAN] = BlockDef.make(OBSIDIAN, &"obsidian", "Obsidiana", 420.0, 20.0, {&"obsidian": 1}, BlockDef.Art.VEINED,
+			Color("1b1622"), Color("0d0a12"), Color("9a5cff"))
+	list[URANIUM] = BlockDef.make(URANIUM, &"uranium", "Urânio", 380.0, 18.0, {&"uranium": 1}, BlockDef.Art.ORE,
+			Color("35302f"), Color("1f1b1b"), Color("a6f23a"))
+	list[TITANIUM] = BlockDef.make(TITANIUM, &"titanium", "Titânio", 300.0, 15.0, {&"titanium": 1}, BlockDef.Art.ORE,
+			Color("35302f"), Color("1f1b1b"), Color("5f8fdf"))
+	list[RARE_CRYSTAL] = BlockDef.make(RARE_CRYSTAL, &"rare_crystal", "Cristal raro", 800.0, 28.0, {&"rare_crystal": 1, &"crystal": 4}, BlockDef.Art.PRISM,
+			Color("3b3d52"), Color("26273a"), Color("ff9ff3"))
+	var fossil := BlockDef.make(FOSSIL, &"fossil", "Fóssil", 40.0, 2.0, {&"fossil": 1}, BlockDef.Art.FOSSIL,
+			Color("7d7570"), Color("57504c"), Color("e3d3b0"))
+	fossil.special = &"fossil"
+	list[FOSSIL] = fossil
+	var meteor := BlockDef.make(METEORITE, &"meteorite", "Meteorito", 700.0, 24.0, {&"meteorite": 1, &"crystal": 2}, BlockDef.Art.VEINED,
+			Color("2a2226"), Color("140f12"), Color("ff3a26"))
+	meteor.special = &"meteorite"
+	list[METEORITE] = meteor
 
 	_defs = list
 

@@ -9,10 +9,20 @@ const HILLS_NEAR := Color("2a1a2c")
 const ROCK_OUTSIDE := Color("120e14")
 
 var _seed: int = 0
+var _sky_top: Color = SKY_TOP
+var _sky_bottom: Color = SKY_BOTTOM
+var _hill_far: Color = HILLS_FAR
+var _hill_near: Color = HILLS_NEAR
 
 
-func setup(p_seed: int) -> void:
+## Cores do céu e das colinas vêm da região explorada.
+func setup(p_seed: int, region: RegionDef = null) -> void:
 	_seed = p_seed
+	if region != null:
+		_sky_top = region.sky_top
+		_sky_bottom = region.sky_bottom
+		_hill_far = region.hill_far
+		_hill_near = region.hill_near
 	queue_redraw()
 
 
@@ -25,13 +35,13 @@ func _draw() -> void:
 	var left: float = -margin
 	var right: float = w + margin
 	draw_polygon(PackedVector2Array([Vector2(left, -sky_h), Vector2(right, -sky_h), Vector2(right, 0), Vector2(left, 0)]),
-			PackedColorArray([SKY_TOP, SKY_TOP, SKY_BOTTOM, SKY_BOTTOM]))
+			PackedColorArray([_sky_top, _sky_top, _sky_bottom, _sky_bottom]))
 	# Sol industrial baixo.
 	draw_circle(Vector2(w * 0.72, -2.2 * b), 1.4 * b, Color("ffb46b", 0.35))
 	draw_circle(Vector2(w * 0.72, -2.2 * b), 0.9 * b, Color("ffd59a", 0.8))
 	# Colinas (silhuetas por hash, determinísticas).
-	_hills(left, right, 3.6 * b, 1.6 * b, HILLS_FAR, 61)
-	_hills(left, right, 1.6 * b, 0.9 * b, HILLS_NEAR, 97)
+	_hills(left, right, 3.6 * b, 1.6 * b, _hill_far, 61)
+	_hills(left, right, 1.6 * b, 0.9 * b, _hill_near, 97)
 	# Rocha fora do mundo jogável (telas muito largas).
 	draw_rect(Rect2(left, 0, margin, Balance.MAX_DEPTH_ROWS * b + 2000), ROCK_OUTSIDE)
 	draw_rect(Rect2(w, 0, margin, Balance.MAX_DEPTH_ROWS * b + 2000), ROCK_OUTSIDE)

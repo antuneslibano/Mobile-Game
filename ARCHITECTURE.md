@@ -27,17 +27,21 @@ scenes/
 scripts/
   autoload/                singletons globais (apenas estado e sinais)
     event_bus.gd           EventBus – barramento de sinais de jogo
-    game_state.gd          GameState – estado da corrida (seed, profundidade, estatísticas)
+    game_state.gd          GameState – estado da corrida, região atual, progresso por região, perfil
+    save_service.gd        SaveService – carrega/salva o perfil (debounce, pausa/saída do app)
   data/                    definições estáticas e balanceamento (sem lógica de cena)
     balance.gd             Balance – constantes ajustáveis
     block_def.gd           BlockDef (Resource)
     block_registry.gd      BlockRegistry – tabela de blocos
     biome_def.gd           BiomeDef (Resource)
-    biome_registry.gd      BiomeRegistry – faixas, paletas, regras
+    biome_registry.gd      BiomeRegistry – camadas da região ativa (id_for_row)
+    region_def.gd          RegionDef (Resource) – região do mapa: camadas, recursos, riscos, desbloqueio
+    region_registry.gd     RegionRegistry – as seis regiões, riscos, regras de desbloqueio/progresso
     resource_def.gd        ResourceDef (Resource) – recurso coletável e preço
     resource_registry.gd   ResourceRegistry – tabela de recursos
     upgrade_def.gd         UpgradeDef (Resource) – definição de upgrade
     upgrade_registry.gd    UpgradeRegistry – lista ordenada (caminhos explícitos)
+  save/save_file.gd        SaveFile – JSON com escrita atômica (.tmp → .bak), validação, .corrompido
   economy/                 regras de economia, sem nós
     economy.gd             Economy – carteira, carga, níveis de upgrade
     progression.gd         Progression – custos, compra atômica, atributos, antes/depois
@@ -75,6 +79,9 @@ shaders/terrain.gdshader   terreno orgânico (campo contínuo sobre a grade)
   ui/pixel_art.gd          PixelArt – primitivas, estilos 9-slice (metal, placas, botões) e ícones
   ui/segmented_bar.gd      SegmentedBar – barras segmentadas (níveis, atributos, energia)
   ui/ship_preview.gd       ShipPreview – vitrine da nave na garagem
+  ui/world_map.gd          WorldMap – tela do mapa mundial (carrossel + painel de informações, pausa)
+  ui/region_carousel.gd    RegionCarousel – deslizar horizontal com encaixe, setas e indicadores
+  ui/region_art.gd         RegionArt – ilustração procedural (ilha flutuante) por região
   gameplay/ship_art.gd     ShipArt – sprite procedural da nave (quadros da broca)
 assets/fonts/              Press Start 2P e Jersey 10 (OFL 1.1, licenças incluídas)
   ui/ui_theme.gd, gem_icon.gd, pad_button.gd – tema e componentes desenhados em código
@@ -149,6 +156,10 @@ e `Progression` são puros (testados sem cena); a UI apenas lê e chama GameStat
 | `garage_opened` / `garage_closed` | – | Garage | InputController (limpa toques), Save (4) |
 | `modules_changed` | `equipped: Array[StringName]` | GameState | Game → Drill.modules, Garage |
 | `boost_started` | – | Game (de Drill) | Áudio (5) |
+| `region_changed` | `region_id: StringName` | GameState | Hud |
+| `region_progress_changed` | `region_id, depth_m` (a cada 10 m de recorde) | GameState | SaveService |
+| `region_unlocked` | `region_id: StringName` | GameState | SaveService, Hud (aviso) |
+| `map_opened` / `map_closed` | – | WorldMap | InputController (limpa toques), SaveService |
 
 Sinais locais: `WorldModel.cell_changed(cell)`, `WorldModel.chunk_generated(index)`,
 `Drill.block_hit(...)`, `Drill.block_destroyed(...)`, `Drill.blocked_by_unbreakable(cell)`.
@@ -214,3 +225,26 @@ ignorados (`Hud.is_point_blocking`). Teclado (`←→AD`, `↓ S Espaço`) é so
 | Nós ativos | ~15 + chunks carregados (≈5) |
 
 Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
+
+## 11. Regiões, mapa e salvamento
+
+- **Região → mundo**: `GameState.start_dive(region_id, seed)` aplica a região
+  (`BiomeRegistry.set_layers`, `HeatRules.heat_start_m`, `TerrainTextures.apply_layers`) e
+  `Game.start_run` cria `WorldModel.new(seed, region)`; `WorldGenerator` guarda as próprias
+  camadas (seguro em threads). O fundo (`Background.setup`) usa as cores da região.
+- **Mapa** (`WorldMap`, CanvasLayer 25, pausa o jogo): abre ao iniciar e pelo botão de mapa
+  do HUD. `RegionCarousel` desenha as páginas num único Control; arrasto > 18% da largura ou
+  "flick" > 900 px/s troca de página, com encaixe exponencial e resistência elástica nas
+  pontas; toque e mouse são tratados de forma idempotente. EXPLORAR emite
+  `explore_requested(region_id)` → `Main._on_explore` (mesma região com mergulho ativo
+  apenas fecha o mapa).
+- **Terreno × depósito no shader**: a paleta tem a coluna 6 = tipo de arte, coluna 7 = brilho.
+  Terrenos têm estilos próprios em `terrain_col`; depósitos usam a rocha hospedeira vizinha
+  como fundo. Pepitas metálicas são decididas pela célula do **centro** da pepita (voronoi),
+  então nunca ficam recortadas pela borda ondulada do material.
+- **Salvamento** (`SaveService` + `SaveFile`): `user://deepforge_profile.json` com esquema 1:
+  economia (créditos, cristais, carga, upgrades, módulos), região atual e profundidade máxima
+  por região. O terreno escavado **não** é salvo (cada mergulho gera um mundo novo). Grava
+  com debounce de 3 s após compra, venda, recorde de 10 m, desbloqueio, troca de região,
+  fechamento de garagem/mapa e imediatamente ao pausar/fechar o app. Leitura valida tudo
+  (`Economy.from_dict`, ids de região) e cai para o `.bak` se o principal estiver corrompido.

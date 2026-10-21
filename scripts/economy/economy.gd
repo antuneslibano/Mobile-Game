@@ -89,6 +89,52 @@ func set_level(id: StringName, level: int) -> void:
 	upgrade_levels[id] = maxi(0, level)
 
 
+## Serialização para o salvamento (tipos simples, compatível com JSON).
+func to_dict() -> Dictionary:
+	var cargo_out: Dictionary = {}
+	for k: StringName in cargo:
+		cargo_out[String(k)] = int(cargo[k])
+	var levels: Dictionary = {}
+	for k: StringName in upgrade_levels:
+		levels[String(k)] = int(upgrade_levels[k])
+	var eq: Array = []
+	for m in equipped_modules:
+		eq.append(String(m))
+	return {
+		"credits": credits, "crystals": crystals, "lifetime_credits": lifetime_credits,
+		"cargo": cargo_out, "upgrades": levels, "equipped": eq,
+	}
+
+
+## Restaura a partir do salvamento, validando tudo (valores inválidos são descartados).
+static func from_dict(d: Dictionary) -> Economy:
+	var e := Economy.new()
+	e.credits = maxi(0, int(d.get("credits", 0)))
+	e.crystals = maxi(0, int(d.get("crystals", 0)))
+	e.lifetime_credits = maxi(0, int(d.get("lifetime_credits", 0)))
+	var cargo_in: Variant = d.get("cargo", {})
+	if cargo_in is Dictionary:
+		for k: Variant in cargo_in:
+			var key := StringName(str(k))
+			var r: ResourceDef = ResourceRegistry.get_def(key)
+			if r != null and r.currency == &"" and int(cargo_in[k]) > 0:
+				e.cargo[key] = int(cargo_in[k])
+	var up_in: Variant = d.get("upgrades", {})
+	if up_in is Dictionary:
+		for k: Variant in up_in:
+			var def: UpgradeDef = UpgradeRegistry.get_def(StringName(str(k)))
+			if def != null:
+				e.upgrade_levels[def.id] = clampi(int(up_in[k]), 0, def.max_level)
+	var eq_in: Variant = d.get("equipped", [])
+	if eq_in is Array:
+		for m: Variant in eq_in:
+			var id := StringName(str(m))
+			if id in ModuleSystem.ALL and e.owns_module(id) and not e.equipped_modules.has(id) \
+					and e.equipped_modules.size() < Balance.MODULE_SLOTS:
+				e.equipped_modules.append(id)
+	return e
+
+
 func owns_module(id: StringName) -> bool:
 	return get_level(id) > 0
 

@@ -4,6 +4,7 @@ extends CanvasLayer
 ## botão de impulso. Apenas exibe estado e expõe áreas de toque; não altera regras de jogo.
 
 signal garage_requested
+signal map_requested
 
 const TOP_HEIGHT: float = 200.0
 const SIDE_MARGIN: float = 20.0
@@ -166,6 +167,15 @@ func _build() -> void:
 	UiTheme.style_button(_garage_button, &"gold")
 	_garage_button.pressed.connect(func() -> void: garage_requested.emit())
 	energy_row.add_child(_garage_button)
+	var map_button := Button.new()
+	map_button.name = "MapButton"
+	map_button.icon = PixelArt.icon(&"map")
+	map_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	map_button.custom_minimum_size = Vector2(64, 60)
+	map_button.add_theme_constant_override("icon_max_width", 40)
+	UiTheme.style_button(map_button, &"steel")
+	map_button.pressed.connect(func() -> void: map_requested.emit())
+	energy_row.add_child(map_button)
 
 	# Botão de impulso (canto inferior direito). O restante da tela é área do joystick.
 	_boost = PadButton.new(&"boost", &"boost", "0%", &"blue")
@@ -299,6 +309,7 @@ func _show_banner(text: String, color: Color) -> void:
 func _set_biome(biome_id: int) -> void:
 	var biome: BiomeDef = BiomeRegistry.get_def(biome_id)
 	_biome_label.text = biome.display_name
+	_biome_label.tooltip_text = GameState.region().display_name
 	_biome_label.add_theme_color_override("font_color", biome.ui_color)
 
 
