@@ -63,7 +63,7 @@ func apply_region() -> void:
 	var r: RegionDef = region()
 	BiomeRegistry.set_layers(r.layers)
 	HeatRules.heat_start_m = r.heat_start_m
-	TerrainTextures.apply_layers(r.layers)
+	TerrainTextures.apply_region(r)
 
 
 func region_depth(id: StringName) -> int:

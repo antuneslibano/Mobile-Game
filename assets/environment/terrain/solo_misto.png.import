@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://1pny0gjdxnlf"
+path="res://.godot/imported/solo_misto.png-8c04690fc2ba27782049eed85f84c5a7.image"
+
+[deps]
+
+source_file="res://assets/environment/terrain/solo_misto.png"
+dest_files=["res://.godot/imported/solo_misto.png-8c04690fc2ba27782049eed85f84c5a7.image"]
+
+[params]
+

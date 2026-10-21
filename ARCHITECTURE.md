@@ -37,6 +37,7 @@ scripts/
     biome_registry.gd      BiomeRegistry – camadas da região ativa (id_for_row)
     region_def.gd          RegionDef (Resource) – região do mapa: camadas, recursos, riscos, desbloqueio
     region_registry.gd     RegionRegistry – as seis regiões, riscos, regras de desbloqueio/progresso
+    terrain_skins.gd       TerrainSkins – textura por material/camada, sprite por depósito, decorações
     resource_def.gd        ResourceDef (Resource) – recurso coletável e preço
     resource_registry.gd   ResourceRegistry – tabela de recursos
     upgrade_def.gd         UpgradeDef (Resource) – definição de upgrade
@@ -51,9 +52,11 @@ scripts/
     world_model.gd         WorldModel – cache de chunks, modificações, dano
     terrain_view.gd        TerrainView – carrega/descarrega e recicla ChunkRenderers
     chunk_renderer.gd      ChunkRenderer – 1 quad por chunk com o shader de terreno; dados em textura
+    cave_decor.gd          CaveDecor – vegetação/pedras de caverna do chunk (só desenho)
     mining_overlay.gd      MiningOverlay – brilho de impacto
   render/
-    terrain_textures.gd    TerrainTextures – paleta, ruído e material do shader (gerados em código)
+    terrain_textures.gd    TerrainTextures – paleta, ruído, atlas (dos PNGs) e tabelas da região ativa
+    env_art.gd             EnvArt – gerador da pixel art do ambiente (usado só por tools/)
     background.gd          Background – céu, superfície e base
   gameplay/
     energy_system.gd       EnergySystem – energia e impulso (puro)
@@ -84,6 +87,8 @@ shaders/terrain.gdshader   terreno orgânico (campo contínuo sobre a grade)
   ui/region_art.gd         RegionArt – ilustração procedural (ilha flutuante) por região
   gameplay/ship_art.gd     ShipArt – sprite procedural da nave (quadros da broca)
 assets/fonts/              Press Start 2P e Jersey 10 (OFL 1.1, licenças incluídas)
+assets/environment/        terrain/ ores/ vegetation/ decorations/ – PNGs (importados como Image)
+tools/gen_env_assets.gd    regenera os PNGs do ambiente
   ui/ui_theme.gd, gem_icon.gd, pad_button.gd – tema e componentes desenhados em código
   debug/autopilot.gd       Autopilot – bot de teste (--autotest) e captura de tela
   main.gd                  Main – raiz, argumentos de linha de comando
@@ -248,3 +253,21 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
   com debounce de 3 s após compra, venda, recorde de 10 m, desbloqueio, troca de região,
   fechamento de garagem/mapa e imediatamente ao pausar/fechar o app. Leitura valida tudo
   (`Economy.from_dict`, ids de região) e cai para o `.bak` se o principal estiver corrompido.
+
+## 12. Ambiente visual (texturas, depósitos, decorações)
+
+- **Assets**: `EnvArt` desenha a pixel art (determinística; texturas periódicas) e
+  `tools/gen_env_assets.gd` grava os PNGs em `assets/environment/{terrain,ores,vegetation,
+  decorations}`. Os PNGs usam `importer="image"` (pixels exatos, também no APK) e podem ser
+  retocados à mão; o jogo nunca os regenera.
+- **Atlas**: `TerrainTextures` monta três atlas (texturas 64×64, depósitos 12×12 × 3
+  variações, decorações 24×24) e duas tabelas da região ativa: `skin_tex` (bloco × camada →
+  até 4 texturas) e `decor_tex` (camada → decoração embutida por faixa de sorteio +
+  densidade). `GameState.apply_region` chama `TerrainTextures.apply_region`.
+- **Shader** (mesma geometria, mesmas bordas): `surface_col` amostra a textura do material
+  por pixel de arte (`texelFetch`, sem filtro); sem pele usa o procedural antigo. Depósitos
+  são um sprite por sítio de 14 pixels de arte, decidido pela célula do centro. Decorações
+  embutidas: um sítio de 28 pixels de arte, só sobre terreno. Fósseis: sprite por bloco.
+- **Cavernas**: `CaveDecor` (filho do `ChunkRenderer`) planeja, ao montar o chunk, plantas no
+  chão e raízes no teto de cavernas naturais (`WorldModel.is_modified` exclui túneis) e as
+  remove quando a célula de apoio é escavada. Sem colisão; desenho em um único CanvasItem.

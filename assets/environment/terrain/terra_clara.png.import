@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://dxssl4qdqvahu"
+path="res://.godot/imported/terra_clara.png-e7d18b563005c1c5755a6b6206c91483.image"
+
+[deps]
+
+source_file="res://assets/environment/terrain/terra_clara.png"
+dest_files=["res://.godot/imported/terra_clara.png-e7d18b563005c1c5755a6b6206c91483.image"]
+
+[params]
+

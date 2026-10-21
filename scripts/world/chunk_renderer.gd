@@ -15,6 +15,7 @@ var chunk_index: int = 0
 var _image: Image
 var _texture: ImageTexture
 var _dirty: bool = false
+var _decor: CaveDecor
 
 
 static func _ensure_lut() -> void:
@@ -35,6 +36,11 @@ func assign(index: int) -> void:
 	position = Vector2(0.0, float(index * Balance.CHUNK_CELLS_Y * Balance.CELL_PX))
 	visible = true
 	rebuild()
+	if _decor == null:
+		_decor = CaveDecor.new()
+		_decor.name = "CaveDecor"
+		add_child(_decor)
+	_decor.build(world, index)
 
 
 ## Reescreve toda a textura de dados (ao atribuir o chunk).
@@ -110,6 +116,8 @@ func update_cells(cells: Array[Vector2i]) -> void:
 		var dmg: float = world.get_damage(c)
 		_image.set_pixel(i, j, Color(id / 255.0, dmg, old.b, _solid_lut[id] / 255.0))
 		any = true
+	if any and _decor != null:
+		_decor.on_cells_changed(cells)
 	if any and not _dirty:
 		_dirty = true
 		_flush.call_deferred()

@@ -195,6 +195,14 @@ func peek_cell(c: Vector2i) -> int:
 	return generator.generate_cell(c.x, c.y)
 
 
+## Verdadeiro se a célula foi alterada pela escavação (ar de túnel, não de caverna).
+func is_modified(c: Vector2i) -> bool:
+	if c.y < 0 or not _in_x(c):
+		return false
+	var mods: Dictionary = _mods.get(chunk_index_for_row(c.y), {})
+	return mods.has(_local_index(c))
+
+
 func is_solid(c: Vector2i) -> bool:
 	return BlockRegistry.is_solid(get_cell(c))
 

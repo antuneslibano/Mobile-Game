@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://cvwgmu3bvxsef"
+path="res://.godot/imported/solo_umido.png-5c000f2a3f208dc0661e59ff416584a1.image"
+
+[deps]
+
+source_file="res://assets/environment/terrain/solo_umido.png"
+dest_files=["res://.godot/imported/solo_umido.png-5c000f2a3f208dc0661e59ff416584a1.image"]
+
+[params]
+

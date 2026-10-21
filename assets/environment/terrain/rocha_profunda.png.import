@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://bx6ct20gielxy"
+path="res://.godot/imported/rocha_profunda.png-479b993189f3133da746c70471c035d5.image"
+
+[deps]
+
+source_file="res://assets/environment/terrain/rocha_profunda.png"
+dest_files=["res://.godot/imported/rocha_profunda.png-479b993189f3133da746c70471c035d5.image"]
+
+[params]
+

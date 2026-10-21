@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://bvrkr188xsmmd"
+path="res://.godot/imported/pedra_clara.png-a4f5f4347d8c940072470252ccb8b995.image"
+
+[deps]
+
+source_file="res://assets/environment/terrain/pedra_clara.png"
+dest_files=["res://.godot/imported/pedra_clara.png-a4f5f4347d8c940072470252ccb8b995.image"]
+
+[params]
+

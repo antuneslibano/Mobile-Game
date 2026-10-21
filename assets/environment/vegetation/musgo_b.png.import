@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://cowywywjwjdrp"
+path="res://.godot/imported/musgo_b.png-2af85b899d2a93088e6ed7304e2a899a.image"
+
+[deps]
+
+source_file="res://assets/environment/vegetation/musgo_b.png"
+dest_files=["res://.godot/imported/musgo_b.png-2af85b899d2a93088e6ed7304e2a899a.image"]
+
+[params]
+

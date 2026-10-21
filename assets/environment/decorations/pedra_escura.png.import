@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://fcre61f87vl0"
+path="res://.godot/imported/pedra_escura.png-d7f1b55fc7dc7b80b7d914d39fd48ae7.image"
+
+[deps]
+
+source_file="res://assets/environment/decorations/pedra_escura.png"
+dest_files=["res://.godot/imported/pedra_escura.png-d7f1b55fc7dc7b80b7d914d39fd48ae7.image"]
+
+[params]
+

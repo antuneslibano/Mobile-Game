@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://dtqv264grlgp0"
+path="res://.godot/imported/cogumelo_marrom.png-fd60f5dafda6e6fa6ffb176a6c5b1fb1.image"
+
+[deps]
+
+source_file="res://assets/environment/vegetation/cogumelo_marrom.png"
+dest_files=["res://.godot/imported/cogumelo_marrom.png-fd60f5dafda6e6fa6ffb176a6c5b1fb1.image"]
+
+[params]
+

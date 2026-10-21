@@ -3,6 +3,25 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.7.0] — Visual do Vale das Raízes
+
+### Adicionado
+- **16 texturas de terreno** em pixel art repetível (terra clara/escura, argila, solo
+  compacto, úmido, com raízes, com musgo, rachado, pedras clara/cinza/escura, rocha compacta e
+  profunda, terra avermelhada, solo arenoso e misto), aplicadas pelo shader por camada.
+- **Depósitos redesenhados** como sprites embutidos com silhuetas próprias (cubos metálicos,
+  pepitas de ouro, gemas lapidadas, lascas, drusas, rocha com mineral exposto), 3 variações.
+- **Raízes, musgo, plantas, cogumelos e rochas** decorativos no Vale: embutidos no solo e nas
+  cavernas naturais (chão e teto), sem colisão; somem quando o apoio é escavado.
+- **Fósseis** variados (osso, crânio, amonite, costelas).
+- Assets reais em `assets/environment/` e gerador `tools/gen_env_assets.gd`.
+- Testes do ambiente (`test_environment.gd`).
+
+### Alterado
+- Terra, pedra, argila e rochas usam as novas texturas em todas as regiões; areia das Dunas,
+  gelo, lama e magma mantêm o desenho próprio.
+- Ícones de minério do mapa usam os mesmos sprites da mina.
+
 ## [0.6.0] — Minérios, terrenos e mapa mundial
 
 ### Adicionado

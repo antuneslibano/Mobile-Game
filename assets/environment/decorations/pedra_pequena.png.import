@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://wyl00csti1c5"
+path="res://.godot/imported/pedra_pequena.png-f6a8110cbb4d828807b5c3e634935c27.image"
+
+[deps]
+
+source_file="res://assets/environment/decorations/pedra_pequena.png"
+dest_files=["res://.godot/imported/pedra_pequena.png-f6a8110cbb4d828807b5c3e634935c27.image"]
+
+[params]
+

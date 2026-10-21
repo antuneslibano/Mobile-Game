@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://tipc1h3km5lx"
+path="res://.godot/imported/broto.png-ee69be0b1ec8848d56a8f32820550485.image"
+
+[deps]
+
+source_file="res://assets/environment/vegetation/broto.png"
+dest_files=["res://.godot/imported/broto.png-ee69be0b1ec8848d56a8f32820550485.image"]
+
+[params]
+

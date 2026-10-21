@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://caq8avqqqfey4"
+path="res://.godot/imported/rocha_compacta.png-f7cbbd37a355c55a8554b0d85ff6f97f.image"
+
+[deps]
+
+source_file="res://assets/environment/terrain/rocha_compacta.png"
+dest_files=["res://.godot/imported/rocha_compacta.png-f7cbbd37a355c55a8554b0d85ff6f97f.image"]
+
+[params]
+

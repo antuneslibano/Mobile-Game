@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://d1d6pewov8tsp"
+path="res://.godot/imported/solo_com_raizes.png-aa1ce4b30189d85df5077287cef1c5bb.image"
+
+[deps]
+
+source_file="res://assets/environment/terrain/solo_com_raizes.png"
+dest_files=["res://.godot/imported/solo_com_raizes.png-aa1ce4b30189d85df5077287cef1c5bb.image"]
+
+[params]
+

@@ -5,8 +5,14 @@
 //
 // Estilos (coluna 6 da paleta = BlockDef.Art):
 //   terreno  : 1 terra, 2 pedra, 5 rocha-mãe, 8 magma, 9 areia, 10 argila, 11 gelo, 12 lama
-//   depósitos: 3 metálico (pepitas), 4 gema (lascas), 13 fóssil, 14 veios brilhantes,
-//              15 prisma (multicolorido), 6 baú, 7 artefato
+//   depósitos: 3 metálico, 4 gema, 13 fóssil, 14 veios brilhantes, 15 prisma, 6 baú, 7 artefato
+//
+// Terrenos com "pele" (skin_tex) usam texturas pixel art repetíveis do atlas, amostradas
+// por coordenada de mundo em pixels de arte (estáveis com a câmera, sem suavização) e
+// alternadas por ruído de baixa frequência (sem repetição evidente). Os demais usam o
+// desenho procedural (terrain_col). Depósitos de 3/4/15 são sprites embutidos (ore_atlas);
+// decorações embutidas (raízes, pedrinhas) e fósseis vêm de decor_atlas. Nada disso muda a
+// geometria: o campo de solidez, as bordas e a escavação são os mesmos.
 shader_type canvas_item;
 
 uniform sampler2D noise_tex : filter_linear, repeat_enable;  // 4 ruídos contínuos
@@ -20,13 +26,26 @@ uniform float edge_noise = 0.34;
 uniform float domain_warp = 0.55;
 uniform float material_warp = 0.7;
 uniform int biome_row = 33;
+uniform sampler2D terrain_atlas : filter_nearest;  // texturas 64×64, 8 por linha
+uniform sampler2D ore_atlas : filter_nearest;      // depósitos 12×12: linha = minério, coluna = variação
+uniform sampler2D decor_atlas : filter_nearest;    // decorações 24×24, 8 por linha
+uniform sampler2D skin_tex : filter_nearest;       // (bloco, camada) → até 4 índices de textura
+uniform sampler2D decor_tex : filter_nearest;      // (sorteio 0..15 | densidade, camada) → decoração
+uniform int fossil_first = 21;
+uniform float terrain_value = 0.84;                // brilho do terreno texturizado
+uniform float terrain_saturation = 0.85;                     // primeira das 4 entradas de fóssil no atlas
+
+const int TILE = 64;
+const int ORE_PX = 12;
+const int ORE_SITE = 14;
+const int DECOR_CELL = 24;
+const int EMBED_SITE = 28;
 
 varying vec2 world_pos;
 varying vec2 local_pos;
 
 #define CELL(c) texelFetch(TEXTURE, clamp((c) + ivec2(halo), ivec2(0), tsize - ivec2(1)), 0)
 
-const float NUGGET_PX = 18.0;
 const vec3 OUTLINE = vec3(0.05, 0.045, 0.06);
 
 void vertex() {
@@ -151,32 +170,10 @@ vec3 deposit_col(int id, float art, vec3 host, vec2 q) {
 	vec3 acc_d = pal(4, id);
 	vec3 acc_l = pal(5, id);
 	vec2 rel; vec4 rnd;
-	if (art > 2.5 && art < 3.5) {
-		// Pepitas metálicas cúbicas: face de cima clara, laterais em sombra, contorno.
-		// As pepitas em si são desenhadas em fragment() (nugget_col), decididas pela
-		// célula do centro; aqui fica a rocha hospedeira com pontos de minério.
-		vec2 d = voronoi(q / 7.0, rel, rnd);
-		if (rnd.w > 0.8 && d.x < 0.22) { return acc_d; }
-		return host;
-	}
-	if (art > 3.5 && art < 4.5 || art > 14.5) {
-		// Lascas de cristal pontudas (prisma: cor por lasca).
-		vec2 d = voronoi(vec2(q.x / 13.0, q.y / 26.0), rel, rnd);
-		float r = 0.3 + 0.15 * rnd.z;
-		if (art > 14.5) {
-			acc = hue(rnd.x * 2.3);
-			acc_l = mix(acc, vec3(1.0), 0.5);
-			acc_d = acc * 0.6;
-		}
-		float pointy = r * (1.0 - clamp(-rel.y / (r * 1.6), 0.0, 0.8));
-		if (rnd.w > 0.28 && abs(rel.x) < pointy && rel.y < r * 0.8) {
-			if (abs(rel.x) > pointy - 0.09 || rel.y > r * 0.8 - 0.1) { return OUTLINE; }
-			vec3 c = rel.x < 0.0 ? acc_l : acc;
-			if (rel.y > r * 0.35) { c = acc_d; }
-			if (rel.y < -r * 0.7 && rel.x < 0.02) { c = vec3(1.0); }
-			return c;
-		}
-		if (d.x < 0.6) { return mix(host, acc, 0.15); }
+	if (art > 2.5 && art < 4.5 || art > 14.5) {
+		// Rocha hospedeira com raros fragmentos do minério; o depósito em si é um sprite
+		// desenhado em fragment(), decidido pela célula do seu centro.
+		if (cell_rand(ivec2(floor(q / art_px)) + ivec2(91, 17)).x > 0.965) { return acc_d; }
 		return host;
 	}
 	if (art > 13.5 && art < 14.5) {
@@ -192,25 +189,46 @@ vec3 deposit_col(int id, float art, vec3 host, vec2 q) {
 	return host;
 }
 
-bool is_ore_art(float a) {
-	return a > 2.5 && a < 3.5;
+int idx_of(float v) {
+	return int(v * 255.0 + 0.5);
 }
 
-// Pepita metálica cúbica: face de cima clara, laterais em sombra, contorno.
-vec3 nugget_col(int id, vec2 rel, float r) {
-	float d = length(rel);
-	if (d > r - 0.11) { return OUTLINE; }
-	vec2 u = rel / r;
-	float top = -(u.x + u.y);
-	vec3 c = top > 0.3 ? pal(5, id) : (u.x > u.y ? pal(3, id) : pal(4, id));
-	if (top > 0.8) { c = mix(pal(5, id), vec3(1.0), 0.6); }
-	return c;
+bool is_terrain_art(float a) {
+	return (a > 0.5 && a < 2.5) || (a > 7.5 && a < 12.5);
+}
+
+// Terreno: textura do atlas (pele da camada) ou, sem pele, o desenho procedural.
+vec3 surface_col(int id, int layer, ivec2 ap, vec2 q, vec4 n1, vec4 n2) {
+	vec4 sk = texelFetch(skin_tex, ivec2(id, layer), 0);
+	int a = idx_of(sk.r);
+	if (a == 255) {
+		return terrain_col(id, q, n1, n2);
+	}
+	int b = idx_of(sk.g);
+	int c = idx_of(sk.b);
+	int d = idx_of(sk.a);
+	// Borda pontilhada entre texturas (nada de emendas retas); hash aritmético, sem leitura.
+	float dith = (fract(sin(float(ap.x) * 12.9898 + float(ap.y) * 78.233) * 43758.5453) - 0.5) * 0.08;
+	// Uma leitura de ruído: g = manchas grandes (variação), b = manchas menores.
+	vec4 sel = nz(q, 1.8, vec2(0.17, 0.53));
+	int t = a;
+	if (b != 255 && sel.g + dith > 0.52) { t = b; }
+	float patch_n = sel.b + dith;
+	if (c != 255 && patch_n > 0.7) { t = c; }
+	if (d != 255 && patch_n < 0.3) { t = d; }
+	ivec2 tp = ivec2(mod(vec2(ap), float(TILE)));
+	vec3 col = texelFetch(terrain_atlas, ivec2((t % 8) * TILE, (t / 8) * TILE) + tp, 0).rgb;
+	// Terreno um pouco mais escuro e menos saturado que a arte crua: é o fundo destrutível,
+	// e minérios/nave precisam se destacar. Variação de tom larga quebra a repetição do tile.
+	col = mix(vec3(dot(col, vec3(0.3, 0.55, 0.15))), col, terrain_saturation) * terrain_value;
+	return col * (0.94 + 0.12 * n1.g);
 }
 
 void fragment() {
 	ivec2 tsize = textureSize(TEXTURE, 0);
 	vec2 origin = world_pos - local_pos;
-	vec2 q = (floor(world_pos / art_px) + 0.5) * art_px;
+	ivec2 ap = ivec2(floor(world_pos / art_px));
+	vec2 q = (vec2(ap) + 0.5) * art_px;
 	if (q.y < 0.0) {
 		discard;
 	}
@@ -241,6 +259,7 @@ void fragment() {
 		if (mc.a < 0.5) { mc = ca.a > 0.5 ? ca : (cb.a > 0.5 ? cb : (cc.a > 0.5 ? cc : cd)); }
 		int id = int(mc.r * 255.0 + 0.5);
 		float art = art_of(id);
+		int lay = min(idx_of(mc.b), 5);
 		bool dep = (art > 2.5 && art < 4.5) || (art > 12.5 && art < 13.5) || art > 14.5;
 		if (dep || (art > 13.5 && art < 14.5)) {
 			// Rocha hospedeira: material de terreno vizinho mais próximo.
@@ -253,29 +272,48 @@ void fragment() {
 				float ha = art_of(hid);
 				if (hc.a > 0.5 && (ha < 2.5 || (ha > 4.5 && ha < 5.5) || (ha > 7.5 && ha < 12.5))) { host = hid; break; }
 			}
-			vec3 host_col = host == id ? pal(1, id) : terrain_col(host, q, n1, n2);
+			vec3 host_col = host == id ? pal(1, id) : surface_col(host, lay, ap, q, n1, n2);
 			col = deposit_col(id, art, host_col, q);
 		} else {
-			col = terrain_col(id, q, n1, n2);
+			col = surface_col(id, lay, ap, q, n1, n2);
+			// Decorações embutidas (raízes, pedrinhas): só sobre terreno, cortadas pelos túneis.
+			ivec2 es = ivec2(floor(vec2(ap) / float(EMBED_SITE)));
+			vec4 er = cell_rand(es + ivec2(57, 211));
+			if (er.x < texelFetch(decor_tex, ivec2(16, lay), 0).r) {
+				ivec2 eorg = es * EMBED_SITE + ivec2(er.yz * 4.99);
+				ivec2 lp = ap - eorg;
+				if (lp.x >= 0 && lp.y >= 0 && lp.x < DECOR_CELL && lp.y < DECOR_CELL) {
+					vec4 ec = CELL(ivec2(floor(((vec2(eorg) + 12.0) * art_px - origin) / cell_px)));
+					int di = idx_of(texelFetch(decor_tex, ivec2(int(er.w * 15.99), lay), 0).r);
+					if (di != 255 && ec.a > 0.5 && is_terrain_art(art_of(idx_of(ec.r)))) {
+						if (fract(er.w * 13.0) > 0.5) { lp.x = DECOR_CELL - 1 - lp.x; }
+						vec4 dp = texelFetch(decor_atlas, ivec2((di % 8) * DECOR_CELL + lp.x, (di / 8) * DECOR_CELL + lp.y), 0);
+						if (dp.a > 0.5) { col = mix(col, dp.rgb, 0.9); }
+					}
+				}
+			}
 		}
 
-		// Pepitas inteiras: cada pepita pertence à célula do seu centro, então não é
-		// recortada pela borda ondulada do material e avança um pouco na rocha vizinha.
-		if ((ca.a > 0.5 && is_ore_art(art_of(int(ca.r * 255.0 + 0.5))))
-				|| (cb.a > 0.5 && is_ore_art(art_of(int(cb.r * 255.0 + 0.5))))
-				|| (cc.a > 0.5 && is_ore_art(art_of(int(cc.r * 255.0 + 0.5))))
-				|| (cd.a > 0.5 && is_ore_art(art_of(int(cd.r * 255.0 + 0.5))))
-				|| is_ore_art(art)) {
-			vec2 nrel; vec4 nrnd;
-			vec2 nd = voronoi(q / NUGGET_PX, nrel, nrnd);
-			vec4 nc = CELL(ivec2(floor((q - nrel * NUGGET_PX - origin) / cell_px)));
-			int nid = int(nc.r * 255.0 + 0.5);
-			float nr = 0.36 + 0.2 * nrnd.z;
-			if (nc.a > 0.5 && is_ore_art(art_of(nid))) {
-				if (nrnd.w > 0.18 && nd.x < nr) {
-					col = nugget_col(nid, nrel, nr);
-				} else if (pal(7, nid).r > 0.5 && nd.x < 0.8) {
-					col = mix(col, pal(3, nid), 0.3);  // brilho de minérios luminosos (urânio)
+		// Depósitos: no máximo um sprite por sítio de 14 pixels de arte. O sprite pertence à
+		// célula do seu centro: inteiro (não é recortado pela borda ondulada do material),
+		// só os túneis o cortam. Variação e espelhamento por sítio.
+		ivec2 os = ivec2(floor(vec2(ap) / float(ORE_SITE)));
+		vec4 orr = cell_rand(os + ivec2(311, 173));
+		if (orr.x > 0.2) {
+			ivec2 oorg = os * ORE_SITE + ivec2(orr.yz * 2.99);
+			ivec2 lp = ap - oorg;
+			if (lp.x >= 0 && lp.y >= 0 && lp.x < ORE_PX && lp.y < ORE_PX) {
+				vec4 oc = CELL(ivec2(floor(((vec2(oorg) + 6.0) * art_px - origin) / cell_px)));
+				int oid = idx_of(oc.r);
+				int row = idx_of(pal(8, oid).r);
+				if (oc.a > 0.5 && row != 255) {
+					if (fract(orr.w * 7.0) > 0.5) { lp.x = ORE_PX - 1 - lp.x; }
+					vec4 op = texelFetch(ore_atlas, ivec2(int(orr.w * 2.99) * ORE_PX + lp.x, row * ORE_PX + lp.y), 0);
+					if (op.a > 0.5) {
+						col = op.rgb;
+					} else if (pal(7, oid).r > 0.5 && length(vec2(lp) - 5.5) < 7.5) {
+						col = mix(col, pal(3, oid), 0.22);  // brilho próprio (urânio, cristal roxo)
+					}
 				}
 			}
 		}
@@ -298,15 +336,14 @@ void fragment() {
 			float d = length(lc - 0.5);
 			if (d < 0.1) { col = pal(5, home_id); } else if (d > 0.24 && d < 0.32) { col = pal(3, home_id); }
 		} else if (home.a > 0.5 && home_art > 12.5 && home_art < 13.5) {
-			// Osso: haste + duas pontas arredondadas.
-			vec2 p = lc - 0.5;
-			p = vec2(p.x * 0.8 + p.y * 0.6, -p.x * 0.6 + p.y * 0.8);
-			float shaft = max(abs(p.x) - 0.24, abs(p.y) - 0.06);
-			float k1 = min(length(p - vec2(-0.27, -0.06)), length(p - vec2(-0.27, 0.06))) - 0.08;
-			float k2 = min(length(p - vec2(0.27, -0.06)), length(p - vec2(0.27, 0.06))) - 0.08;
-			float bone = min(shaft, min(k1, k2));
-			if (bone < 0.0) { col = p.y < -0.01 ? pal(5, home_id) : pal(3, home_id); }
-			else if (bone < 0.035) { col = OUTLINE; }
+			// Fóssil: osso, crânio, amonite ou costelas (variação por bloco), 16×16 pixels de arte.
+			ivec2 blk = ivec2(floor(cf / sub));
+			vec4 fr = cell_rand(blk + ivec2(5, 9));
+			int fi = fossil_first + int(fr.x * 3.99);
+			ivec2 bp = ivec2(floor(lc * 16.0));
+			if (fr.y > 0.5) { bp.x = 15 - bp.x; }
+			vec4 fp = texelFetch(decor_atlas, ivec2((fi % 8) * DECOR_CELL + 4 + bp.x, (fi / 8) * DECOR_CELL + 4 + bp.y), 0);
+			if (fp.a > 0.5) { col = fp.rgb; }
 		}
 
 		// Luz de cima, sombra embaixo, contorno escuro nas bordas.

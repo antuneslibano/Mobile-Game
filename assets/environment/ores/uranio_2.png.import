@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://cf52nspcow3jj"
+path="res://.godot/imported/uranio_2.png-b842d60a7a4d54644abf8eda6260a9e7.image"
+
+[deps]
+
+source_file="res://assets/environment/ores/uranio_2.png"
+dest_files=["res://.godot/imported/uranio_2.png-b842d60a7a4d54644abf8eda6260a9e7.image"]
+
+[params]
+

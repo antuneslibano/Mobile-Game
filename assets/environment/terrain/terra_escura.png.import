@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://bldhkt2ikd4a2"
+path="res://.godot/imported/terra_escura.png-d7e920ff920eeb520df07be477debb31.image"
+
+[deps]
+
+source_file="res://assets/environment/terrain/terra_escura.png"
+dest_files=["res://.godot/imported/terra_escura.png-d7e920ff920eeb520df07be477debb31.image"]
+
+[params]
+

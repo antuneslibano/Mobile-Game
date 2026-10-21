@@ -56,7 +56,7 @@ Executa, em modo headless:
 | Etapa | Comando | O que verifica |
 |---|---|---|
 | Importação | `godot --headless --path . --import` | projeto abre, cache de classes, sem erros de parser |
-| Unitários | `godot --headless --path . -s res://tests/run_tests.gd` | regiões (registro, camadas contíguas, desbloqueio, progresso, terreno × depósito, gerador por região, ícones), salvamento (ida e volta, arquivo corrompido, `.bak`, validação da economia), escavação livre (diagonal desenha o túnel, horizontal nivelado, nada escavado acima, para cima não move, sem atravessar a 20 FPS), joystick em qualquer ângulo, energia que não regenera e Sobrecarga só com barra cheia, carga por valor do material, calor, módulos, sinergia, slots; dados, determinismo da seed, biomas, cavernas, threads, modificações/JSON, dano, fórmulas, física da perfuradora (sem atravessar blocos a 60/30/20 FPS), paredes, pulo, perfuração lateral, atlas, economia (coleta, frações, venda sem duplicação), progressão (custos, compra atômica, limites, bloqueios, antes/depois) e simulação de balanceamento de 10 min |
+| Unitários | `godot --headless --path . -s res://tests/run_tests.gd` | ambiente (assets e tamanhos, texturas sem emenda, minérios distintos por silhueta/cor, terreno sem ícone de minério, 16 texturas em uso no Vale, tabelas de decoração, vegetação só em cavernas naturais e removida ao escavar), regiões (registro, camadas contíguas, desbloqueio, progresso, terreno × depósito, gerador por região, ícones), salvamento (ida e volta, arquivo corrompido, `.bak`, validação da economia), escavação livre (diagonal desenha o túnel, horizontal nivelado, nada escavado acima, para cima não move, sem atravessar a 20 FPS), joystick em qualquer ângulo, energia que não regenera e Sobrecarga só com barra cheia, carga por valor do material, calor, módulos, sinergia, slots; dados, determinismo da seed, biomas, cavernas, threads, modificações/JSON, dano, fórmulas, física da perfuradora (sem atravessar blocos a 60/30/20 FPS), paredes, pulo, perfuração lateral, atlas, economia (coleta, frações, venda sem duplicação), progressão (custos, compra atômica, limites, bloqueios, antes/depois) e simulação de balanceamento de 10 min |
 | Integração | `godot --headless --path . --fixed-fps 60 res://tests/scene_test.tscn` | 58 verificações com toques simulados: mapa (abre ao iniciar, deslizar troca/encaixa a página, arrasto curto não troca, setas, região bloqueada desativa EXPLORAR, desbloqueio, mergulho em outra região com as camadas certas, mineração lá, perfil salvo/restaurado), joystick (zona morta, baixo, lados, analógico, para cima), multitoque joystick + impulso, setas removidas, barra superior ignorada, descida real, eventos de bloco, câmera; garagem: vender, comprar, efeito na máquina, módulos (equipar automático, slots, remover/equipar) |
 | Sessão | `godot --headless --path . --fixed-fps 60 -- --seed=42 --autotest=30` | bot joga 30 s, verifica a invariante de colisão a cada passo e imprime métricas |
 
@@ -85,13 +85,24 @@ xvfb-run -a godot --path . --rendering-driver opengl3 --resolution 720x1280 --fi
   -- --seed=42 --start-row=450 --autotest=4 --shots=3:/tmp/magma.png
 ```
 
+### Assets do ambiente
+
+Texturas, depósitos, vegetação e decorações ficam em `assets/environment/` (PNGs reais).
+Para regenerá-los a partir do código (`scripts/render/env_art.gd`):
+
+```bash
+godot --headless --path . -s res://tools/gen_env_assets.gd -- --preview=/tmp/folha.png
+godot --headless --path . --import
+```
+
 ## Estrutura
 
 ```
 scenes/    main, game, gameplay/drill, ui/hud
 scripts/   autoload · data · world · render · gameplay · camera · fx · game · ui · debug
 tests/     runner headless, suítes unitárias, teste de cena
-tools/     run_tests.sh
+tools/     run_tests.sh, gen_env_assets.gd
+assets/    fonts, environment (terrain, ores, vegetation, decorations)
 ```
 
 Detalhes em [ARCHITECTURE.md](ARCHITECTURE.md). Regras e números ajustáveis em

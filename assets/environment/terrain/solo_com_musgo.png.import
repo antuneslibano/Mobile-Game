@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://bu55cwdgsxcqe"
+path="res://.godot/imported/solo_com_musgo.png-817095c7da344d0b6a9ba2e46053e3f2.image"
+
+[deps]
+
+source_file="res://assets/environment/terrain/solo_com_musgo.png"
+dest_files=["res://.godot/imported/solo_com_musgo.png-817095c7da344d0b6a9ba2e46053e3f2.image"]
+
+[params]
+

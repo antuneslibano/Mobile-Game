@@ -336,6 +336,28 @@ Referência visual definida pelo autor (nave e tela de upgrades em pixel art ind
   camadas, gelo facetado, lama, rocha magmática com veios). Depósitos são pepitas inteiras
   (pertencem à célula do centro, não são recortadas pela borda do material) ou lascas de
   cristal, com contorno escuro e cores distintas.
+- **Ambiente do Vale das Raízes (0.7)** — assets reais em `assets/environment/`, gerados por
+  código (`EnvArt`, `tools/gen_env_assets.gd`) e aplicados pelo shader sem mudar a geometria:
+  - *Texturas de terreno* (64×64 pixels de arte, repetíveis): terra clara/escura, argila, solo
+    compacto/úmido/com raízes/com musgo/rachado, pedra clara/cinza/escura, rocha compacta/
+    profunda, terra avermelhada, solo arenoso e solo misto. Amostradas por coordenada de
+    mundo; cada material alterna até 4 texturas por ruído de baixa frequência (sem repetição
+    evidente) e o terreno é levemente escurecido/dessaturado para os minérios se destacarem.
+  - *Progressão por camada no Vale*: superfície = terra clara, solo compacto, raízes e musgo;
+    areia instável = solo arenoso/misto e terra escura/úmida; argila = argila, terra
+    avermelhada e solo rachado; cavernas fossilizadas = pedra cinza/escura e rocha
+    compacta; zona abissal = rocha profunda.
+  - *Depósitos* (12×12, 3 variações, espelhados): cubos metálicos (ferro, cobre, prata,
+    titânio), pepitas lisas (ouro), gemas lapidadas (diamante), lascas alongadas (cristal
+    azul), cristais altos translúcidos (cristal verde/esmeralda), drusa compacta (ametista),
+    cristais grandes com brilho (cristal roxo = cristal raro), cristal vermelho (rubi),
+    rocha com mineral exposto (urânio), torrões escuros (carvão), quartzo. Topázio tem arte
+    pronta, mas não existe como minério no jogo.
+  - *Decorações* (só visuais, sem colisão): raízes e pedrinhas embutidas no solo (cortadas
+    pelos túneis); musgo, brotos, samambaias, cogumelos, montes de pedra e rochas pontudas
+    no chão de cavernas naturais; raízes pendentes, cipós e estalactites no teto. Mais
+    vegetação perto da superfície, mais rochas no fundo. Fósseis colecionáveis aparecem
+    como osso, crânio, amonite ou costelas.
 - **Mapa mundial**: ilhas flutuantes procedurais (`RegionArt`) sobre mar de nuvens, uma
   região por página, placa com o nome, barra de progresso ou cadeado.
 

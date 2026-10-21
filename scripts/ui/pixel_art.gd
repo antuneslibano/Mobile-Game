@@ -382,8 +382,22 @@ static func ore_icon(key: StringName) -> ImageTexture:
 
 
 static func _ore_img(key: StringName) -> Image:
+	# Mesmo sprite usado na mina (assets/environment), centralizado na tela do ícone.
+	var block: int = _block_for(key)
+	var sprite: String = TerrainSkins.ore_sprite_for(block)
+	var path: String = "%s/ores/%s_1.png" % [TerrainSkins.ROOT, sprite]
+	if block == BlockRegistry.FOSSIL:
+		path = "%s/decorations/fossil_osso.png" % TerrainSkins.ROOT
+	if (not sprite.is_empty() or block == BlockRegistry.FOSSIL) and ResourceLoader.exists(path):
+		var src: Image = load(path) as Image
+		if src != null:
+			src = src.duplicate()
+			src.convert(Image.FORMAT_RGBA8)
+			var out := new_img(20, 18)
+			out.blend_rect(src, Rect2i(Vector2i.ZERO, src.get_size()), Vector2i((20 - src.get_width()) / 2, (18 - src.get_height()) / 2))
+			return out
 	var img := new_img(20, 18)
-	var def: BlockDef = BlockRegistry.get_def(_block_for(key))
+	var def: BlockDef = BlockRegistry.get_def(block)
 	var acc: Color = def.color_accent
 	match def.art:
 		BlockDef.Art.CRYSTAL, BlockDef.Art.PRISM:
