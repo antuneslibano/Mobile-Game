@@ -39,7 +39,8 @@ func _ready() -> void:
 	_build()
 	EventBus.depth_changed.connect(_on_depth_changed)
 	EventBus.biome_changed.connect(_on_biome_changed)
-	EventBus.block_destroyed.connect(func(_c: Vector2i, _id: int, _d: Dictionary) -> void: _dismiss_hint())
+	EventBus.material_dug.connect(func(_a: Vector2, _c: Dictionary) -> void: _dismiss_hint())
+	EventBus.overdrive_ready.connect(func() -> void: _show_banner("SOBRECARGA PRONTA", UiTheme.BLUE))
 	EventBus.wallet_changed.connect(set_currencies)
 	EventBus.cargo_changed.connect(_on_cargo_changed)
 	get_viewport().size_changed.connect(_apply_layout)
@@ -167,13 +168,13 @@ func _build() -> void:
 	energy_row.add_child(_garage_button)
 
 	# Botão de impulso (canto inferior direito). O restante da tela é área do joystick.
-	_boost = PadButton.new(&"boost", PadButton.Icon.BOOST, "IMPULSO", UiTheme.BLUE)
+	_boost = PadButton.new(&"boost", PadButton.Icon.BOOST, "0%", UiTheme.BLUE)
 	_boost.name = "BoostButton"
 	_boost.size_flags_horizontal = Control.SIZE_SHRINK_END
 	_root.add_child(_boost)
 	_pads.append(_boost)
 
-	_hint = _label("Arraste o dedo para guiar a broca:\npara baixo perfura, para os lados move.", UiTheme.FONT_SMALL, UiTheme.TEXT)
+	_hint = _label("Arraste o dedo em qualquer direção (menos para cima)\ne desenhe o seu próprio túnel.", UiTheme.FONT_SMALL, UiTheme.TEXT)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_root.add_child(_hint)
 
@@ -247,9 +248,16 @@ func _process(delta: float) -> void:
 	if drill != null:
 		var e: EnergySystem = drill.energy
 		set_energy(e.energy, e.max_energy)
-		_energy_bar.modulate = Color(1.6, 1.6, 1.8) if e.is_boosting() else Color.WHITE
-		_boost.modulate.a = 1.0 if e.can_boost() or e.is_boosting() else 0.45
-		_boost.text = "%.1fs" % e.boost_left if e.is_boosting() else "IMPULSO"
+		var ready: bool = e.is_ready()
+		var glow: float = 1.25 + 0.35 * sin(Time.get_ticks_msec() * 0.012)
+		_energy_bar.modulate = Color(glow, glow, glow * 1.1) if (ready or e.is_boosting()) else Color.WHITE
+		_boost.modulate = Color(glow, glow, glow) if ready else Color(1, 1, 1, 1.0 if e.is_boosting() else 0.5)
+		if e.is_boosting():
+			_boost.text = "%.1fs" % e.boost_left
+		elif ready:
+			_boost.text = "SOBRECARGA"
+		else:
+			_boost.text = "%d%%" % int(e.fill_ratio() * 100.0)
 		_set_heat(drill.depth_m(), drill.heat_penalty)
 	if _banner_t > 0.0:
 		_banner_t -= delta
@@ -278,9 +286,13 @@ func _on_biome_changed(biome_id: int) -> void:
 	var was: String = _biome_label.text
 	_set_biome(biome_id)
 	if was != "" and was != _biome_label.text and GameState.depth_m > 0:
-		_banner.text = _biome_label.text.to_upper()
-		_banner.add_theme_color_override("font_color", BiomeRegistry.get_def(biome_id).ui_color)
-		_banner_t = BANNER_TIME
+		_show_banner(_biome_label.text.to_upper(), BiomeRegistry.get_def(biome_id).ui_color)
+
+
+func _show_banner(text: String, color: Color) -> void:
+	_banner.text = text
+	_banner.add_theme_color_override("font_color", color)
+	_banner_t = BANNER_TIME
 
 
 func _set_biome(biome_id: int) -> void:

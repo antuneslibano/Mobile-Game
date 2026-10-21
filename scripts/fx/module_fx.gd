@@ -37,8 +37,8 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
-func _on_drone_shot(cell: Vector2i) -> void:
-	_lasers.append({"to": WorldModel.cell_center(cell), "t": 0.0})
+func _on_drone_shot(point: Vector2) -> void:
+	_lasers.append({"to": point, "t": 0.0})
 
 
 func _on_pulse(center: Vector2, radius_px: float, crit: bool) -> void:

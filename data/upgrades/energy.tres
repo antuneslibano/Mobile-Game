@@ -5,8 +5,8 @@
 [resource]
 script = ExtResource("1_def")
 id = &"energy"
-display_name = "Capacidade de energia"
-description = "Aumenta a energia máxima da máquina."
+display_name = "Bateria"
+description = "Mais carga de energia por material cavado (+10%). A Sobrecarga enche mais rápido."
 currency = &"credits"
 base_cost = 50.0
 cost_growth = 1.4

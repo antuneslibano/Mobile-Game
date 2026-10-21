@@ -1,7 +1,10 @@
 class_name WorldGenerator
 extends RefCounted
-## Geração determinística e pura: (seed, x, y) → block_id.
-## Não guarda estado mutável além dos geradores de ruído; seguro para chamar em qualquer ordem.
+## Geração determinística e pura em dois níveis:
+## 1. Layout de BLOCOS (biomas, cavernas, minérios): generate_block(bx, by).
+## 2. MICRO-CÉLULAS (terreno real, escavação livre): o layout é amostrado com deformação
+##    por ruído, dando bordas orgânicas: generate_cell(cx, cy) / generate_chunk(index).
+## Somente leitura após _init — seguro para threads de trabalho.
 
 const SALT_ORE: int = 0x51ED27
 const SALT_VARIANT: int = 0x2F9A11
@@ -25,6 +28,10 @@ var _ore_chance: Array[PackedFloat32Array] = []
 var _ore_min_row: Array[PackedInt32Array] = []
 var _ore_in_vein: Array[PackedByteArray] = []
 var _boundaries: PackedInt32Array = PackedInt32Array()
+## Tabelas de deformação (256×256, repetíveis) em bytes.
+var _warp_x: PackedByteArray
+var _warp_y: PackedByteArray
+const WARP_SIZE: int = 256
 
 
 func _init(p_seed: int) -> void:
@@ -34,6 +41,17 @@ func _init(p_seed: int) -> void:
 	_ore = _make_noise(p_seed + 202, 0.17, 1)
 	_border = _make_noise(p_seed + 303, 0.21, 1)
 	_prepare_tables()
+	_warp_x = _warp_table(p_seed + 404)
+	_warp_y = _warp_table(p_seed + 505)
+
+
+static func _warp_table(p_seed: int) -> PackedByteArray:
+	# Fractal de 3 oitavas: curvas amplas com bordas recortadas em escala fina.
+	var n := _make_noise(p_seed, 0.05, 3)
+	n.fractal_gain = 0.55
+	var img: Image = n.get_seamless_image(WARP_SIZE, WARP_SIZE)
+	img.convert(Image.FORMAT_L8)
+	return img.get_data()
 
 
 ## Também garante que os registros estáticos estejam construídos antes de uso em threads.
@@ -101,7 +119,8 @@ func _near_boundary(y: int) -> bool:
 	return false
 
 
-func generate_cell(x: int, y: int) -> int:
+## Bloco do layout (unidade de design). Fora do mundo = rocha-mãe; acima = ar.
+func generate_block(x: int, y: int) -> int:
 	if y < 0:
 		return BlockRegistry.AIR
 	return _cell(x, y, biome_at(x, y))
@@ -149,20 +168,91 @@ func _cell(x: int, y: int, biome_id: int) -> int:
 	return biome.secondary_block if m < ratio else biome.primary_block
 
 
-## Gera os ids de um chunk inteiro (linhas index*CHUNK_HEIGHT ..).
+static func _is_special(id: int) -> bool:
+	return id == BlockRegistry.CHEST or id == BlockRegistry.ARTIFACT
+
+
+## Deformação (em células) da amostragem do layout para uma micro-célula.
+func warp_at(cx: int, cy: int) -> Vector2:
+	var i: int = (cx & (WARP_SIZE - 1)) + ((cy & (WARP_SIZE - 1)) << 8)
+	return Vector2(float(_warp_x[i]) - 127.5, float(_warp_y[i]) - 127.5) * (Balance.WARP_CELLS / 127.5)
+
+
+## Combina o bloco deformado com o não deformado: especiais (baú, artefato) mantêm forma
+## própria e não "vazam" para os vizinhos.
+static func _resolve(warped: int, unwarped: int) -> int:
+	if _is_special(unwarped) or _is_special(warped):
+		return unwarped
+	return warped
+
+
+func _forced_cell(cx: int, cy: int) -> int:
+	if cy < 0:
+		return BlockRegistry.AIR
+	if cx < Balance.WALL_CELLS or cx >= Balance.WORLD_CELLS_X - Balance.WALL_CELLS \
+			or cy >= Balance.MAX_DEPTH_ROWS * Balance.CELL_SUB:
+		return BlockRegistry.BEDROCK
+	return -1
+
+
+## Micro-célula avulsa (usada para vizinhos fora de chunks carregados).
+func generate_cell(cx: int, cy: int) -> int:
+	var forced: int = _forced_cell(cx, cy)
+	if forced >= 0:
+		return forced
+	var sub: int = Balance.CELL_SUB
+	var w: Vector2 = warp_at(cx, cy)
+	var unwarped: int = generate_block(floori(float(cx) / sub), floori(float(cy) / sub))
+	var warped: int = generate_block(floori((cx + 0.5 + w.x) / sub), floori((cy + 0.5 + w.y) / sub))
+	return _resolve(warped, unwarped)
+
+
+## Bioma de uma micro-célula (do bloco não deformado).
+func biome_at_cell(cx: int, cy: int) -> int:
+	return biome_at(clampi(floori(float(cx) / Balance.CELL_SUB), 0, Balance.WORLD_WIDTH - 1), maxi(0, floori(float(cy) / Balance.CELL_SUB)))
+
+
+## Gera as micro-células de um chunk (WORLD_CELLS_X × CHUNK_CELLS_Y). O layout de blocos do
+## chunk (+ margem para a deformação) é calculado uma vez e então amostrado.
 func generate_chunk(index: int) -> PackedByteArray:
-	var w: int = Balance.WORLD_WIDTH
-	var h: int = Balance.CHUNK_HEIGHT
+	var sub: int = Balance.CELL_SUB
+	var cw: int = Balance.WORLD_CELLS_X
+	var ch: int = Balance.CHUNK_CELLS_Y
+	var margin: int = 3
+	var bw: int = Balance.WORLD_WIDTH + margin * 2
+	var by0: int = index * Balance.CHUNK_HEIGHT - margin
+	var bh: int = Balance.CHUNK_HEIGHT + margin * 2
+	var coarse := PackedByteArray()
+	coarse.resize(bw * bh)
+	for j in bh:
+		var by: int = by0 + j
+		for i in bw:
+			var bx: int = i - margin
+			var id: int = BlockRegistry.BEDROCK
+			if by < 0:
+				id = BlockRegistry.AIR
+			elif bx >= 0 and bx < Balance.WORLD_WIDTH:
+				id = generate_block(bx, by)
+			coarse[j * bw + i] = id
 	var ids := PackedByteArray()
-	ids.resize(w * h)
-	var y0: int = index * h
-	for ly in h:
-		var y: int = y0 + ly
-		var row: int = ly * w
-		if y < 0:
-			continue  # céu: PackedByteArray já vem zerado (AIR)
-		# Bioma calculado uma vez por linha, exceto perto das bordas serrilhadas.
-		var row_biome: int = -1 if _near_boundary(y) else BiomeRegistry.id_for_row(y)
-		for x in w:
-			ids[row + x] = _cell(x, y, row_biome if row_biome >= 0 else biome_at(x, y))
+	ids.resize(cw * ch)
+	var cy0: int = index * ch
+	for ly in ch:
+		var cy: int = cy0 + ly
+		if cy < 0:
+			continue  # céu: zeros = AIR
+		var row: int = ly * cw
+		var uby: int = floori(float(cy) / sub) - by0
+		for cx in cw:
+			var forced: int = _forced_cell(cx, cy)
+			if forced >= 0:
+				ids[row + cx] = forced
+				continue
+			var wi: int = (cx & (WARP_SIZE - 1)) + ((cy & (WARP_SIZE - 1)) << 8)
+			var wx: float = (float(_warp_x[wi]) - 127.5) * (Balance.WARP_CELLS / 127.5)
+			var wy: float = (float(_warp_y[wi]) - 127.5) * (Balance.WARP_CELLS / 127.5)
+			var bxi: int = clampi(floori((cx + 0.5 + wx) / sub) + margin, 0, bw - 1)
+			var byi: int = clampi(floori((cy + 0.5 + wy) / sub) - by0, 0, bh - 1)
+			var unwarped: int = coarse[uby * bw + (cx / sub) + margin]
+			ids[row + cx] = _resolve(coarse[byi * bw + bxi], unwarped)
 	return ids

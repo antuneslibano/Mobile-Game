@@ -21,7 +21,7 @@ func test_hits_to_break_scale_with_damage() -> void:
 			MiningRules.hits_to_break(weak, BlockRegistry.STONE), MiningRules.hits_to_break(weak, BlockRegistry.BASALT)])
 
 
-func test_crit_rate_and_side_penalty() -> void:
+func test_crit_rate() -> void:
 	var s := DrillStats.base()
 	s.crit_chance = 0.25
 	var rng := RandomNumberGenerator.new()
@@ -29,12 +29,9 @@ func test_crit_rate_and_side_penalty() -> void:
 	var crits: int = 0
 	var n: int = 4000
 	for i in n:
-		var hit: Vector2 = MiningRules.roll_hit(s, 0.0, false, rng)
+		var hit: Vector2 = MiningRules.roll_hit(s, rng)
 		if hit.y > 0.5:
 			crits += 1
 			check(absf(hit.x - s.damage * s.crit_mult) < 0.001, "dano crítico")
 	var rate: float = float(crits) / n
 	check(rate > 0.22 and rate < 0.28, "taxa de crítico ~25%% (%.3f)" % rate)
-	s.crit_chance = 0.0
-	var side: Vector2 = MiningRules.roll_hit(s, 0.0, true, rng)
-	check(absf(side.x - s.damage * Balance.SIDE_DRILL_MULT) < 0.001, "penalidade lateral")

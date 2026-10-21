@@ -23,7 +23,8 @@ static func get_material() -> ShaderMaterial:
 		_material.shader = load(SHADER_PATH) as Shader
 		_material.set_shader_parameter("noise_tex", get_noise())
 		_material.set_shader_parameter("palette_tex", get_palette())
-		_material.set_shader_parameter("block_px", float(Balance.BLOCK_PX))
+		_material.set_shader_parameter("cell_px", float(Balance.CELL_PX))
+		_material.set_shader_parameter("sub", float(Balance.CELL_SUB))
 		_material.set_shader_parameter("halo", ChunkRenderer.HALO)
 		_material.set_shader_parameter("noise_size", float(NOISE_SIZE))
 		_material.set_shader_parameter("biome_row", biome_row())

@@ -1,7 +1,7 @@
 class_name InputController
 extends Node
-## Converte toque (joystick flutuante + botão de impulso, multitoque), mouse (emulado como
-## toque) e teclado em DrillIntent. A broca nunca sobe: empurrar para cima não faz nada.
+## Converte toque (joystick flutuante + botão de Sobrecarga, multitoque), mouse (emulado como
+## toque) e teclado em DrillIntent. A broca nunca sobe: puxar para cima não faz nada.
 
 var hud: Hud
 var drill: Drill
@@ -24,23 +24,19 @@ func get_intent() -> DrillIntent:
 	return override_intent if override_intent != null else _intent
 
 
-## Vetor do joystick (x direita, y para baixo, comprimento 0..1) → intenção.
-## - zona morta: nada;
-## - para baixo (dominante): perfura para baixo, sem mover;
-## - lateral: move (analógico) e perfura de lado se houver parede;
-## - para cima: nada — a broca não sobe.
+## Vetor do joystick (x direita, y para baixo, comprimento 0..1) → direção livre.
+## Qualquer ângulo da metade de baixo vale (lados, diagonais, baixo), com aceleração
+## proporcional à distância do dedo. O componente para cima é descartado: puxar para cima
+## não move; uma diagonal para cima vira movimento lateral.
 static func joystick_to_intent(v: Vector2, out: DrillIntent) -> void:
-	out.move = 0.0
-	out.drill = false
+	out.aim = Vector2.ZERO
 	if v.length() < Balance.JOYSTICK_DEADZONE:
 		return
-	if v.y > 0.0 and v.y >= absf(v.x) * Balance.JOYSTICK_DOWN_BIAS:
-		out.drill = true
-		return
-	var ax: float = absf(v.x)
-	if ax >= Balance.JOYSTICK_SIDE_MIN:
-		out.move = signf(v.x) * remap(clampf(ax, Balance.JOYSTICK_SIDE_MIN, 0.9), Balance.JOYSTICK_SIDE_MIN, 0.9, 0.45, 1.0)
-		out.drill = true
+	var a: Vector2 = DrillIntent.sanitize(v)
+	if a.length() < Balance.JOYSTICK_DEADZONE * 0.75:
+		return  # essencialmente para cima: nada
+	var throttle: float = remap(clampf(v.length(), Balance.JOYSTICK_DEADZONE, 1.0), Balance.JOYSTICK_DEADZONE, 1.0, 0.35, 1.0)
+	out.aim = a.normalized() * throttle
 
 
 func _notification(what: int) -> void:
@@ -93,17 +89,16 @@ func _process(_delta: float) -> void:
 		pressed[kind] = true
 		if kind == &"boost":
 			_intent.boost = true
-	# Teclado (desktop): ←/→ movem (perfurando de lado contra paredes), ↓ perfura.
-	var kx: float = 0.0
+	# Teclado (desktop): setas/WASD combinam direções (diagonais incluídas); cima não existe.
+	var k := Vector2.ZERO
 	if Input.is_key_pressed(KEY_LEFT) or Input.is_key_pressed(KEY_A):
-		kx -= 1.0
+		k.x -= 1.0
 	if Input.is_key_pressed(KEY_RIGHT) or Input.is_key_pressed(KEY_D):
-		kx += 1.0
-	if kx != 0.0:
-		_intent.move = kx
-		_intent.drill = true
+		k.x += 1.0
 	if Input.is_key_pressed(KEY_DOWN) or Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_SPACE):
-		_intent.drill = true
+		k.y += 1.0
+	if k != Vector2.ZERO:
+		_intent.aim = k.normalized()
 	if Input.is_key_pressed(KEY_SHIFT):
 		_intent.boost = true
 	if hud != null:

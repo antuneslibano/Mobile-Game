@@ -24,22 +24,24 @@ var _hop_squash: float = 0.0
 func _ready() -> void:
 	drill = get_parent() as Drill
 	if drill != null:
-		drill.block_hit.connect(_on_hit)
-		drill.hopped.connect(func() -> void: _hop_squash = 1.0)
+		drill.dig_hit.connect(_on_hit)
+		drill.boost_started.connect(func() -> void: _hop_squash = 1.0)
 
 
-func _on_hit(_cell: Vector2i, _id: int, _dmg: float, crit: bool, destroyed: bool) -> void:
-	_kick = 1.0 if (crit or destroyed) else maxf(_kick, 0.6)
+func _on_hit(_point: Vector2, _id: int, crit: bool, removed: int) -> void:
+	_kick = 1.0 if (crit or removed > 0) else maxf(_kick, 0.6)
 
 
 func _process(delta: float) -> void:
 	_t += delta
 	_kick = maxf(0.0, _kick - delta * 7.0)
 	_hop_squash = maxf(0.0, _hop_squash - delta * 4.0)
-	var drilling: bool = drill != null and drill.has_target
+	var drilling: bool = drill != null and drill.digging
 	_spin += delta * (26.0 if drilling else 4.0)
 	if drill != null:
-		_tread += drill.velocity.x * delta * 0.25
+		_tread += drill.velocity.length() * delta * 0.25
+		# A máquina gira para apontar a broca na direção escavada.
+		rotation = lerp_angle(rotation, drill.facing.angle() - PI * 0.5, 1.0 - exp(-12.0 * delta))
 	# Tremor durante a perfuração.
 	if drilling:
 		position = Vector2(randf_range(-1.5, 1.5), randf_range(-1.0, 1.0)) * (1.0 + _kick * 1.5)
@@ -49,8 +51,8 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	var drilling: bool = drill != null and drill.has_target
-	var dir: Vector2i = drill.drill_dir if drill != null else Vector2i.DOWN
+	var drilling: bool = drill != null and drill.digging
+	var dir: Vector2i = Vector2i.DOWN  # desenho local; o nó gira conforme drill.facing
 	var squash: float = _hop_squash * 2.0
 
 	# Feixe do farol (suave, translúcido).
@@ -70,9 +72,12 @@ func _draw() -> void:
 	var mods: Array[StringName] = drill.modules.equipped if drill != null else ([] as Array[StringName])
 	var boosting: bool = drill != null and drill.energy.is_boosting()
 	if boosting:
-		var pulse_a: float = 0.18 + 0.08 * sin(_t * 18.0)
-		draw_circle(Vector2(0, -4), 34.0, Color(0.31, 0.76, 1.0, pulse_a))
-		draw_circle(Vector2(0, -4), 26.0, Color(0.6, 0.9, 1.0, pulse_a * 0.8))
+		var pulse_a: float = 0.22 + 0.1 * sin(_t * 18.0)
+		draw_circle(Vector2(0, 0), 44.0, Color(0.31, 0.76, 1.0, pulse_a * 0.6))
+		draw_circle(Vector2(0, 0), 32.0, Color(0.6, 0.9, 1.0, pulse_a))
+		for k in 6:
+			var ang: float = _t * 6.0 + k * TAU / 6.0
+			draw_line(Vector2.from_angle(ang) * 30.0, Vector2.from_angle(ang) * 46.0, Color(0.7, 0.95, 1.0, 0.7), 2.0)
 
 	# Brocas laterais (módulo).
 	if mods.has(ModuleSystem.SIDE_DRILL):

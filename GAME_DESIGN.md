@@ -41,42 +41,44 @@ Escavar → coletar minério → (garagem) vender → comprar upgrades/módulos
                          └→ Prestígio → Núcleos Antigos → melhorias permanentes
 ```
 
-## 4. Controles (Fase 3: joystick)
+## 4. Controles — movimento livre
 
 | Ação | Toque | Desktop |
 |---|---|---|
-| Perfurar para baixo | Joystick para **baixo** | `↓` / `S` / `Espaço` |
-| Mover / perfurar de lado | Joystick para os **lados** (analógico) | `←` `→` / `A` `D` |
+| Cavar em qualquer direção (menos para cima) | Joystick: para baixo, diagonais, lados — em qualquer ângulo | Setas/WASD combinadas (diagonais incluídas), `Espaço` = baixo |
 | Para cima | **Nada** — a broca não sobe | – |
-| Impulso | Botão `IMPULSO` (canto inferior direito, multitoque com o joystick) | `Shift` |
+| Sobrecarga | Botão no canto inferior direito, **só com a barra cheia** | `Shift` |
 | Garagem | Botão `GARAGEM` no topo | clique, `Esc` fecha |
 
-**Joystick flutuante:** nasce onde o dedo toca (qualquer ponto fora da barra superior e do
-botão de impulso); em repouso aparece "fantasma" na parte de baixo da tela. Raio
-`JOYSTICK_RADIUS_PX = 110` `[T]`. Mapeamento (`InputController.joystick_to_intent`):
-- dentro da zona morta (`0.22`): nada;
-- para baixo dominante (`y ≥ |x| × 0.8`): perfura para baixo, sem mover;
-- lateral (`|x| ≥ 0.25`): move proporcionalmente (45%→100%) e perfura de lado se houver parede;
-- **para cima: nenhuma ação.** Nem a máquina, nem os módulos abrem caminho acima dela
-  (teste `test_drill_never_rises_with_any_input`).
+**Joystick flutuante:** nasce onde o dedo toca; raio `JOYSTICK_RADIUS_PX = 110` `[T]`.
+`InputController.joystick_to_intent` converte o vetor em `DrillIntent.aim`:
+- zona morta `0.2`: nada;
+- qualquer ângulo da metade de baixo é aceito como está; a aceleração vai de 35% a 100%
+  conforme a distância do dedo;
+- o componente **para cima é descartado**: puxar para cima não faz nada e uma diagonal para
+  cima vira movimento lateral. Não existe pulo nem degrau automático.
 
-Outras regras: sem direção horizontal a máquina se **auto-alinha** à coluna; ao mover contra
-um degrau de **1 bloco** ela o transpõe automaticamente (pulo curto) para não ficar presa —
-isso só ocorre empurrando para o lado, nunca para cima. Perfuração lateral usa
-`SIDE_DRILL_MULT = 0.6`.
+A máquina **desenha o próprio túnel**: a broca escava um círculo à frente na direção
+escolhida e a máquina avança conforme o material cede. No vazio ela cai pela gravidade.
 
 ## 5. Mundo
 
-### 5.1 Grade e chunks
+### 5.1 Micro-células e chunks
+O **bloco** (48 px = 1 m) continua sendo a unidade de design (vida, dureza, drops, biomas).
+O terreno real é feito de **micro-células de 12 px** (4×4 por bloco), o que permite túneis
+em qualquer ângulo.
+
 | Parâmetro | Valor `[T]` |
 |---|---|
-| Tamanho do bloco | 48 px na tela (arte em 16 px, escala 3×, filtro nearest) |
-| Largura do mundo | 24 colunas (colunas 0 e 23 são rocha-mãe indestrutível) |
-| 1 bloco | 1 metro de profundidade |
-| Altura do chunk | 16 linhas (chunks são faixas horizontais da largura toda) |
-| Chunks carregados | do chunk visível acima −1 até abaixo +2 (antecipados em thread) |
-| Geração por quadro | no máximo `GEN_CHUNKS_PER_FRAME = 1` chunk antecipado; chunk sob a câmera é síncrono |
-| Profundidade máxima | 1000 m; abaixo disso, rocha-mãe ("crosta do Núcleo", meta futura) |
+| Micro-célula | 12 px (`CELL_PX`); 16 por bloco (`CELLS_PER_BLOCK`) |
+| Largura do mundo | 24 blocos = 96 células; borda de rocha-mãe orgânica (+3 células fixas) |
+| Chunk | 16 blocos de altura = 96 × 64 células |
+| Geração | layout de blocos amostrado com deformação fractal de ±4 células → bordas naturais |
+| Chunks carregados | visível −1 / +2 (antecipados em `WorkerThreadPool`) |
+| Profundidade máxima | 1000 m; abaixo, rocha-mãe |
+
+Vida da micro-célula = vida do bloco ÷ 4; cavar 1 bloco de espessura custa ~o mesmo número
+de golpes que antes, e o volume de 16 células rende os drops de 1 bloco.
 
 ### 5.2 Geração determinística
 Função pura `(seed, x, y) → block_id` (`WorldGenerator`). Mesma seed ⇒ mesmo mundo em
@@ -128,31 +130,33 @@ Cada bioma tem uma tabela `(bloco, chance base, profundidade mínima)`. Um veio
 
 ## 6. Perfuradora e mineração
 
-| Atributo (Fase 1, base) `[T]` | Valor |
+| Atributo (base) `[T]` | Valor |
 |---|---|
 | Dano por golpe | 4 |
 | Golpes por segundo | 5 |
-| Chance de crítico | 5% |
-| Multiplicador crítico | 2.0× |
-| Velocidade horizontal | 4.5 blocos/s |
-| Gravidade | 32 blocos/s² |
-| Queda máxima | 14 blocos/s |
-| Colisor | 0.78 × 0.84 bloco (cabe em poço de 1 bloco) |
+| Chance / multiplicador de crítico | 5% / 2× |
+| Velocidade de deslocamento | 4,5 blocos/s |
+| Corpo (colisão) | círculo de 15 px |
+| Broca | círculo de 24 px, 12 px à frente do corpo |
+| Gravidade / queda máx. | 32 / 14 blocos/s |
 
-Fórmula de dano por golpe (centralizada em `MiningRules`):
+A cada golpe, todas as micro-células sólidas dentro da broca recebem o dano (com dureza):
 
 ```
-bruto      = dano × (crítico ? mult_crítico : 1)
-efetivo    = max(bruto − dureza, bruto × MIN_DAMAGE_RATIO)      MIN_DAMAGE_RATIO = 0.15
-lateral    = efetivo × SIDE_DRILL_MULT (se perfuração lateral)
+efetivo = max(bruto − dureza, bruto × 0,15)      bruto = dano × (crítico ? 2 : 1)
+desgaste da célula += efetivo ÷ (vida_do_bloco ÷ 4); ≥ 100% → removida
 ```
 
-Assim, a dureza torna upgrades de dano essenciais nos biomas profundos, mas nunca
-impede totalmente a mineração (piso de 15%).
+Regras de movimento:
+- a velocidade vertical **nunca é negativa**; nada é escavado acima de `topo do corpo − 6 px`
+  (nem pela broca, nem por módulos) — teste `test_never_digs_above_the_machine`;
+- em movimento lateral a broca sobe o suficiente para o piso do túnel ficar rente à base:
+  túneis horizontais ficam nivelados;
+- o corpo também tritura o que o bloqueia à frente (bordas que a broca não cobre);
+- colisão contínua em subpassos de 4 px: não atravessa material mesmo a 20 FPS.
 
-Feedback: tremor da máquina e da câmera, poeira/lascas na cor do bloco, faíscas em
-críticos e em rocha-mãe, rachaduras em 4 estágios sobre o bloco, partículas de
-destruição.
+Feedback: tremor, poeira/lascas na cor do material, faíscas em críticos e na rocha-mãe,
+desgaste visível (material escurece e racha), a máquina gira apontando a broca.
 
 ## 7. Progressão
 
@@ -187,32 +191,32 @@ Fórmulas em `Progression` (único lugar onde upgrades viram atributos).
 | Velocidade | Créditos | 40 | 1.50 | 30 | +8% golpes/s | ✅ Fase 2 |
 | Crítico | Créditos | 60 | 1.55 | 20 | +2% chance (máx. 75%) | ✅ Fase 2 |
 | Coleta | Créditos | 80 | 1.60 | 15 | +10% recursos | ✅ Fase 2 |
-| Capacidade de energia | Créditos | 50 | 1.40 | 20 | +15 energia | Fase 3 |
-| Impulso | Cristais | 3 | 1.60 | 10 | +10% força/duração | Fase 3 |
-| Broca lateral | Créditos | 300 | 1.55 | 10 | nível do módulo | Fase 3 |
-| Drone | Cristais | 10 | 1.70 | 10 | nível do módulo | Fase 3 |
-| Pulso sísmico | Cristais | 15 | 1.70 | 10 | nível do módulo | Fase 3 |
-| Refrigeração | Créditos | 400 | 1.55 | 15 | −6% penalidade de calor | Fase 3 |
+| Bateria | Créditos | 50 | 1.40 | 20 | +10% de carga de energia | ✅ |
+| Sobrecarga | Cristais | 3 | 1.60 | 10 | +0,5 s e +0,15× golpes/s | ✅ |
+| Broca lateral | Créditos | 300 | 1.55 | 10 | nível do módulo | ✅ |
+| Drone | Cristais | 6 | 1.70 | 10 | nível do módulo | ✅ |
+| Pulso sísmico | Cristais | 8 | 1.70 | 10 | nível do módulo | ✅ |
+| Refrigeração | Créditos | 400 | 1.55 | 15 | −6% penalidade de calor | ✅ |
 
 Upgrades de fases futuras aparecem na garagem como **"Em breve"** (já com prévia).
 Toda compra mostra **antes → depois** do atributo efetivo. A compra é atômica: ou debita
 e sobe o nível, ou não muda nada.
 
 ### 7.2.1 Ritmo-alvo (validado por simulação)
-`test_balance_simulation_greedy_player` simula 10 min de um jogador que perfura sem parar e,
-a cada 15 s, vende tudo e compra o upgrade mais barato. Resultado atual (seed 2024):
+`test_balance_simulation_greedy_player` simula 10 min de um jogador que cava para baixo
+(desviando na diagonal quando preso), usa a Sobrecarga quando a barra enche e, a cada 15 s,
+vende tudo e compra o upgrade mais barato. Resultado atual (seed 2024):
 
 | Marco | Tempo |
 |---|---|
 | 50 m | ~42 s |
-| 100 m (fim da Crosta) | ~1,5 min |
-| 150 m | ~5 min |
-| 200 m | ~6,5 min |
-| 10 min | ~300 m, 17 upgrades |
+| 100 m (fim da Crosta) | ~1,3 min |
+| 200 m | ~3,5 min |
+| 300 m (calor) | ~5,4 min |
+| 10 min | ~366 m, 31 upgrades, 2 módulos, 9 Sobrecargas |
 
-A Zona Magmática (dureza 14+) é um paredão intencional para a base atual: Refrigeração,
-módulos e impulso (Fase 3) e prestígio (Fase 4) são as respostas. O teste exige 50 m entre
-30 s e 5 min, 120–450 m em 10 min e ao menos 10 upgrades.
+O teste exige: 50 m entre 20 s e 5 min; 120–450 m em 10 min; ≥10 upgrades; ≥1 módulo;
+1ª Sobrecarga só após 30 s; entre 2 e 25 Sobrecargas em 10 min.
 
 ### 7.3 Módulos (Fase 3 — implementado)
 **2 slots** `[T] MODULE_SLOTS` (um 3º slot é candidato a melhoria permanente de prestígio).
@@ -221,9 +225,9 @@ Módulos da garagem equipa/remove.
 
 | Módulo | Moeda / custo base | Efeito (nível n) |
 |---|---|---|
-| Broca lateral | Créditos 300 ×1.55 | Ao quebrar o bloco alvo, cada vizinho lateral (ou o de baixo, perfurando de lado) quebra junto com chance `35% + 6,5%·(n−1)`. Rende recursos. |
-| Drone minerador | Cristais 6 ×1.70 | A cada `1,6 − 0,09·(n−1)` s, laser em um bloco a até 3 células (minério primeiro), dano `0,6 + 0,12·(n−1)` × dano da broca. Nunca acima da máquina. |
-| Pulso sísmico | Cristais 8 ×1.70 | Enquanto perfura, a cada `8 − 0,4·(n−1)` s, onda de raio `1,6 + 0,12·(n−1)` células com dano `1 + 0,2·(n−1)` × dano da broca. Não atinge acima da máquina. |
+| Broca lateral | Créditos 300 ×1.55 | Alarga a broca em `5 + 1,2·(n−1)` px: túnel mais largo e mais recursos por golpe. |
+| Drone minerador | Cristais 6 ×1.70 | A cada `1,6 − 0,09·(n−1)` s, laser (raio 11 px) no minério mais próximo a até 150 px, dano `0,6 + 0,12·(n−1)` × dano da broca. Nunca acima da máquina. |
+| Pulso sísmico | Cristais 8 ×1.70 | Enquanto cava, a cada `8 − 0,4·(n−1)` s, onda de raio `1,6 + 0,12·(n−1)` blocos com dano `1 + 0,2·(n−1)` × dano da broca. Não atinge acima da máquina. |
 
 Visual: brocas nas laterais da máquina, drone orbitando com laser, antena sísmica com anel
 de recarga, ondas roxas (douradas quando críticas).
@@ -233,11 +237,23 @@ crítico devolve 0,6 s da recarga do pulso, e o pulso pode ser crítico com 1,5�
 crítico da broca. Sinergias são declarativas em `SynergyRules.DEFS` (módulos exigidos +
 atributo mínimo), prontas para novas combinações.
 
-### 7.4 Energia e impulso (Fase 3 — implementado)
-Energia máx. 100 (+15/nível), regeneração 8/s. Impulso: custa 40, dura `3 + 0,3·n` s e
-multiplica golpes/s por `1,8 + 0,1·n` (n = nível do upgrade Impulso). **A energia só
-alimenta o impulso; a mineração normal nunca para por falta de energia** (teste dedicado).
-Feedback: aura azul, chama no escapamento, barra brilhando, tempo restante no botão.
+### 7.4 Energia conquistada e Sobrecarga
+A energia **não regenera com o tempo** — é conquistada cavando:
+
+```
+carga = (Créditos do material × 0,9 + Cristais × 12) × Bateria ÷ (1 + profundidade/150)
+```
+
+Terra rende ~0,8 por bloco; cobre ~6,8; cristal ~22 (de 100). Caçar minérios enche a barra
+muito mais rápido — e o movimento livre permite traçar o caminho até os veios.
+
+**Sobrecarga** (botão): só ativa com a barra **100% cheia** e consome tudo. Duração
+`6 + 0,5·n` s; golpes/s ×`2,2 + 0,15·n`; deslocamento ×1,35; túnel 30% mais largo
+(n = nível do upgrade Sobrecarga). Durante ela a barra esvazia e não carrega. Não há como
+acionar repetidamente. Upgrade **Bateria**: +10% de carga por nível.
+
+Simulação (jogador que só cava para baixo): 1ª Sobrecarga após ~65 s; ~9 por 10 min.
+A mineração normal nunca depende de energia.
 
 ### 7.5 Calor (Fase 3 — implementado)
 A partir de 300 m: `calor = clamp((prof − 300)/100, 0, 3)`. Penalidade de golpes/s

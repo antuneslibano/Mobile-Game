@@ -6,6 +6,8 @@ const LIFE: float = 1.1
 const RISE_PX: float = 70.0
 const FONT_SIZE: int = 24
 const LINE_PX: float = 26.0
+## Ganhos do mesmo recurso dentro desta janela somam no mesmo texto (sem amontoar).
+const MERGE_SEC: float = 0.5
 
 var _items: Array[Dictionary] = []
 
@@ -15,18 +17,32 @@ func _ready() -> void:
 
 
 func show_gain(origin: Vector2, gained: Dictionary) -> void:
-	var i: int = 0
 	for key: StringName in gained:
 		var def: ResourceDef = ResourceRegistry.get_def(key)
 		if def == null:
 			continue
+		var merged: bool = false
+		for it in _items:
+			if it["key"] == key and float(it["t"]) < MERGE_SEC:
+				it["amount"] = int(it["amount"]) + int(gained[key])
+				it["text"] = "+%d %s" % [int(it["amount"]), def.display_name]
+				it["t"] = 0.0
+				merged = true
+				break
+		if merged:
+			continue
+		var line: int = 0
+		for it in _items:
+			if float(it["t"]) < 0.3:
+				line += 1
 		_items.append({
-			"pos": origin + Vector2(0.0, -LINE_PX * i),
+			"key": key,
+			"amount": int(gained[key]),
+			"pos": origin + Vector2(0.0, -LINE_PX * line),
 			"t": 0.0,
 			"text": "+%d %s" % [int(gained[key]), def.display_name],
 			"color": def.color,
 		})
-		i += 1
 	while _items.size() > Balance.PICKUP_TEXT_MAX:
 		_items.pop_front()
 	set_process(not _items.is_empty())

@@ -3,6 +3,25 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.4.0] — Escavação livre e energia conquistada
+
+### Adicionado
+- **Movimento livre**: a máquina cava em qualquer ângulo da metade de baixo (lados, diagonais,
+  baixo) e desenha o próprio túnel; no vazio cai pela gravidade. Nunca sobe.
+- **Terreno em micro-células de 12 px** (16 por bloco), gerado do layout de blocos com
+  deformação fractal; escavação por círculo com desgaste por célula.
+- **Energia conquistada**: não regenera; enche pelo valor do material cavado (minérios e
+  Cristais valem muito mais). **Sobrecarga** só com a barra cheia: 6 s, ×2,2 golpes/s,
+  túnel 30% mais largo, mais velocidade; consome a barra inteira.
+- Aviso "SOBRECARGA PRONTA"; botão mostra a porcentagem de carga.
+- Textos de coleta somam ganhos do mesmo recurso.
+
+### Alterado
+- Broca lateral agora alarga o túnel; drone e pulso escavam áreas circulares.
+- Upgrades "Capacidade de energia" → **Bateria** (+10% de carga) e "Impulso" → **Sobrecarga**.
+- Removidos o pulo automático e o auto-alinhamento à coluna.
+- A máquina gira apontando a broca na direção escavada.
+
 ## [0.3.0] — Fase 3: terreno orgânico, joystick, energia, calor e módulos
 
 ### Adicionado

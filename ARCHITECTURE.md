@@ -114,7 +114,7 @@ toque/mouse/teclado ──► InputController ──► DrillIntent ──► Dr
                      Game._process ──► GameState.update_depth() ──► EventBus.depth_changed ──► Hud
 
 Fase 2 — economia:
-  Drill.block_destroyed ──► Game ──► GameState.collect_drops() ──► Economy.collect(drops × coleta)
+  Drill.dug(células) ──► Game ──► Drill.drops_for() ──► GameState.collect_drops() ──► Economy.collect(drops × coleta)
                                                     └─► EventBus.resources_collected ──► PickupFx
                                                     └─► EventBus.wallet_changed / cargo_changed ──► Hud, Garage
   Garage (botão) ──► GameState.sell_cargo() / buy_upgrade() ──► Progression.try_buy()
@@ -129,12 +129,13 @@ e `Progression` são puros (testados sem cena); a UI apenas lê e chama GameStat
 
 | Sinal | Parâmetros | Emissor | Ouvintes (fase) |
 |---|---|---|---|
-| `block_hit` | `cell: Vector2i, block_id: int, damage: float, crit: bool` | Game | Áudio (5) |
-| `block_destroyed` | `cell: Vector2i, block_id: int, drops: Dictionary` | Game | Inventário (2), Áudio (5) |
+| `block_hit` | `point: Vector2, material_id: int, crit: bool` | Game | Áudio (5) |
+| `material_dug` | `at: Vector2, counts: Dictionary` (material → células) | Game | Hud, Áudio (5) |
 | `depth_changed` | `depth_m: int, max_depth_m: int` | GameState | Hud, Prestígio (4) |
 | `biome_changed` | `biome_id: int` | GameState | Hud, Áudio (5), Calor (3) |
 | `run_started` | `seed: int` | GameState | Hud |
-| `resources_collected` | `cell: Vector2i, gained: Dictionary` | GameState | PickupFx (via Game), Áudio (5) |
+| `resources_collected` | `at: Vector2, gained: Dictionary` | GameState | PickupFx (via Game), Áudio (5) |
+| `overdrive_ready` | – | Game (de Drill) | Hud (aviso), Áudio (5) |
 | `wallet_changed` | `credits: int, crystals: int` | GameState | Hud, Garage |
 | `cargo_changed` | `item_count: int, value: int` | GameState | Hud, Garage |
 | `cargo_sold` | `credits_gained: int` | GameState | Áudio (5), Save (4) |
@@ -147,36 +148,38 @@ e `Progression` são puros (testados sem cena); a UI apenas lê e chama GameStat
 Sinais locais: `WorldModel.cell_changed(cell)`, `WorldModel.chunk_generated(index)`,
 `Drill.block_hit(...)`, `Drill.block_destroyed(...)`, `Drill.blocked_by_unbreakable(cell)`.
 
-## 6. Terreno
+## 6. Terreno (micro-células)
 
-- **Coordenadas**: célula `(x, y)`; `y = 0` é a primeira linha de solo; `y < 0` é céu.
-  Pixel = célula × `Balance.BLOCK_PX`.
-- **Chunk** = faixa de `WORLD_WIDTH × CHUNK_HEIGHT` células; índice = `floor(y / CHUNK_HEIGHT)`.
-- **Carregamento**: `TerrainView` calcula, a cada quadro, o intervalo de chunks visíveis
-  pela câmera (+margem). Visíveis são garantidos de forma síncrona; os de antecipação vão
-  para o `WorkerThreadPool`. Chunks fora do intervalo + histerese são descarregados e seus
-  renderers voltam ao pool.
-- **Modificações**: `WorldModel._mods` (chunk → índice local → id) sobrevivem ao
-  descarregamento e serão serializadas pelo `SaveService` (Fase 4).
-- **Dano parcial**: `WorldModel._damage`, limitado a `MAX_DAMAGED_CELLS`; emite `cell_damaged`.
-- **Renderização orgânica (Fase 3)**: cada `ChunkRenderer` mantém uma textura de dados
-  `(WIDTH+4) × (CHUNK_HEIGHT+4)` (halo de 2 células para continuidade entre chunks):
-  r = id, g = estágio de dano, b = bioma, a = sólido. Um único quad com
-  `shaders/terrain.gdshader` (material compartilhado; paleta e ruído de `TerrainTextures`)
-  transforma isso em contornos e materiais naturais. Alterar/danificar uma célula atualiza
-  1 texel em cada renderer que a cobre. **A colisão continua exata na grade**; o contorno
-  visual desvia no máximo ~0,2 célula.
+- **Unidades**: bloco = 48 px (design: vida, drops, metros); **micro-célula** = 12 px
+  (dados reais). Célula `(cx, cy)`; `cy = 0` é a superfície; `cy < 0` é céu.
+- **Geração** (`WorldGenerator`): layout de blocos (`generate_block`) → micro-células
+  amostrando o layout com deformação fractal (tabela 256² de ruído, ±4 células).
+  `generate_chunk` calcula o layout do chunk + margem uma vez; `generate_cell` gera uma
+  célula avulsa (vizinhos fora de chunks carregados). Especiais (baú, artefato) não se
+  deformam.
+- **Chunk** = 96 × 64 células (`ChunkData.ids` + `dmg` de desgaste). Antecipação em
+  `WorkerThreadPool`; visíveis síncronos; descarregamento com histerese.
+- **Modificações**: `_mods` (chunk → índice local → id) sobrevivem ao descarregamento;
+  exportáveis em JSON (Fase 4).
+- **Escavação**: `dig_circle` / `dig_cells` aplicam um golpe a várias células (dureza por
+  célula, desgaste acumulado) e retornam `DigResult` (células removidas por material).
+  `min_y` impede escavar acima da máquina. `blocking_cells` / `circle_hits_solid` dão a
+  colisão do corpo circular. Lotes de alterações saem em `cells_changed`.
+- **Renderização**: cada `ChunkRenderer` mantém uma textura de dados 100 × 68 (halo de 2):
+  r = material, g = desgaste, b = bioma, a = sólido; um quad com `terrain.gdshader`
+  suaviza o campo em contornos curvos. Alterações atualizam texels e sobem 1× por quadro.
 
-## 7. Perfuradora
+## 7. Perfuradora (movimento livre)
 
-- Colisão AABB contra a grade, separada por eixo, com subpassos ≤ 0,4 bloco: impossível
-  atravessar blocos mesmo em queda máxima ou a 30 FPS. Teste dedicado verifica a invariante.
-- `DrillIntent.move ∈ [−1, 1]`, `drill: bool`, `boost: bool`.
-- Alvo: lateral (se movendo contra parede alta e perfurando) ou abaixo (sem intenção
-  horizontal, apoiada e alinhada). Degrau de 1 bloco ⇒ pulo automático.
-- Golpes em ritmo fixo (`hits_per_second`) com acumulador; RNG próprio semeável.
-- `DrillStats` encapsula atributos; na Fase 2, `ProgressionService.build_stats()` gera
-  a instância a partir de upgrades/módulos, sem alterar `Drill`.
+- Corpo = círculo (15 px); broca = círculo (24 px) 12 px à frente na direção `facing`.
+- `DrillIntent.aim` (qualquer ângulo, y ≥ 0) → velocidade desejada; gravidade; colisão
+  contínua por subpassos com deslizamento por eixo. **`velocity.y` nunca é negativa.**
+- Golpes a `hits_per_second × speed_mult`: escava broca ∪ células que bloqueiam o corpo à
+  frente, nunca acima de `dig_ceiling()`. Sinais: `dig_hit` (FX), `dug` (drops),
+  `blocked_by_unbreakable`, `boost_started`, `overdrive_ready`.
+- `EnergySystem` (carga conquistada pelo valor do material; Sobrecarga só com barra cheia),
+  `HeatRules`, `ModuleSystem` (alarga a broca, drone, pulso — via `apply_external_dig`) e
+  `SynergyRules` são puros e avançados em `physics_step`.
 
 ## 8. Entrada
 

@@ -49,10 +49,11 @@ func _run() -> void:
 	var input: InputController = game.input
 	var destroyed: Array[int] = [0]
 	var drops_ok: Array[bool] = [true]
-	EventBus.block_destroyed.connect(func(_c: Vector2i, id: int, drops: Dictionary) -> void:
-		destroyed[0] += 1
-		if drops != BlockRegistry.get_def(id).drops:
-			drops_ok[0] = false)
+	EventBus.material_dug.connect(func(_at: Vector2, counts: Dictionary) -> void:
+		for id: int in counts:
+			destroyed[0] += int(counts[id])
+			if BlockRegistry.get_def(id).drops.is_empty() and id != BlockRegistry.AIR:
+				drops_ok[0] = false)
 
 
 	_check(game.world != null, "mundo criado")
@@ -66,39 +67,42 @@ func _run() -> void:
 	var it: DrillIntent = input.get_intent()
 	_touch(0, o, true)
 	await _frames(2)
-	_check(not it.drill and it.move == 0.0, "toque parado (zona morta): nada")
+	_check(it.aim == Vector2.ZERO, "toque parado (zona morta): nada")
 	var stick: VirtualJoystick = hud.find_child("Joystick", true, false)
 	_check(stick != null and stick.active and stick.base_pos == o, "joystick aparece onde o dedo tocou")
 	_drag(0, o + Vector2(0, r))
 	await _frames(2)
-	_check(it.drill and absf(it.move) < 0.01, "joystick para baixo: perfura para baixo")
+	_check(it.aim.y > 0.9 and absf(it.aim.x) < 0.01, "joystick para baixo: cava para baixo")
 	_drag(0, o + Vector2(r, 0))
 	await _frames(2)
-	_check(it.drill and it.move > 0.9, "joystick à direita: move (%.2f)" % it.move)
+	_check(it.aim.x > 0.9 and it.aim.y == 0.0, "joystick à direita: cava para a direita (%s)" % it.aim)
+	_drag(0, o + Vector2(r, r) * 0.707)
+	await _frames(2)
+	_check(it.aim.x > 0.6 and it.aim.y > 0.6, "joystick na diagonal: cava na diagonal (%s)" % it.aim)
 	_drag(0, o + Vector2(-r * 0.5, 0))
 	await _frames(2)
-	_check(it.move < -0.3 and it.move > -0.9, "joystick analógico à esquerda (%.2f)" % it.move)
+	_check(it.aim.x < -0.3 and it.aim.x > -0.9, "joystick analógico à esquerda (%.2f)" % it.aim.x)
 	_drag(0, o + Vector2(0, -r))
 	await _frames(2)
-	_check(not it.drill and it.move == 0.0, "joystick para cima: nada (a broca não sobe)")
+	_check(it.aim == Vector2.ZERO, "joystick para cima: nada (a broca não sobe)")
 	# Multitoque: joystick + impulso.
 	var boost_b: Control = hud.find_child("BoostButton", true, false)
 	_check(boost_b != null, "botão de impulso existe")
 	_drag(0, o + Vector2(0, r))
 	_touch(1, boost_b.get_global_rect().get_center(), true)
 	await _frames(2)
-	_check(it.drill and it.boost, "multitoque: joystick + impulso")
+	_check(it.aim.y > 0.9 and it.boost, "multitoque: joystick + Sobrecarga")
 	_touch(1, boost_b.get_global_rect().get_center(), false)
 	_touch(0, o + Vector2(0, r), false)
 	await _frames(2)
-	_check(not it.drill and not it.boost and it.move == 0.0, "soltar: para")
+	_check(it.aim == Vector2.ZERO and not it.boost, "soltar: para")
 	_check(not stick.active, "joystick volta ao repouso")
 	_check(hud.find_child("Pad_left", true, false) == null and hud.find_child("Pad_drill", true, false) == null, "setas e PERFURAR removidos")
 
 	# Barra superior não aciona perfuração.
 	_touch(3, Vector2(100, 60), true)
 	await _frames(2)
-	_check(not it.drill, "toque na barra superior é ignorado")
+	_check(it.aim == Vector2.ZERO, "toque na barra superior é ignorado")
 	_touch(3, Vector2(100, 60), false)
 
 	# Sessão curta com o joystick para baixo: precisa descer e coletar.
@@ -109,7 +113,7 @@ func _run() -> void:
 	await _frames(5)
 	var max_depth: int = GameState.max_depth_m
 	_check(max_depth >= 5, "desceu segurando o toque (%d m)" % max_depth)
-	_check(destroyed[0] >= 5, "blocos destruídos via EventBus (%d)" % destroyed[0])
+	_check(destroyed[0] >= 40, "material escavado via EventBus (%d células)" % destroyed[0])
 	_check(drops_ok[0], "drops emitidos conforme definição")
 	_check(not game.drill.is_overlapping_solid(), "perfuradora fora de blocos sólidos")
 	var cam_y: float = game.camera.get_screen_center_position().y

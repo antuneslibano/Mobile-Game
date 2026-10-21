@@ -1,76 +1,91 @@
 class_name Drill
 extends Node2D
-## Lógica da perfuradora: física em grade (sem colisores), escolha do alvo e golpes.
-## A posição é o centro do AABB, em pixels do mundo. Avançada por physics_step().
+## Perfuradora de movimento livre. Corpo = círculo de colisão; broca = círculo à frente que
+## escava micro-células na direção do joystick. Move-se em qualquer direção da metade de
+## baixo (lados, diagonais, baixo) e cai pela gravidade no vazio. NUNCA sobe: nenhuma
+## velocidade vertical negativa é gerada, e nada é escavado acima da máquina.
 
-signal block_hit(cell: Vector2i, block_id: int, damage: float, crit: bool, destroyed: bool)
-signal block_destroyed(cell: Vector2i, block_id: int)
-signal blocked_by_unbreakable(cell: Vector2i)
-signal hopped
+signal dig_hit(point: Vector2, material_id: int, crit: bool, removed: int)
+signal dug(counts: Dictionary, at: Vector2)
+signal blocked_by_unbreakable(point: Vector2)
 signal boost_started
+signal overdrive_ready
 
-enum Mode { IDLE, MOVING, AIRBORNE, DRILL_DOWN, DRILL_SIDE }
-
-const EPS: float = 0.01
-const CONTACT_PX: float = 3.0
-const MAX_SUBSTEP_BLOCKS: float = 0.4
-const UNBREAKABLE_FEEDBACK_SEC: float = 0.22
+const MAX_STEP_PX: float = 4.0
+const CONTACT_PROBE_PX: float = 1.5
+## Folga escavada acima do corpo (túneis horizontais não raspam o teto).
+const HEADROOM_PX: float = 6.0
+const UNBREAKABLE_FEEDBACK_SEC: float = 0.25
+const DIG_VISUAL_SEC: float = 0.25
+## O corpo tritura o que o bloqueia a esta distância à frente (bordas que a broca não cobre).
+const PLOW_PX: float = 3.0
 
 var world: WorldModel
 var stats: DrillStats = DrillStats.base()
 var velocity: Vector2 = Vector2.ZERO
+## Direção atual da broca (unitária, y ≥ 0). Suavizada para curvas naturais.
+var facing: Vector2 = Vector2.DOWN
 var grounded: bool = false
-var mode: Mode = Mode.IDLE
-var drill_dir: Vector2i = Vector2i.DOWN   ## Direção da broca (visual).
-var has_target: bool = false
-var target_cell: Vector2i = Vector2i.ZERO
+## Verdadeiro enquanto a broca está atingindo material (visual e módulos).
+var digging: bool = false
 var rng := RandomNumberGenerator.new()
 var energy := EnergySystem.new()
 var modules := ModuleSystem.new()
-## Multiplicador atual de golpes/s (impulso × calor), recalculado a cada passo.
+## Multiplicador atual de golpes/s (Sobrecarga × calor).
 var speed_mult: float = 1.0
 var heat_penalty: float = 0.0
-var half: Vector2 = Balance.DRILL_SIZE_BLOCKS * Balance.BLOCK_PX * 0.5
+var radius: float = Balance.DRILL_RADIUS_PX
 
 var _hit_timer: float = 0.5
 var _unbreakable_cd: float = 0.0
+var _dig_visual_t: float = 0.0
 var _b: float = float(Balance.BLOCK_PX)
 
 
-func setup(p_world: WorldModel, spawn_cell: Vector2i, p_seed: int = 0) -> void:
+func setup(p_world: WorldModel, spawn: Vector2, p_seed: int = 0) -> void:
 	world = p_world
 	rng.seed = p_seed
+	position = spawn
 	velocity = Vector2.ZERO
-	position = Vector2((spawn_cell.x + 0.5) * _b, (spawn_cell.y + 1) * _b - half.y - EPS)
+	facing = Vector2.DOWN
 	grounded = false
-	has_target = false
-	mode = Mode.IDLE
+	digging = false
 	energy.reset(stats)
 	modules.rng.seed = p_seed + 17
 
 
+## Posição de partida sobre a superfície, no centro do mundo.
+static func surface_spawn() -> Vector2:
+	return Vector2(Balance.WORLD_CELLS_X * Balance.CELL_PX * 0.5, -Balance.DRILL_RADIUS_PX - 0.5)
+
+
 # --- Consultas ----------------------------------------------------------------
 
-func feet_row() -> int:
-	return floori((position.y + half.y - 1.0) / _b)
-
-
-func center_col() -> int:
-	return floori(position.x / _b)
-
-
-## Profundidade em metros (0 na superfície).
+## Profundidade em metros (base do corpo; 0 na superfície).
 func depth_m() -> int:
-	return maxi(0, int(float(feet_row() + 1) * Balance.METERS_PER_BLOCK))
+	return maxi(0, floori((position.y + radius) / _b * Balance.METERS_PER_BLOCK))
 
 
-func get_rect() -> Rect2:
-	return Rect2(position - half, half * 2.0)
-
-
-## Verdadeiro se o AABB intersecta qualquer célula sólida (invariante: deve ser sempre falso).
 func is_overlapping_solid() -> bool:
-	return _first_overlap(position) != Vector2i(-9999, -9999)
+	return world.circle_hits_solid(position, radius - 0.25)
+
+
+func bit_radius() -> float:
+	var r: float = Balance.BIT_RADIUS_PX + modules.side_bonus(stats)
+	return r * (Balance.OVERDRIVE_BIT_MULT if energy.is_boosting() else 1.0)
+
+
+## Centro da broca: à frente do corpo; em movimento lateral, sobe o suficiente para o piso
+## do túnel ficar rente à base do corpo (túneis horizontais não afundam sozinhos).
+func bit_center() -> Vector2:
+	var c: Vector2 = position + facing * Balance.BIT_OFFSET_PX
+	c.y -= (bit_radius() - radius) * (1.0 - maxf(facing.y, 0.0))
+	return c
+
+
+## Nada acima desta altura é escavado.
+func dig_ceiling() -> float:
+	return position.y - radius - HEADROOM_PX
 
 
 # --- Simulação ------------------------------------------------------------------
@@ -79,237 +94,144 @@ func physics_step(delta: float, intent: DrillIntent) -> void:
 	if world == null:
 		return
 	_unbreakable_cd = maxf(0.0, _unbreakable_cd - delta)
-	var move: float = clampf(intent.move, -1.0, 1.0)
-	var steering: bool = absf(move) > 0.01
-	var speed: float = stats.move_speed_blocks * _b
-
-	# Horizontal: segue a intenção ou se auto-alinha à coluna.
-	if steering:
-		velocity.x = move_toward(velocity.x, move * speed, Balance.DRILL_ACCEL_BLOCKS * _b * delta)
-	else:
-		var col_center: float = (float(center_col()) + 0.5) * _b
-		velocity.x = clampf((col_center - position.x) * Balance.ALIGN_GAIN, -speed, speed)
-
-	# Pulo automático em degraus de 1 bloco.
-	if steering and grounded:
-		var dir: int = 1 if move > 0.0 else -1
-		if _can_hop(dir):
-			velocity.y = -sqrt(2.0 * Balance.GRAVITY_BLOCKS * Balance.HOP_HEIGHT_BLOCKS) * _b
-			grounded = false
-			hopped.emit()
-
-	velocity.y = minf(velocity.y + Balance.GRAVITY_BLOCKS * _b * delta, Balance.MAX_FALL_BLOCKS * _b)
-
-	if _move_axis(Vector2(velocity.x * delta, 0.0)):
-		velocity.x = 0.0
-	var was_falling: bool = velocity.y > 0.0
-	if _move_axis(Vector2(0.0, velocity.y * delta)):
-		grounded = was_falling
-		velocity.y = 0.0
-	else:
-		grounded = _probe_ground()
-		if grounded and velocity.y > 0.0:
-			velocity.y = 0.0
-
+	_dig_visual_t = maxf(0.0, _dig_visual_t - delta)
 	if energy.step(delta, stats, intent.boost):
 		boost_started.emit()
 	heat_penalty = HeatRules.penalty(depth_m(), stats.cooling)
 	speed_mult = energy.speed_mult(stats) * (1.0 - heat_penalty)
 
-	_update_target(intent, move, steering)
-	_update_mining(delta)
+	var a: Vector2 = DrillIntent.sanitize(intent.aim)
+	var throttle: float = a.length()
+	var steering: bool = throttle > 0.05
+	if steering:
+		var target: Vector2 = a / throttle
+		facing = facing.slerp(target, clampf(delta * 14.0, 0.0, 1.0)).normalized()
+		facing.y = maxf(facing.y, 0.0)
+		facing = facing.normalized() if facing.length() > 0.01 else target
+
+	var move_mult: float = Balance.OVERDRIVE_MOVE_MULT if energy.is_boosting() else 1.0
+	var desired: Vector2 = Vector2.ZERO
+	if steering:
+		desired = a / throttle * stats.move_speed_blocks * _b * move_mult * throttle
+	velocity.x = move_toward(velocity.x, desired.x, Balance.DRILL_ACCEL_BLOCKS * _b * delta)
+	# Vertical: gravidade e, no máximo, empurrão para BAIXO. Nunca negativo.
+	velocity.y = clampf(maxf(velocity.y + Balance.GRAVITY_BLOCKS * _b * delta, desired.y), 0.0, Balance.MAX_FALL_BLOCKS * _b)
+
+	_move(velocity * delta)
+	_update_dig(delta, steering)
+	digging = _dig_visual_t > 0.0
 	modules.step(delta, self)
 
 
-func _update_target(intent: DrillIntent, move: float, steering: bool) -> void:
-	has_target = false
-	if not intent.drill:
-		mode = Mode.MOVING if steering else (Mode.IDLE if grounded else Mode.AIRBORNE)
-		return
-	if steering:
-		var dir: int = 1 if move > 0.0 else -1
-		drill_dir = Vector2i(dir, 0)
-		var side := _side_cell(dir)
-		if _touching_side(dir) and world.is_solid(side) and not _can_hop(dir):
-			target_cell = side
-			has_target = true
-			mode = Mode.DRILL_SIDE
-		else:
-			mode = Mode.MOVING
-		return
-	drill_dir = Vector2i.DOWN
-	if not grounded:
-		mode = Mode.AIRBORNE
-		return
-	var col: int = center_col()
-	var aligned: bool = absf(position.x - (float(col) + 0.5) * _b) <= Balance.ALIGN_TOLERANCE_BLOCKS * _b
-	var below := Vector2i(col, feet_row() + 1)
-	if aligned and world.is_solid(below):
-		target_cell = below
-		has_target = true
-	mode = Mode.DRILL_DOWN
+## Movimento com colisão contínua (subpassos) e deslizamento por eixo.
+func _move(motion: Vector2) -> void:
+	var dist: float = motion.length()
+	if dist > 0.0:
+		var steps: int = maxi(1, ceili(dist / MAX_STEP_PX))
+		var step: Vector2 = motion / float(steps)
+		for i in steps:
+			if not world.circle_hits_solid(position + step, radius):
+				position += step
+				continue
+			var moved: bool = false
+			if step.x != 0.0 and not world.circle_hits_solid(position + Vector2(step.x, 0.0), radius):
+				position.x += step.x
+				velocity.y = 0.0
+				moved = true
+			elif step.y != 0.0 and not world.circle_hits_solid(position + Vector2(0.0, step.y), radius):
+				position.y += step.y
+				velocity.x = 0.0
+				moved = true
+			if not moved:
+				if step.y > 0.0:
+					velocity.y = 0.0
+				if step.x != 0.0:
+					velocity.x = 0.0
+				break
+	grounded = world.circle_hits_solid(position + Vector2(0.0, CONTACT_PROBE_PX), radius)
+	if grounded and velocity.y > 0.0 and world.circle_hits_solid(position + Vector2(0.0, maxf(velocity.y * 0.002, CONTACT_PROBE_PX)), radius):
+		velocity.y = 0.0
 
 
-func _update_mining(delta: float) -> void:
-	if not has_target:
+func _update_dig(delta: float, steering: bool) -> void:
+	if not steering:
 		_hit_timer = minf(_hit_timer, 0.5)
 		return
 	_hit_timer += delta * stats.hits_per_second * speed_mult
-	while _hit_timer >= 1.0 and has_target:
+	while _hit_timer >= 1.0:
 		_hit_timer -= 1.0
-		_do_hit()
+		if not _do_hit():
+			# Nada à frente: não acumula golpes "guardados".
+			_hit_timer = minf(_hit_timer, 0.5)
+			break
 
 
-func _do_hit() -> void:
-	var id: int = world.get_block(target_cell)
-	var def: BlockDef = BlockRegistry.get_def(id)
-	if not def.solid:
-		has_target = false
-		return
-	if not def.breakable:
-		if _unbreakable_cd <= 0.0:
+func _do_hit() -> bool:
+	var roll: Vector2 = MiningRules.roll_hit(stats, rng)
+	var crit: bool = roll.y > 0.5
+	var c: Vector2 = bit_center()
+	var rb: float = bit_radius()
+	var cells: Array[Vector2i] = world.cells_in_circle(c, rb, dig_ceiling())
+	cells.append_array(world.blocking_cells(position + facing * PLOW_PX, radius))
+	var res: WorldModel.DigResult = world.dig_cells(cells, roll.x, dig_ceiling())
+	if res.touched == 0:
+		if res.unbreakable and _unbreakable_cd <= 0.0:
 			_unbreakable_cd = UNBREAKABLE_FEEDBACK_SEC
-			blocked_by_unbreakable.emit(target_cell)
-		return
-	var roll: Vector2 = MiningRules.roll_hit(stats, def.hardness, mode == Mode.DRILL_SIDE, rng)
-	var cell: Vector2i = target_cell
-	var res: WorldModel.DamageResult = world.damage_cell(cell, roll.x)
-	block_hit.emit(cell, id, roll.x, roll.y > 0.5, res.destroyed)
-	if res.destroyed:
-		has_target = false
-		block_destroyed.emit(cell, id)
-	modules.on_drill_hit(self, cell, roll.x, roll.y > 0.5, res.destroyed)
-
-
-## Golpe vindo de módulos (broca lateral, drone, pulso). Mesmos sinais dos golpes normais.
-## Ignora células vazias/indestrutíveis e nunca afeta a célula ocupada pela própria máquina.
-func apply_external_hit(cell: Vector2i, damage: float, crit: bool) -> bool:
-	if damage <= 0.0 or _overlaps_cell(cell):
+			blocked_by_unbreakable.emit(c + facing * rb * 0.6)
 		return false
-	var id: int = world.get_block(cell)
-	var def: BlockDef = BlockRegistry.get_def(id)
-	if not def.solid or not def.breakable:
-		return false
-	var dmg: float = MiningRules.effective_damage(damage, def.hardness)
-	var res: WorldModel.DamageResult = world.damage_cell(cell, dmg)
-	block_hit.emit(cell, id, dmg, crit, res.destroyed)
-	if res.destroyed:
-		if has_target and cell == target_cell:
-			has_target = false
-		block_destroyed.emit(cell, id)
+	var point: Vector2 = c + facing * rb * 0.55
+	_dig_visual_t = DIG_VISUAL_SEC
+	dig_hit.emit(point, res.main_id, crit, res.removed())
+	_on_dug(res, point)
+	modules.on_drill_hit(self, crit)
 	return true
 
 
-## Quebra uma célula de uma vez (broca lateral). Mesmo fluxo de sinais e drops.
-func break_external(cell: Vector2i) -> bool:
-	var def: BlockDef = BlockRegistry.get_def(world.get_block(cell))
-	if not def.solid or not def.breakable:
-		return false
-	return apply_external_hit(cell, def.max_hp + def.hardness / (1.0 - Balance.MIN_DAMAGE_RATIO) + 1.0, false)
+## Escavação vinda de módulos (drone, pulso). Mesmos sinais, drops e carga dos golpes
+## normais; respeita o teto (nada acima da máquina).
+func apply_external_dig(center: Vector2, r: float, raw_damage: float, crit: bool) -> WorldModel.DigResult:
+	var res: WorldModel.DigResult = world.dig_circle(center, r, raw_damage, dig_ceiling())
+	if res.touched > 0:
+		dig_hit.emit(center, res.main_id, crit, res.removed())
+		_on_dug(res, center)
+	return res
 
 
-func _overlaps_cell(cell: Vector2i) -> bool:
-	var r := _cell_range(position)
-	return cell.x >= r.position.x and cell.x <= r.end.x and cell.y >= r.position.y and cell.y <= r.end.y
+func _on_dug(res: WorldModel.DigResult, at: Vector2) -> void:
+	if res.counts.is_empty():
+		return
+	dug.emit(res.counts, at)
+	var value: Vector2 = volume_value(res.counts)
+	if energy.add_charge(EnergySystem.charge_for(value.x, value.y, depth_m(), stats)):
+		overdrive_ready.emit()
 
 
-# --- Colisão em grade -------------------------------------------------------------
-
-## Move ao longo de um eixo em subpassos; retorna true se colidiu.
-func _move_axis(motion: Vector2) -> bool:
-	var dist: float = motion.length()
-	if dist <= 0.0:
-		return false
-	var steps: int = maxi(1, ceili(dist / (MAX_SUBSTEP_BLOCKS * _b)))
-	var step: Vector2 = motion / float(steps)
-	for i in steps:
-		position += step
-		_clamp_to_world()
-		var hit := _first_overlap(position)
-		if hit != Vector2i(-9999, -9999):
-			_resolve(step, hit)
-			return true
-	return false
-
-
-func _resolve(step: Vector2, _hit: Vector2i) -> void:
-	# Recuo ao limite da célula mais próxima no sentido do movimento.
-	if step.x > 0.0:
-		var edge: float = INF
-		for c in _overlapping_solids(position):
-			edge = minf(edge, c.x * _b)
-		position.x = edge - half.x - EPS
-	elif step.x < 0.0:
-		var edge: float = -INF
-		for c in _overlapping_solids(position):
-			edge = maxf(edge, (c.x + 1) * _b)
-		position.x = edge + half.x + EPS
-	elif step.y > 0.0:
-		var edge: float = INF
-		for c in _overlapping_solids(position):
-			edge = minf(edge, c.y * _b)
-		position.y = edge - half.y - EPS
-	elif step.y < 0.0:
-		var edge: float = -INF
-		for c in _overlapping_solids(position):
-			edge = maxf(edge, (c.y + 1) * _b)
-		position.y = edge + half.y + EPS
+## Valor do material removido: x = Créditos, y = Cristais (antes do upgrade de Coleta).
+static func volume_value(counts: Dictionary) -> Vector2:
+	var credits: float = 0.0
+	var crystals: float = 0.0
+	for id: int in counts:
+		var vol: float = float(counts[id]) / Balance.CELLS_PER_BLOCK
+		var drops: Dictionary = BlockRegistry.get_def(id).drops
+		for key: Variant in drops:
+			var r: ResourceDef = ResourceRegistry.get_def(StringName(key))
+			if r == null:
+				continue
+			var amount: float = float(drops[key]) * vol
+			if r.currency == Economy.CRYSTALS:
+				crystals += amount
+			else:
+				credits += amount * r.sell_value
+	return Vector2(credits, crystals)
 
 
-func _clamp_to_world() -> void:
-	position.x = clampf(position.x, _b + half.x + EPS, (Balance.WORLD_WIDTH - 1) * _b - half.x - EPS)
-
-
-func _cell_range(p: Vector2) -> Rect2i:
-	var x0: int = floori((p.x - half.x) / _b)
-	var x1: int = floori((p.x + half.x) / _b)
-	var y0: int = floori((p.y - half.y) / _b)
-	var y1: int = floori((p.y + half.y) / _b)
-	return Rect2i(x0, y0, x1 - x0, y1 - y0)
-
-
-func _overlapping_solids(p: Vector2) -> Array[Vector2i]:
-	var out: Array[Vector2i] = []
-	var r := _cell_range(p)
-	for y in range(r.position.y, r.end.y + 1):
-		for x in range(r.position.x, r.end.x + 1):
-			var c := Vector2i(x, y)
-			if world.is_solid(c):
-				out.append(c)
+## Drops (fracionários) correspondentes às células removidas.
+static func drops_for(counts: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	for id: int in counts:
+		var vol: float = float(counts[id]) / Balance.CELLS_PER_BLOCK
+		var drops: Dictionary = BlockRegistry.get_def(id).drops
+		for key: Variant in drops:
+			var k := StringName(key)
+			out[k] = float(out.get(k, 0.0)) + float(drops[key]) * vol
 	return out
-
-
-func _first_overlap(p: Vector2) -> Vector2i:
-	var r := _cell_range(p)
-	for y in range(r.position.y, r.end.y + 1):
-		for x in range(r.position.x, r.end.x + 1):
-			var c := Vector2i(x, y)
-			if world.is_solid(c):
-				return c
-	return Vector2i(-9999, -9999)
-
-
-func _probe_ground() -> bool:
-	return _first_overlap(position + Vector2(0.0, 1.0)) != Vector2i(-9999, -9999)
-
-
-func _side_cell(dir: int) -> Vector2i:
-	var x: float = position.x + (half.x + CONTACT_PX) * dir
-	return Vector2i(floori(x / _b), feet_row())
-
-
-func _touching_side(dir: int) -> bool:
-	return _first_overlap(position + Vector2(CONTACT_PX * dir, 0.0)) != Vector2i(-9999, -9999)
-
-
-func _can_hop(dir: int) -> bool:
-	if not _touching_side(dir):
-		return false
-	var side := _side_cell(dir)
-	if not world.is_solid(side):
-		return false
-	var above_side := side + Vector2i.UP
-	var above_self := Vector2i(center_col(), feet_row() - 1)
-	return not world.is_solid(above_side) and not world.is_solid(above_self) \
-			and not world.is_solid(Vector2i(floori((position.x - half.x) / _b), feet_row() - 1)) \
-			and not world.is_solid(Vector2i(floori((position.x + half.x) / _b), feet_row() - 1))

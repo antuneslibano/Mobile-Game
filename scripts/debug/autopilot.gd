@@ -29,6 +29,8 @@ var _finished: bool = false
 var _rng := RandomNumberGenerator.new()
 var _next_shop: float = 12.0
 var _bought: int = 0
+var _rises: int = 0
+var _last_y: float = -INF
 
 
 func _ready() -> void:
@@ -36,7 +38,7 @@ func _ready() -> void:
 	_rng.seed = 1234
 	if drive:
 		game.input.override_intent = _intent
-	game.drill.block_hit.connect(func(_c: Vector2i, _id: int, _d: float, crit: bool, _x: bool) -> void:
+	game.drill.dig_hit.connect(func(_p: Vector2, _id: int, crit: bool, _r: int) -> void:
 		_hits += 1
 		if crit:
 			_crits += 1)
@@ -49,18 +51,21 @@ func _physics_process(delta: float) -> void:
 	_t += delta
 	if game.drill.is_overlapping_solid():
 		_violations += 1
-		push_error("[autotest] perfuradora sobreposta a bloco sólido em %s" % [game.drill.position])
+		push_error("[autotest] perfuradora sobreposta a material sólido em %s" % [game.drill.position])
+	if game.drill.position.y < _last_y - 0.01:
+		_rises += 1
+		push_error("[autotest] a perfuradora subiu (%.2f → %.2f)" % [_last_y, game.drill.position.y])
+	_last_y = game.drill.position.y
 	if drive:
 		_plan_left -= delta
 		if _plan_left <= 0.0:
-			var r: float = _rng.randf()
-			_intent.drill = true
-			if r < 0.72:
-				_intent.move = 0.0
-				_plan_left = 2.5
-			else:
-				_intent.move = -1.0 if _rng.randf() < 0.5 else 1.0
-				_plan_left = 0.9
+			# Direções livres: majoritariamente para baixo, com diagonais e laterais.
+			var ang: float = PI * 0.5 + _rng.randf_range(-1.1, 1.1)
+			if _rng.randf() < 0.2:
+				ang = 0.0 if _rng.randf() < 0.5 else PI
+			_intent.aim = Vector2.from_angle(ang)
+			_plan_left = _rng.randf_range(0.8, 2.5)
+		_intent.boost = true
 	if shop and _t >= _next_shop:
 		_next_shop += 12.0
 		_shop()
@@ -111,7 +116,7 @@ func _finish() -> void:
 	_finished = true
 	var w: WorldModel = game.world
 	var avg_ms: float = float(w.stats_gen_usec) / maxf(1.0, float(w.stats_generated)) / 1000.0
-	var ok: bool = _violations == 0 and GameState.max_depth_m >= MIN_DEPTH_M and GameState.blocks_broken >= MIN_BLOCKS
+	var ok: bool = _violations == 0 and GameState.max_depth_m >= MIN_DEPTH_M and GameState.blocks_broken >= MIN_BLOCKS and _rises == 0
 	print("[autotest] profundidade=%dm máx=%dm blocos=%d golpes=%d críticos=%d" % [
 			GameState.depth_m, GameState.max_depth_m, GameState.blocks_broken, _hits, _crits])
 	print("[autotest] chunks_gerados=%d geração_média=%.3fms geração_máx=%.3fms carregados=%d renderers=%d mods=%d" % [
@@ -120,7 +125,7 @@ func _finish() -> void:
 	print("[autotest] créditos=%d cristais=%d carga=%d upgrades_comprados=%d níveis=%s" % [
 			GameState.economy.credits, GameState.economy.crystals, GameState.economy.cargo_count(), _bought,
 			str(GameState.economy.upgrade_levels)])
-	print("[autotest] quadros=%d partículas_vivas=%d violações=%d" % [_frames, game.fx.alive_count(), _violations])
+	print("[autotest] quadros=%d partículas_vivas=%d violações=%d subidas=%d energia=%.0f%%" % [_frames, game.fx.alive_count(), _violations, _rises, game.drill.energy.fill_ratio() * 100.0])
 	print("[autotest] RESULTADO: %s" % ("PASSOU" if ok else "FALHOU"))
 	# Aguarda capturas pendentes.
 	await get_tree().process_frame

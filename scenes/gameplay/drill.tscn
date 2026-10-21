@@ -8,5 +8,5 @@ z_index = 2
 script = ExtResource("1_drill")
 
 [node name="Visual" type="Node2D" parent="."]
-scale = Vector2(1.2, 1.2)
+scale = Vector2(0.95, 0.95)
 script = ExtResource("2_visual")

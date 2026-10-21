@@ -1,22 +1,27 @@
 class_name WorldModel
 extends RefCounted
-## Modelo do terreno: cache de chunks gerados, modificações persistentes e dano parcial.
+## Terreno em micro-células (Balance.CELL_PX): cache de chunks, modificações persistentes,
+## desgaste parcial e escavação por círculos (a broca "desenha" o túnel).
 ## Não depende de nós nem de renderização.
 
-signal cell_changed(cell: Vector2i)
-## Dano parcial mudou (ou expirou) numa célula — usado para desenhar rachaduras.
-signal cell_damaged(cell: Vector2i)
+## Células alteradas (escavadas ou desgastadas) em um lote.
+signal cells_changed(cells: Array[Vector2i])
 signal chunk_loaded(index: int)
 signal chunk_unloaded(index: int)
 
 
-## Resultado de um golpe em uma célula.
-class DamageResult:
-	var block_id: int = BlockRegistry.AIR
-	var applied: bool = false      ## false = célula vazia ou indestrutível.
-	var destroyed: bool = false
-	var damage: float = 0.0
-	var hp_ratio: float = 0.0      ## Vida restante (0..1).
+## Resultado de uma escavação.
+class DigResult:
+	var counts: Dictionary = {}      ## id do material → células removidas
+	var touched: int = 0             ## células quebráveis atingidas
+	var main_id: int = BlockRegistry.AIR  ## material mais atingido (para FX)
+	var unbreakable: bool = false    ## tocou rocha-mãe
+
+	func removed() -> int:
+		var n: int = 0
+		for id: int in counts:
+			n += int(counts[id])
+		return n
 
 
 ## Trabalho de geração em segundo plano (WorkerThreadPool).
@@ -27,14 +32,14 @@ class _Job:
 	var task_id: int = -1
 
 
+const NO_CELL := Vector2i(-99999, -99999)
+
 var generator: WorldGenerator
-## Geração antecipada em threads de trabalho. Desligue para depuração determinística de quadro.
+## Geração antecipada em threads de trabalho. Desligue para testes determinísticos de quadro.
 var threaded: bool = true
 var _chunks: Dictionary = {}       ## int → ChunkData
 var _pending: Dictionary = {}      ## int → _Job
 var _mods: Dictionary = {}         ## int (chunk) → Dictionary[int (local), int (id)]
-var _damage: Dictionary = {}       ## Vector2i → float (dano acumulado)
-var _damage_order: Array[Vector2i] = []
 
 # Estatísticas para perfil/testes.
 var stats_generated: int = 0
@@ -48,21 +53,21 @@ func _init(p_seed: int) -> void:
 
 # --- Conversões ----------------------------------------------------------------
 
-static func chunk_index_for_row(y: int) -> int:
-	return floori(float(y) / float(Balance.CHUNK_HEIGHT))
+static func chunk_index_for_row(cy: int) -> int:
+	return floori(float(cy) / float(Balance.CHUNK_CELLS_Y))
 
 
 static func world_to_cell(p: Vector2) -> Vector2i:
-	return Vector2i(floori(p.x / Balance.BLOCK_PX), floori(p.y / Balance.BLOCK_PX))
+	return Vector2i(floori(p.x / Balance.CELL_PX), floori(p.y / Balance.CELL_PX))
 
 
-static func cell_center(cell: Vector2i) -> Vector2:
-	return (Vector2(cell) + Vector2(0.5, 0.5)) * Balance.BLOCK_PX
+static func cell_center(c: Vector2i) -> Vector2:
+	return (Vector2(c) + Vector2(0.5, 0.5)) * Balance.CELL_PX
 
 
-static func _local_index(cell: Vector2i) -> int:
-	var ly: int = cell.y - chunk_index_for_row(cell.y) * Balance.CHUNK_HEIGHT
-	return ly * Balance.WORLD_WIDTH + cell.x
+static func _local_index(c: Vector2i) -> int:
+	var ly: int = c.y - chunk_index_for_row(c.y) * Balance.CHUNK_CELLS_Y
+	return ly * Balance.WORLD_CELLS_X + c.x
 
 
 # --- Chunks --------------------------------------------------------------------
@@ -160,43 +165,78 @@ func unload_outside(min_index: int, max_index: int) -> void:
 
 # --- Células -------------------------------------------------------------------
 
-## Lê uma célula, gerando o chunk se necessário.
-func get_block(cell: Vector2i) -> int:
-	if cell.x < 0 or cell.x >= Balance.WORLD_WIDTH:
-		return BlockRegistry.BEDROCK
-	return get_chunk(chunk_index_for_row(cell.y)).ids[_local_index(cell)]
+func _in_x(c: Vector2i) -> bool:
+	return c.x >= 0 and c.x < Balance.WORLD_CELLS_X
 
 
-## Lê uma célula sem forçar geração de chunk (para vizinhos na renderização).
-func peek_block(cell: Vector2i) -> int:
-	if cell.x < 0 or cell.x >= Balance.WORLD_WIDTH:
+## Lê uma célula, gerando o chunk se necessário. Fora do mundo = rocha-mãe; céu = ar.
+func get_cell(c: Vector2i) -> int:
+	if not _in_x(c):
 		return BlockRegistry.BEDROCK
-	var index: int = chunk_index_for_row(cell.y)
-	var c: ChunkData = _chunks.get(index)
-	if c != null:
-		return c.ids[_local_index(cell)]
+	if c.y < 0:
+		return BlockRegistry.AIR
+	return get_chunk(chunk_index_for_row(c.y)).ids[_local_index(c)]
+
+
+## Lê uma célula sem forçar geração de chunk.
+func peek_cell(c: Vector2i) -> int:
+	if not _in_x(c):
+		return BlockRegistry.BEDROCK
+	if c.y < 0:
+		return BlockRegistry.AIR
+	var index: int = chunk_index_for_row(c.y)
+	var ch: ChunkData = _chunks.get(index)
+	if ch != null:
+		return ch.ids[_local_index(c)]
 	var mods: Dictionary = _mods.get(index, {})
-	var local: int = _local_index(cell)
+	var local: int = _local_index(c)
 	if mods.has(local):
 		return int(mods[local])
-	return generator.generate_cell(cell.x, cell.y)
+	return generator.generate_cell(c.x, c.y)
 
 
-func is_solid(cell: Vector2i) -> bool:
-	return BlockRegistry.is_solid(get_block(cell))
+func is_solid(c: Vector2i) -> bool:
+	return BlockRegistry.is_solid(get_cell(c))
 
 
-func set_block(cell: Vector2i, id: int) -> void:
-	if cell.x < 0 or cell.x >= Balance.WORLD_WIDTH:
-		return
-	var index: int = chunk_index_for_row(cell.y)
-	var c: ChunkData = get_chunk(index)
-	var local: int = _local_index(cell)
-	if c.ids[local] == id:
-		return
-	c.ids[local] = id
+## Desgaste parcial 0..1 (0 = intacta).
+func get_damage(c: Vector2i) -> float:
+	if not _in_x(c) or c.y < 0:
+		return 0.0
+	var ch: ChunkData = _chunks.get(chunk_index_for_row(c.y))
+	if ch == null:
+		return 0.0
+	return float(ch.dmg[_local_index(c)]) / 255.0
+
+
+func set_cell(c: Vector2i, id: int) -> void:
+	if _set_raw(c, id):
+		var changed: Array[Vector2i] = [c]
+		cells_changed.emit(changed)
+
+
+## Preenche um círculo com um material (debug/testes: abrir bolsões).
+func fill_circle(center: Vector2, radius: float, id: int) -> void:
+	var changed: Array[Vector2i] = []
+	for c in cells_in_circle(center, radius):
+		if _set_raw(c, id):
+			changed.append(c)
+	if not changed.is_empty():
+		cells_changed.emit(changed)
+
+
+func _set_raw(c: Vector2i, id: int) -> bool:
+	if not _in_x(c) or c.y < 0:
+		return false
+	var index: int = chunk_index_for_row(c.y)
+	var ch: ChunkData = get_chunk(index)
+	var local: int = _local_index(c)
+	ch.dmg[local] = 0
+	if ch.ids[local] == id:
+		return false
+	ch.ids[local] = id
 	var mods: Dictionary = _mods.get(index, {})
-	if generator.generate_cell(cell.x, cell.y) == id:
+	if generator.generate_cell(c.x, c.y) == id:
 		mods.erase(local)
 	else:
 		mods[local] = id
@@ -204,55 +244,109 @@ func set_block(cell: Vector2i, id: int) -> void:
 		_mods.erase(index)
 	else:
 		_mods[index] = mods
-	_clear_damage(cell)
-	cell_changed.emit(cell)
+	return true
 
 
-# --- Dano ----------------------------------------------------------------------
-
-func damage_cell(cell: Vector2i, amount: float) -> DamageResult:
-	var r := DamageResult.new()
-	r.block_id = get_block(cell)
-	var def: BlockDef = BlockRegistry.get_def(r.block_id)
-	if not def.solid or not def.breakable or amount <= 0.0:
-		return r
-	r.applied = true
-	r.damage = amount
-	var taken: float = float(_damage.get(cell, 0.0)) + amount
-	if taken >= def.max_hp:
-		r.destroyed = true
-		r.hp_ratio = 0.0
-		set_block(cell, BlockRegistry.AIR)
-		return r
-	if not _damage.has(cell):
-		_damage_order.append(cell)
-		if _damage_order.size() > Balance.MAX_DAMAGED_CELLS:
-			var expired: Vector2i = _damage_order.pop_front()
-			_damage.erase(expired)
-			cell_damaged.emit(expired)
-	_damage[cell] = taken
-	cell_damaged.emit(cell)
-	r.hp_ratio = 1.0 - taken / def.max_hp
-	return r
+## Células cujo centro está dentro do círculo (e abaixo de min_y, se dado).
+func cells_in_circle(center: Vector2, radius: float, min_y: float = -INF) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var cp: float = float(Balance.CELL_PX)
+	var x0: int = floori((center.x - radius) / cp)
+	var x1: int = floori((center.x + radius) / cp)
+	var y0: int = floori((maxf(center.y - radius, min_y)) / cp)
+	var y1: int = floori((center.y + radius) / cp)
+	var r2: float = radius * radius
+	for cy in range(y0, y1 + 1):
+		var py: float = (cy + 0.5) * cp
+		if py < min_y:
+			continue
+		for cx in range(x0, x1 + 1):
+			var px: float = (cx + 0.5) * cp
+			if (px - center.x) * (px - center.x) + (py - center.y) * (py - center.y) <= r2:
+				out.append(Vector2i(cx, cy))
+	return out
 
 
-## Fração de dano (0 = intacto, 1 = quase quebrado).
-func get_damage_ratio(cell: Vector2i) -> float:
-	if not _damage.has(cell):
-		return 0.0
-	var def: BlockDef = BlockRegistry.get_def(peek_block(cell))
-	if def.max_hp <= 0.0 or is_inf(def.max_hp):
-		return 0.0
-	return clampf(float(_damage[cell]) / def.max_hp, 0.0, 1.0)
+## Verdadeiro se algum retângulo de célula sólida intersecta o círculo (colisão do corpo).
+func circle_hits_solid(center: Vector2, radius: float) -> bool:
+	var cp: float = float(Balance.CELL_PX)
+	var x0: int = floori((center.x - radius) / cp)
+	var x1: int = floori((center.x + radius) / cp)
+	var y0: int = floori((center.y - radius) / cp)
+	var y1: int = floori((center.y + radius) / cp)
+	var r2: float = radius * radius
+	for cy in range(y0, y1 + 1):
+		var ry0: float = cy * cp
+		var qy: float = clampf(center.y, ry0, ry0 + cp)
+		for cx in range(x0, x1 + 1):
+			var rx0: float = cx * cp
+			var qx: float = clampf(center.x, rx0, rx0 + cp)
+			if (qx - center.x) * (qx - center.x) + (qy - center.y) * (qy - center.y) < r2:
+				if is_solid(Vector2i(cx, cy)):
+					return true
+	return false
 
 
-func damaged_cells() -> Array[Vector2i]:
-	return _damage_order
+## Células sólidas cujo retângulo intersecta o círculo (o que bloqueia um corpo ali).
+func blocking_cells(center: Vector2, radius: float) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var cp: float = float(Balance.CELL_PX)
+	var r2: float = radius * radius
+	for cy in range(floori((center.y - radius) / cp), floori((center.y + radius) / cp) + 1):
+		var qy: float = clampf(center.y, cy * cp, cy * cp + cp)
+		for cx in range(floori((center.x - radius) / cp), floori((center.x + radius) / cp) + 1):
+			var qx: float = clampf(center.x, cx * cp, cx * cp + cp)
+			if (qx - center.x) * (qx - center.x) + (qy - center.y) * (qy - center.y) < r2:
+				var c := Vector2i(cx, cy)
+				if is_solid(c):
+					out.append(c)
+	return out
 
 
-func _clear_damage(cell: Vector2i) -> void:
-	if _damage.erase(cell):
-		_damage_order.erase(cell)
+## Escava um círculo: cada célula sólida quebrável cujo centro está no círculo recebe o golpe.
+## min_y: não afeta células acima dessa altura (a broca nunca abre caminho para cima).
+func dig_circle(center: Vector2, radius: float, raw_damage: float, min_y: float = -INF) -> DigResult:
+	return dig_cells(cells_in_circle(center, radius, min_y), raw_damage, min_y)
+
+
+## Aplica um golpe a uma lista de células (com dureza). Vida da célula = vida do bloco /
+## CELL_SUB, então atravessar 1 bloco custa o mesmo número de golpes que um bloco inteiro.
+func dig_cells(cells: Array[Vector2i], raw_damage: float, min_y: float = -INF) -> DigResult:
+	var res := DigResult.new()
+	var changed: Array[Vector2i] = []
+	var touched_by_id: Dictionary = {}
+	var seen: Dictionary = {}
+	for c in cells:
+		if seen.has(c) or not _in_x(c) or c.y < 0 or cell_center(c).y < min_y:
+			continue
+		seen[c] = true
+		var ch: ChunkData = get_chunk(chunk_index_for_row(c.y))
+		var local: int = _local_index(c)
+		var id: int = ch.ids[local]
+		var def: BlockDef = BlockRegistry.get_def(id)
+		if not def.solid:
+			continue
+		if not def.breakable:
+			res.unbreakable = true
+			continue
+		res.touched += 1
+		touched_by_id[id] = int(touched_by_id.get(id, 0)) + 1
+		var cell_hp: float = def.max_hp / Balance.CELL_SUB
+		var frac: float = float(ch.dmg[local]) / 255.0 + MiningRules.effective_damage(raw_damage, def.hardness) / cell_hp
+		if frac >= 1.0:
+			_set_raw(c, BlockRegistry.AIR)
+			res.counts[id] = int(res.counts.get(id, 0)) + 1
+		else:
+			ch.dmg[local] = mini(254, ceili(frac * 255.0))
+		changed.append(c)
+	var best: int = 0
+	for id: int in touched_by_id:
+		if int(touched_by_id[id]) > best:
+			best = int(touched_by_id[id])
+			res.main_id = id
+	if not changed.is_empty():
+		cells_changed.emit(changed)
+	return res
 
 
 # --- Persistência (consumida pelo SaveService na Fase 4) -------------------------
@@ -272,9 +366,7 @@ func export_modifications() -> Dictionary:
 ## Importa modificações (descarta chunks em cache para reaplicar).
 func import_modifications(data: Dictionary) -> void:
 	_mods.clear()
-	_damage.clear()
-	_damage_order.clear()
-	var max_local: int = Balance.WORLD_WIDTH * Balance.CHUNK_HEIGHT
+	var max_local: int = Balance.WORLD_CELLS_X * Balance.CHUNK_CELLS_Y
 	for key: Variant in data:
 		var s := str(key)
 		if not s.is_valid_int() or not (data[key] is Dictionary):

@@ -7,7 +7,8 @@ var world_seed: int = 0
 var depth_m: int = 0
 var max_depth_m: int = 0
 var biome_id: int = BiomeRegistry.CRUST
-var blocks_broken: int = 0
+var blocks_broken: int = 0     ## Volume escavado em blocos (células ÷ CELLS_PER_BLOCK).
+var cells_dug: int = 0
 var economy := Economy.new()
 var stats: DrillStats = DrillStats.base()
 
@@ -22,6 +23,7 @@ func new_run(p_seed: int = -1) -> void:
 	depth_m = 0
 	max_depth_m = 0
 	blocks_broken = 0
+	cells_dug = 0
 	biome_id = BiomeRegistry.CRUST
 	economy = Economy.new()
 	stats = Progression.build_stats(economy.upgrade_levels)
@@ -45,17 +47,18 @@ func update_depth(d: int) -> void:
 		EventBus.biome_changed.emit(biome_id)
 
 
-func register_block_broken() -> void:
-	blocks_broken += 1
+func register_cells_dug(n: int) -> void:
+	cells_dug += n
+	blocks_broken = cells_dug / Balance.CELLS_PER_BLOCK
 
 
 # --- Economia -------------------------------------------------------------------
 
 ## Coleta os drops de um bloco aplicando o multiplicador de Coleta.
-func collect_drops(cell: Vector2i, drops: Dictionary) -> Dictionary:
+func collect_drops(at: Vector2, drops: Dictionary) -> Dictionary:
 	var gained: Dictionary = economy.collect(drops, stats.collect_mult)
 	if not gained.is_empty():
-		EventBus.resources_collected.emit(cell, gained)
+		EventBus.resources_collected.emit(at, gained)
 		_emit_economy()
 	return gained
 

@@ -61,7 +61,7 @@ static func apply_upgrade(s: DrillStats, def: UpgradeDef, lvl: int) -> void:
 		&"collect":
 			s.collect_mult += bonus / 100.0
 		&"energy":
-			s.max_energy += bonus
+			s.energy_gain += Balance.ENERGY_GAIN_PER_LEVEL * lvl
 		&"cooling":
 			s.cooling = minf(MAX_COOLING, bonus / 100.0)
 		&"boost":
@@ -82,13 +82,13 @@ static func stat_text(s: DrillStats, stat: StringName) -> String:
 		&"collect":
 			return "+%.0f%% recursos" % ((s.collect_mult - 1.0) * 100.0)
 		&"energy":
-			return "%.0f energia" % s.max_energy
+			return "+%.0f%% carga" % ((s.energy_gain - 1.0) * 100.0)
 		&"cooling":
 			return "−%.0f%% calor" % (s.cooling * 100.0)
 		&"boost":
 			return "%.1fs ×%.1f" % [EnergySystem.boost_duration(s), EnergySystem.boost_mult(s)]
 		&"side_drill":
-			return "%.0f%% lateral" % (ModuleSystem.side_drill_chance(s) * 100.0) if ModuleSystem.level(s, ModuleSystem.SIDE_DRILL) > 0 else "não adquirido"
+			return "+%.0f px de túnel" % ModuleSystem.side_drill_bonus(s) if ModuleSystem.level(s, ModuleSystem.SIDE_DRILL) > 0 else "não adquirido"
 		&"drone":
 			return "a cada %.1fs" % ModuleSystem.drone_interval(s) if ModuleSystem.level(s, ModuleSystem.DRONE) > 0 else "não adquirido"
 		&"seismic":

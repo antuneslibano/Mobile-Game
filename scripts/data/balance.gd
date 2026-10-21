@@ -4,10 +4,18 @@ extends RefCounted
 ## Mantenha TODO número de balanceamento aqui ou nos registros de dados.
 
 # --- Mundo -------------------------------------------------------------------
-const BLOCK_PX: int = 48                 ## Tamanho do bloco na tela.
-const ART_PX: int = 16                   ## Resolução da pixel art por bloco.
-const WORLD_WIDTH: int = 24              ## Colunas (0 e WIDTH-1 são paredes).
-const CHUNK_HEIGHT: int = 16             ## Linhas por chunk.
+## "Bloco" é a unidade de design (1 m, vida, dureza, drops). O terreno real é feito de
+## micro-células de CELL_PX, CELL_SUB×CELL_SUB por bloco, para escavação livre.
+const BLOCK_PX: int = 48                 ## Tamanho do bloco na tela (1 metro).
+const CELL_PX: int = 12                  ## Tamanho da micro-célula.
+const CELL_SUB: int = 4                  ## Micro-células por lado de bloco.
+const CELLS_PER_BLOCK: int = 16          ## CELL_SUB²: volume de um bloco em células.
+const WORLD_WIDTH: int = 24              ## Largura em blocos (bordas são rocha-mãe).
+const CHUNK_HEIGHT: int = 16             ## Altura do chunk em blocos.
+const WORLD_CELLS_X: int = 96            ## WORLD_WIDTH × CELL_SUB.
+const CHUNK_CELLS_Y: int = 64            ## CHUNK_HEIGHT × CELL_SUB.
+const WALL_CELLS: int = 3                ## Borda de rocha-mãe garantida (células).
+const WARP_CELLS: float = 4.0            ## Deformação orgânica dos materiais (células).
 const MAX_DEPTH_ROWS: int = 1000         ## Abaixo disso só há rocha-mãe.
 const METERS_PER_BLOCK: float = 1.0
 const SAFE_SURFACE_ROWS: int = 6         ## Linhas iniciais sem cavernas.
@@ -18,7 +26,6 @@ const CHUNKS_PRELOAD_ABOVE: int = 1
 const CHUNKS_PRELOAD_BELOW: int = 2
 const CHUNK_UNLOAD_HYSTERESIS: int = 2   ## Chunks extras mantidos antes de descarregar.
 const GEN_CHUNKS_PER_FRAME: int = 1      ## Orçamento de geração antecipada.
-const MAX_DAMAGED_CELLS: int = 64
 
 # --- Perfuradora (atributos base, Fase 1) -------------------------------------
 const DRILL_BASE_DAMAGE: float = 4.0
@@ -27,23 +34,27 @@ const DRILL_BASE_CRIT_CHANCE: float = 0.05
 const DRILL_BASE_CRIT_MULT: float = 2.0
 const DRILL_MOVE_SPEED_BLOCKS: float = 4.5
 const DRILL_ACCEL_BLOCKS: float = 40.0
-const DRILL_SIZE_BLOCKS: Vector2 = Vector2(0.78, 0.84)
+const DRILL_RADIUS_PX: float = 15.0      ## Corpo (círculo de colisão; menor que a broca em qualquer ângulo).
+const BIT_RADIUS_PX: float = 24.0        ## Área cavada à frente (> corpo: o túnel cabe a máquina).
+const BIT_OFFSET_PX: float = 12.0        ## Centro da broca à frente do corpo.
 const GRAVITY_BLOCKS: float = 32.0
 const MAX_FALL_BLOCKS: float = 14.0
-const HOP_HEIGHT_BLOCKS: float = 1.2
-const ALIGN_GAIN: float = 14.0           ## Ganho do auto-alinhamento à coluna.
-const ALIGN_TOLERANCE_BLOCKS: float = 0.18
-const SIDE_DRILL_MULT: float = 0.6
 const MIN_DAMAGE_RATIO: float = 0.15
 
-# --- Energia e impulso (Fase 3) -----------------------------------------------------
-const ENERGY_BASE_MAX: float = 100.0
-const ENERGY_REGEN_PER_SEC: float = 8.0
-const BOOST_COST: float = 40.0
-const BOOST_DURATION: float = 3.0
-const BOOST_DURATION_PER_LEVEL: float = 0.3
-const BOOST_SPEED_MULT: float = 1.8          ## Multiplicador de golpes/s durante o impulso.
-const BOOST_SPEED_PER_LEVEL: float = 0.1
+# --- Energia e Sobrecarga -------------------------------------------------------------
+## A energia NÃO regenera com o tempo: é conquistada cavando (valor do material).
+## A Sobrecarga só ativa com a barra cheia e consome tudo.
+const ENERGY_MAX: float = 100.0
+const ENERGY_PER_CREDIT: float = 0.9         ## Carga por Crédito de material cavado…
+const ENERGY_PER_CRYSTAL: float = 12.0       ## …e por Cristal coletado.
+const ENERGY_DEPTH_SCALE_M: float = 150.0    ## Carga ÷ (1 + prof/este) — minérios fundos valem mais.
+const ENERGY_GAIN_PER_LEVEL: float = 0.1     ## Upgrade "Bateria": +10% de carga.
+const OVERDRIVE_DURATION: float = 6.0
+const OVERDRIVE_DURATION_PER_LEVEL: float = 0.5
+const OVERDRIVE_DIG_MULT: float = 2.2        ## Golpes/s durante a Sobrecarga.
+const OVERDRIVE_DIG_PER_LEVEL: float = 0.15
+const OVERDRIVE_MOVE_MULT: float = 1.35
+const OVERDRIVE_BIT_MULT: float = 1.3        ## Túnel mais largo durante a Sobrecarga.
 
 # --- Calor (Fase 3) -------------------------------------------------------------------
 const HEAT_START_M: int = 300
@@ -54,13 +65,14 @@ const HEAT_PENALTY_MAX: float = 0.3
 
 # --- Módulos (Fase 3) -----------------------------------------------------------------
 const MODULE_SLOTS: int = 2
-const SIDE_DRILL_CHANCE: float = 0.35        ## Chance de quebrar cada vizinho junto com o alvo.
-const SIDE_DRILL_CHANCE_PER_LEVEL: float = 0.065
+const SIDE_DRILL_RADIUS_PX: float = 5.0      ## Broca lateral: alarga a área cavada…
+const SIDE_DRILL_RADIUS_PER_LEVEL: float = 1.2
 const DRONE_INTERVAL: float = 1.6
 const DRONE_INTERVAL_PER_LEVEL: float = 0.09
 const DRONE_DAMAGE_RATIO: float = 0.6        ## Dano do drone (× dano da broca).
 const DRONE_DAMAGE_PER_LEVEL: float = 0.12
-const DRONE_RANGE_CELLS: int = 3
+const DRONE_RANGE_PX: float = 150.0
+const DRONE_LASER_RADIUS_PX: float = 11.0
 const PULSE_INTERVAL: float = 8.0
 const PULSE_INTERVAL_PER_LEVEL: float = 0.4
 const PULSE_RADIUS_CELLS: float = 1.6
@@ -73,10 +85,7 @@ const SYNERGY_PULSE_CRIT_MULT: float = 1.5
 
 # --- Controles ---------------------------------------------------------------
 const JOYSTICK_RADIUS_PX: float = 110.0
-const JOYSTICK_DEADZONE: float = 0.22
-## Para baixo vence se |y| >= |x| × este fator (diagonais baixas perfuram para baixo).
-const JOYSTICK_DOWN_BIAS: float = 0.8
-const JOYSTICK_SIDE_MIN: float = 0.25
+const JOYSTICK_DEADZONE: float = 0.2
 
 # --- Câmera ------------------------------------------------------------------
 const CAMERA_FOLLOW_SPEED: float = 7.0
