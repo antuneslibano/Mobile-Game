@@ -3,6 +3,32 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.3.0] — Fase 3: terreno orgânico, joystick, energia, calor e módulos
+
+### Adicionado
+- **Terreno orgânico**: shader `shaders/terrain.gdshader` desenha a grade como campo
+  contínuo — contornos arredondados e irregulares, transições naturais entre materiais,
+  pepitas de minério, lascas de cristal, veios de magma, luz/sombra e oclusão, rachaduras.
+  1 quad por chunk; dados das células em textura (atualização por texel).
+- **Joystick flutuante** (nasce onde o dedo toca); para cima não faz nada.
+- Energia (100, +8/s) e **impulso** (−40 energia, ×1,8 golpes/s por 3 s) com botão dedicado,
+  aura e chama; a mineração normal nunca depende de energia.
+- **Calor** a partir de 300 m (até −30% de golpes/s), indicador no HUD e tinta na tela;
+  **Refrigeração** reduz.
+- **Módulos** com 2 slots: Broca lateral, Drone minerador, Pulso sísmico; equipar/remover na
+  aba Módulos; aparência da máquina muda com os módulos.
+- **Sinergia Ressonância Crítica** (Crítico × Pulso), declarativa em `SynergyRules`.
+- Todos os 10 upgrades liberados; prévias legíveis para módulos e impulso.
+- Aviso com o nome do bioma ao entrar.
+- 11 testes da Fase 3; teste de integração reescrito para o joystick (37 verificações).
+
+### Removido
+- Botões inferiores `◀`, `PERFURAR`, `▶` (substituídos pelo joystick).
+- Atlas de tiles quadrados (`TileArt`).
+
+### Alterado
+- Cristais: blocos de cristal/ametista/baú rendem 2; Drone custa 6 e Pulso 8 Cristais.
+
 ## [0.2.0] — Fase 2: recursos, inventário, garagem, economia e upgrades
 
 ### Adicionado

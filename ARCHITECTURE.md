@@ -46,12 +46,16 @@ scripts/
     chunk_data.gd          ChunkData – ids de um chunk
     world_model.gd         WorldModel – cache de chunks, modificações, dano
     terrain_view.gd        TerrainView – carrega/descarrega e recicla ChunkRenderers
-    chunk_renderer.gd      ChunkRenderer – desenha 1 chunk em lote via _draw
-    mining_overlay.gd      MiningOverlay – rachaduras e flash de impacto
+    chunk_renderer.gd      ChunkRenderer – 1 quad por chunk com o shader de terreno; dados em textura
+    mining_overlay.gd      MiningOverlay – brilho de impacto
   render/
-    tile_art.gd            TileArt – gera o atlas pixel art procedural (Image → ImageTexture)
+    terrain_textures.gd    TerrainTextures – paleta, ruído e material do shader (gerados em código)
     background.gd          Background – céu, superfície e base
   gameplay/
+    energy_system.gd       EnergySystem – energia e impulso (puro)
+    heat_rules.gd          HeatRules – calor e penalidade (puro)
+    module_system.gd       ModuleSystem – broca lateral, drone, pulso (puro, sinais p/ visuais)
+    synergy_rules.gd       SynergyRules – sinergias declarativas
     drill_stats.gd         DrillStats – atributos efetivos (base + upgrades futuros)
     drill_intent.gd        DrillIntent – intenção de controle (mover, perfurar, impulso)
     mining_rules.gd        MiningRules – fórmula de dano centralizada
@@ -61,10 +65,13 @@ scripts/
   camera/depth_camera.gd   DepthCamera – seguimento suave, limites, tremor
   fx/debris_fx.gd          DebrisFx – partículas em pool (struct-of-arrays, 1 nó)
   fx/pickup_fx.gd          PickupFx – textos "+2 Cobre" (1 nó, pool limitado)
+  fx/module_fx.gd          ModuleFx – drone, lasers e ondas do pulso
+shaders/terrain.gdshader   terreno orgânico (campo contínuo sobre a grade)
   game/game.gd             Game – composição e ligação dos sistemas do mundo
   ui/hud.gd                Hud – leitura de estado, áreas de toque, botão da garagem
   ui/garage.gd             Garage – vender carga, abas Upgrades/Módulos (pausa o jogo)
   ui/upgrade_card.gd       UpgradeCard – nível, antes → depois, botão de compra
+  ui/virtual_joystick.gd   VirtualJoystick – desenho do joystick flutuante
   ui/ui_theme.gd, gem_icon.gd, pad_button.gd – tema e componentes desenhados em código
   debug/autopilot.gd       Autopilot – bot de teste (--autotest) e captura de tela
   main.gd                  Main – raiz, argumentos de linha de comando
@@ -85,6 +92,7 @@ Main (Node, main.gd)
 │   ├── Drill (Node2D, drill.gd, z=2)          scenes/gameplay/drill.tscn
 │   │   └── Visual (Node2D, drill_visual.gd)
 │   ├── DebrisFx (Node2D, z=3)
+│   ├── ModuleFx (Node2D, z=3)
 │   ├── PickupFx (Node2D, z=4)
 │   ├── DepthCamera (Camera2D)
 │   └── InputController (Node)
@@ -133,6 +141,8 @@ e `Progression` são puros (testados sem cena); a UI apenas lê e chama GameStat
 | `upgrade_purchased` | `id: StringName, new_level: int` | GameState | Save (4) se `important`, Áudio (5) |
 | `stats_changed` | – | GameState | Game → Drill |
 | `garage_opened` / `garage_closed` | – | Garage | InputController (limpa toques), Save (4) |
+| `modules_changed` | `equipped: Array[StringName]` | GameState | Game → Drill.modules, Garage |
+| `boost_started` | – | Game (de Drill) | Áudio (5) |
 
 Sinais locais: `WorldModel.cell_changed(cell)`, `WorldModel.chunk_generated(index)`,
 `Drill.block_hit(...)`, `Drill.block_destroyed(...)`, `Drill.blocked_by_unbreakable(cell)`.
@@ -143,18 +153,19 @@ Sinais locais: `WorldModel.cell_changed(cell)`, `WorldModel.chunk_generated(inde
   Pixel = célula × `Balance.BLOCK_PX`.
 - **Chunk** = faixa de `WORLD_WIDTH × CHUNK_HEIGHT` células; índice = `floor(y / CHUNK_HEIGHT)`.
 - **Carregamento**: `TerrainView` calcula, a cada quadro, o intervalo de chunks visíveis
-  pela câmera (+margem). Visíveis são garantidos de forma síncrona; os de antecipação
-  entram numa fila com orçamento de `GEN_CHUNKS_PER_FRAME`. Chunks fora do intervalo +
-  histerese são descarregados do cache e seus renderers voltam ao pool.
-- **Modificações**: `WorldModel._mods: Dictionary[int → Dictionary[int → int]]`
-  (chunk → índice local → novo id). Sobrevivem ao descarregamento; são reaplicadas na
-  regeneração e serão serializadas pelo `SaveService` (Fase 4).
-- **Dano parcial**: `WorldModel._damage: Dictionary[Vector2i → float]`, limitado a
-  `MAX_DAMAGED_CELLS` (os mais antigos expiram). Não é salvo (intencional).
-- **Renderização**: `ChunkRenderer._draw()` emite um `draw_texture_rect_region` por célula
-  a partir de **um único atlas** → o renderizador 2D agrupa tudo em poucos lotes. Só
-  redesenha quando o chunk muda. Bordas iluminadas/sombras são calculadas no desenho
-  consultando vizinhos (`WorldModel.peek_block`, que não força geração).
+  pela câmera (+margem). Visíveis são garantidos de forma síncrona; os de antecipação vão
+  para o `WorkerThreadPool`. Chunks fora do intervalo + histerese são descarregados e seus
+  renderers voltam ao pool.
+- **Modificações**: `WorldModel._mods` (chunk → índice local → id) sobrevivem ao
+  descarregamento e serão serializadas pelo `SaveService` (Fase 4).
+- **Dano parcial**: `WorldModel._damage`, limitado a `MAX_DAMAGED_CELLS`; emite `cell_damaged`.
+- **Renderização orgânica (Fase 3)**: cada `ChunkRenderer` mantém uma textura de dados
+  `(WIDTH+4) × (CHUNK_HEIGHT+4)` (halo de 2 células para continuidade entre chunks):
+  r = id, g = estágio de dano, b = bioma, a = sólido. Um único quad com
+  `shaders/terrain.gdshader` (material compartilhado; paleta e ruído de `TerrainTextures`)
+  transforma isso em contornos e materiais naturais. Alterar/danificar uma célula atualiza
+  1 texel em cada renderer que a cobre. **A colisão continua exata na grade**; o contorno
+  visual desvia no máximo ~0,2 célula.
 
 ## 7. Perfuradora
 
@@ -180,7 +191,7 @@ ignorados (`Hud.is_point_blocking`). Teclado (`←→AD`, `↓ S Espaço`) é so
 | Fase | Encaixe |
 |---|---|
 | 2 – Economia | ✅ `Economy` + `Progression` (puros) sob `GameState`; `UpgradeDef` em `data/upgrades/`; `Garage` (CanvasLayer em código). |
-| 3 – Módulos/energia/calor | `ModuleDef` + `ModuleSystem` (nós filhos de `Drill` que reagem a `block_hit`); `SynergyRules` declarativas; `HeatRules` em `gameplay/`; `DrillVisual.set_modules()`. Upgrades já existem e só precisam de `available_from_phase = 3` → liberação; efeitos leem `DrillStats.max_energy`, `cooling`, `module_levels`. Aba Módulos da garagem já existe. |
+| 3 – Módulos/energia/calor | ✅ `EnergySystem`, `HeatRules`, `ModuleSystem` e `SynergyRules` puros, pertencentes à `Drill` e avançados em `physics_step`; golpes de módulos usam `Drill.apply_external_hit/break_external` (mesmos sinais, drops e FX). Joystick no `InputController`. Terreno por shader. |
 | 4 – Prestígio/persistência | `SaveService` (temp + rename, `schema_version`, validação), `WorldModel.export_mods()/import_mods()`, `PrestigeService` com `run_id`. |
 | 5 – Polimento | `AudioService` + buses `Music/SFX/UI`, preset de qualidade (`Balance.QUALITY`), export Android. |
 

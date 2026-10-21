@@ -1,13 +1,14 @@
 class_name Hud
 extends CanvasLayer
-## HUD: barra superior (profundidade, moedas, energia, garagem) e controles inferiores.
-## Apenas exibe estado e expõe áreas de toque; não altera regras de jogo.
+## HUD: barra superior (profundidade, moedas, energia, calor, garagem), joystick flutuante e
+## botão de impulso. Apenas exibe estado e expõe áreas de toque; não altera regras de jogo.
 
 signal garage_requested
 
 const TOP_HEIGHT: float = 170.0
-const BOTTOM_HEIGHT: float = 200.0
 const SIDE_MARGIN: float = 20.0
+const BOOST_SIZE: float = 150.0
+const BANNER_TIME: float = 2.8
 
 var _root: Control
 var _top: PanelContainer
@@ -18,13 +19,20 @@ var _credits_label: Label
 var _crystals_label: Label
 var _energy_bar: ProgressBar
 var _garage_button: Button
-var _bottom: HBoxContainer
+var _heat_label: Label
+var _heat_tint: ColorRect
+var _boost: PadButton
+var _joystick: VirtualJoystick
+var _banner: Label
+var _banner_t: float = 0.0
 var _hint: Label
 var _fps_label: Label
 var _pads: Array[PadButton] = []
 var _safe_top: float = 0.0
 var _safe_bottom: float = 0.0
 var _hint_time: float = 0.0
+## Perfuradora observada (somente leitura) para energia, impulso e calor.
+var drill: Drill
 
 
 func _ready() -> void:
@@ -37,7 +45,7 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_apply_layout)
 	_apply_layout()
 	_on_depth_changed(GameState.depth_m, GameState.max_depth_m)
-	_on_biome_changed(GameState.biome_id)
+	_set_biome(GameState.biome_id)
 	set_currencies(GameState.economy.credits, GameState.economy.crystals)
 	_on_cargo_changed(GameState.economy.cargo_count(), GameState.economy.cargo_value())
 
@@ -49,11 +57,20 @@ func is_point_blocking(p: Vector2) -> bool:
 	return _top.get_global_rect().has_point(p)
 
 
+## Botões de toque do HUD (hoje só o impulso); vazio = área do joystick.
 func pad_action_at(p: Vector2) -> StringName:
 	for pad in _pads:
-		if pad.visible and pad.get_global_rect().grow(8.0).has_point(p):
+		if pad.visible and pad.get_global_rect().grow(10.0).has_point(p):
 			return pad.kind
 	return &""
+
+
+func show_joystick(base: Vector2, knob: Vector2) -> void:
+	_joystick.show_at(base, knob)
+
+
+func hide_joystick() -> void:
+	_joystick.hide_stick()
 
 
 func set_pad_pressed(pressed: Dictionary) -> void:
@@ -65,8 +82,7 @@ func set_pad_pressed(pressed: Dictionary) -> void:
 func dig_area() -> Rect2:
 	var vp: Vector2 = _root.get_viewport_rect().size
 	var top: float = _top.get_global_rect().end.y
-	var bottom: float = _bottom.get_global_rect().position.y
-	return Rect2(0, top, vp.x, bottom - top)
+	return Rect2(0, top, vp.x, vp.y - top - _safe_bottom)
 
 
 # --- Construção ---------------------------------------------------------------------
@@ -78,6 +94,17 @@ func _build() -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_root)
+
+	# Tinta de calor (atrás do restante do HUD).
+	_heat_tint = ColorRect.new()
+	_heat_tint.color = Color(1.0, 0.35, 0.1, 0.0)
+	_heat_tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_heat_tint.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_root.add_child(_heat_tint)
+
+	_joystick = VirtualJoystick.new()
+	_joystick.name = "Joystick"
+	_root.add_child(_joystick)
 
 	# Barra superior.
 	_top = PanelContainer.new()
@@ -105,6 +132,9 @@ func _build() -> void:
 	sub.add_child(_biome_label)
 	_max_label = _label("máx 0 m", UiTheme.FONT_SMALL, UiTheme.TEXT_DIM)
 	sub.add_child(_max_label)
+	_heat_label = _label("", UiTheme.FONT_SMALL, Color("ff8a4a"))
+	_heat_label.visible = false
+	sub.add_child(_heat_label)
 
 	var money := VBoxContainer.new()
 	money.add_theme_constant_override("separation", 2)
@@ -136,19 +166,22 @@ func _build() -> void:
 	_garage_button.pressed.connect(func() -> void: garage_requested.emit())
 	energy_row.add_child(_garage_button)
 
-	# Controles inferiores.
-	_bottom = HBoxContainer.new()
-	_bottom.name = "BottomPad"
-	_bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_bottom.add_theme_constant_override("separation", 14)
-	_root.add_child(_bottom)
-	_add_pad(&"left", PadButton.Icon.LEFT, "", UiTheme.ACCENT, 1.0)
-	_add_pad(&"drill", PadButton.Icon.DRILL, "PERFURAR", UiTheme.ACCENT, 1.7)
-	_add_pad(&"right", PadButton.Icon.RIGHT, "", UiTheme.ACCENT, 1.0)
+	# Botão de impulso (canto inferior direito). O restante da tela é área do joystick.
+	_boost = PadButton.new(&"boost", PadButton.Icon.BOOST, "IMPULSO", UiTheme.BLUE)
+	_boost.name = "BoostButton"
+	_boost.size_flags_horizontal = Control.SIZE_SHRINK_END
+	_root.add_child(_boost)
+	_pads.append(_boost)
 
-	_hint = _label("Segure na tela para perfurar\nArraste para os lados para mover", UiTheme.FONT_SMALL, UiTheme.TEXT)
+	_hint = _label("Arraste o dedo para guiar a broca:\npara baixo perfura, para os lados move.", UiTheme.FONT_SMALL, UiTheme.TEXT)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_root.add_child(_hint)
+
+	_banner = _label("", 44, UiTheme.TEXT)
+	_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_banner.add_theme_constant_override("outline_size", 10)
+	_banner.modulate.a = 0.0
+	_root.add_child(_banner)
 
 	_fps_label = _label("", 18, UiTheme.TEXT_DIM)
 	_fps_label.visible = OS.is_debug_build()
@@ -178,23 +211,19 @@ func _currency_row(parent: Control, color: Color, tooltip: String) -> Label:
 	return value
 
 
-func _add_pad(kind: StringName, icon: PadButton.Icon, text: String, accent: Color, ratio: float) -> void:
-	var pad := PadButton.new(kind, icon, text, accent)
-	pad.name = "Pad_" + String(kind)
-	pad.size_flags_stretch_ratio = ratio
-	_bottom.add_child(pad)
-	_pads.append(pad)
-
-
 func _apply_layout() -> void:
 	var vp: Vector2 = _root.get_viewport_rect().size
 	_compute_safe_area(vp)
 	_top.position = Vector2(SIDE_MARGIN * 0.5, _safe_top + 8.0)
 	_top.size = Vector2(vp.x - SIDE_MARGIN, TOP_HEIGHT - 16.0)
-	_bottom.position = Vector2(SIDE_MARGIN, vp.y - _safe_bottom - BOTTOM_HEIGHT)
-	_bottom.size = Vector2(vp.x - SIDE_MARGIN * 2.0, BOTTOM_HEIGHT - SIDE_MARGIN)
-	_hint.position = Vector2(0, _bottom.position.y - 110.0)
+	_boost.size = Vector2(BOOST_SIZE, BOOST_SIZE)
+	_boost.position = Vector2(vp.x - BOOST_SIZE - SIDE_MARGIN, vp.y - _safe_bottom - BOOST_SIZE - SIDE_MARGIN)
+	_joystick.rest_pos = Vector2(vp.x * 0.5, vp.y - _safe_bottom - Balance.JOYSTICK_RADIUS_PX - 60.0)
+	_joystick.queue_redraw()
+	_hint.position = Vector2(0, _joystick.rest_pos.y - Balance.JOYSTICK_RADIUS_PX - 110.0)
 	_hint.size = Vector2(vp.x, 80)
+	_banner.position = Vector2(0, vp.y * 0.36)
+	_banner.size = Vector2(vp.x, 70)
 	_fps_label.position = Vector2(SIDE_MARGIN, _top.position.y + _top.size.y + 6.0)
 
 
@@ -215,6 +244,17 @@ func _compute_safe_area(vp: Vector2) -> void:
 # --- Atualizações -------------------------------------------------------------------
 
 func _process(delta: float) -> void:
+	if drill != null:
+		var e: EnergySystem = drill.energy
+		set_energy(e.energy, e.max_energy)
+		_energy_bar.modulate = Color(1.6, 1.6, 1.8) if e.is_boosting() else Color.WHITE
+		_boost.modulate.a = 1.0 if e.can_boost() or e.is_boosting() else 0.45
+		_boost.text = "%.1fs" % e.boost_left if e.is_boosting() else "IMPULSO"
+		_set_heat(drill.depth_m(), drill.heat_penalty)
+	if _banner_t > 0.0:
+		_banner_t -= delta
+		var k: float = _banner_t / BANNER_TIME
+		_banner.modulate.a = clampf(minf(k * 4.0, (1.0 - k) * 6.0), 0.0, 1.0)
 	if _fps_label.visible:
 		_fps_label.text = "%d FPS" % Engine.get_frames_per_second()
 	if _hint_time > 0.0:
@@ -235,9 +275,26 @@ func _on_depth_changed(depth_m: int, max_depth_m: int) -> void:
 
 
 func _on_biome_changed(biome_id: int) -> void:
+	var was: String = _biome_label.text
+	_set_biome(biome_id)
+	if was != "" and was != _biome_label.text and GameState.depth_m > 0:
+		_banner.text = _biome_label.text.to_upper()
+		_banner.add_theme_color_override("font_color", BiomeRegistry.get_def(biome_id).ui_color)
+		_banner_t = BANNER_TIME
+
+
+func _set_biome(biome_id: int) -> void:
 	var biome: BiomeDef = BiomeRegistry.get_def(biome_id)
 	_biome_label.text = biome.display_name
 	_biome_label.add_theme_color_override("font_color", biome.ui_color)
+
+
+func _set_heat(depth_m: int, penalty: float) -> void:
+	var heat: float = HeatRules.heat_at(depth_m)
+	_heat_label.visible = heat > 0.0
+	if heat > 0.0:
+		_heat_label.text = "calor %.1f · −%.0f%%" % [heat, penalty * 100.0]
+	_heat_tint.color.a = penalty * 0.45
 
 
 func _on_cargo_changed(count: int, value: int) -> void:

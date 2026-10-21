@@ -15,6 +15,7 @@ var drive: bool = true
 var shop: bool = true
 ## Abre a garagem neste instante (s) para capturas; < 0 = nunca.
 var open_garage_at: float = -1.0
+var garage_tab_modules: bool = false
 var garage: Garage
 
 var _t: float = 0.0
@@ -66,6 +67,8 @@ func _physics_process(delta: float) -> void:
 	if open_garage_at >= 0.0 and _t >= open_garage_at and garage != null:
 		open_garage_at = -1.0
 		garage.open()
+		if garage_tab_modules:
+			garage.show_modules_tab()
 	if _t >= duration:
 		_finish()
 

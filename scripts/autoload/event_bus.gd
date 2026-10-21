@@ -16,3 +16,8 @@ signal upgrade_purchased(id: StringName, new_level: int)
 signal stats_changed
 signal garage_opened
 signal garage_closed
+
+# Fase 3 — módulos, energia, calor
+signal modules_changed(equipped: Array[StringName])
+signal boost_started
+signal heat_changed(heat: float, penalty: float)

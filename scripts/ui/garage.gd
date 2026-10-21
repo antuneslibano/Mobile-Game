@@ -19,6 +19,10 @@ var _scroll: ScrollContainer
 var _toast: Label
 var _toast_t: float = 0.0
 var _cards: Array[UpgradeCard] = []
+var _slots_label: Label
+var _module_buttons: Dictionary = {}     ## StringName → Button
+var _module_status: Dictionary = {}      ## StringName → Label
+var _synergy_label: Label
 
 
 func _ready() -> void:
@@ -28,6 +32,7 @@ func _ready() -> void:
 	visible = false
 	EventBus.wallet_changed.connect(func(_c: int, _k: int) -> void: _refresh())
 	EventBus.cargo_changed.connect(func(_n: int, _v: int) -> void: _refresh())
+	EventBus.modules_changed.connect(func(_e: Array[StringName]) -> void: _refresh())
 
 
 func is_open() -> bool:
@@ -196,10 +201,17 @@ func _build() -> void:
 	_modules_page = VBoxContainer.new()
 	_modules_page.add_theme_constant_override("separation", 10)
 	pages.add_child(_modules_page)
-	var info := _label("Os slots de módulos (Broca lateral, Drone minerador e Pulso sísmico) chegam na Fase 3.\n\nOs níveis desses módulos aparecem na aba Upgrades e serão liberados junto com os slots.", UiTheme.FONT_SMALL, UiTheme.TEXT_DIM)
-	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	info.custom_minimum_size = Vector2(400, 0)
-	_modules_page.add_child(info)
+	_slots_label = _label("", UiTheme.FONT_NORMAL, UiTheme.ACCENT)
+	_modules_page.add_child(_slots_label)
+	for id in ModuleSystem.ALL:
+		_modules_page.add_child(_module_card(id))
+	var syn_panel := PanelContainer.new()
+	syn_panel.add_theme_stylebox_override("panel", UiTheme.panel_box(Color("201a2a"), Color("c57bff").darkened(0.4), 16, 3))
+	_modules_page.add_child(syn_panel)
+	_synergy_label = _label("", UiTheme.FONT_SMALL, UiTheme.TEXT)
+	_synergy_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_synergy_label.custom_minimum_size = Vector2(400, 0)
+	syn_panel.add_child(_synergy_label)
 
 	_toast = _label("", UiTheme.FONT_NORMAL, UiTheme.TEXT)
 	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -207,6 +219,79 @@ func _build() -> void:
 	_toast.position = Vector2(0, -150)
 	_toast.modulate.a = 0.0
 	_root.add_child(_toast)
+
+
+func _module_card(id: StringName) -> PanelContainer:
+	var def: UpgradeDef = UpgradeRegistry.get_def(id)
+	var card := PanelContainer.new()
+	card.name = "Module_" + String(id)
+	card.add_theme_stylebox_override("panel", UiTheme.panel_box(Color("261f2d"), def.color.darkened(0.45), 16, 3))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	card.add_child(row)
+	var info := VBoxContainer.new()
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(info)
+	info.add_child(_label(def.display_name, UiTheme.FONT_NORMAL, UiTheme.TEXT))
+	var desc := _label(def.description, 20, UiTheme.TEXT_DIM)
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc.custom_minimum_size = Vector2(280, 0)
+	info.add_child(desc)
+	var status := _label("", UiTheme.FONT_SMALL, UiTheme.TEXT_DIM)
+	info.add_child(status)
+	_module_status[id] = status
+	var b := Button.new()
+	b.name = "Toggle"
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size = Vector2(170, 76)
+	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	b.pressed.connect(func() -> void: toggle_module(id))
+	row.add_child(b)
+	_module_buttons[id] = b
+	return card
+
+
+func toggle_module(id: StringName) -> bool:
+	var ok: bool = GameState.toggle_module(id)
+	if not ok:
+		var reason: String = "Compre o módulo na aba Upgrades" if not GameState.economy.owns_module(id) else "Todos os slots estão ocupados"
+		_show_toast(reason, Color("ff8a8a"))
+	_refresh()
+	return ok
+
+
+func _refresh_modules(econ: Economy) -> void:
+	_slots_label.text = "SLOTS  %d / %d" % [econ.equipped_modules.size(), Balance.MODULE_SLOTS]
+	for id in ModuleSystem.ALL:
+		var b: Button = _module_buttons[id]
+		var st: Label = _module_status[id]
+		var lvl: int = econ.get_level(id)
+		var on: bool = econ.equipped_modules.has(id)
+		if lvl == 0:
+			st.text = "Não adquirido"
+			b.text = "—"
+			b.disabled = true
+		else:
+			st.text = "Nível %d · %s" % [lvl, "EQUIPADO" if on else "na garagem"]
+			b.text = "REMOVER" if on else "EQUIPAR"
+			b.disabled = not on and econ.equipped_modules.size() >= Balance.MODULE_SLOTS
+		st.add_theme_color_override("font_color", Color("8dff8a") if on else UiTheme.TEXT_DIM)
+		if on:
+			UiTheme.accent_button(b, Color("c57bff"))
+		else:
+			for sname: String in ["normal", "hover", "pressed", "hover_pressed"]:
+				b.remove_theme_stylebox_override(sname)
+			for cname: String in ["font_color", "font_hover_color", "font_pressed_color"]:
+				b.remove_theme_color_override(cname)
+	var lines: PackedStringArray = []
+	for d in SynergyRules.DEFS:
+		var active: bool = SynergyRules.is_active(d["id"], econ.equipped_modules, GameState.stats)
+		lines.append("SINERGIA · %s %s\n%s" % [d["name"], "(ATIVA)" if active else "(inativa — equipe o Pulso sísmico)", d["description"]])
+	_synergy_label.text = "\n\n".join(lines)
+
+
+func show_modules_tab() -> void:
+	_show_tab(false)
 
 
 func _tab_button(text: String, active: bool) -> Button:
@@ -263,6 +348,7 @@ func _refresh() -> void:
 		UiTheme.accent_button(_sell, UiTheme.CREDITS)
 	for card in _cards:
 		card.refresh(econ)
+	_refresh_modules(econ)
 
 
 func _show_toast(text: String, color: Color) -> void:

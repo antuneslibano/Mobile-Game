@@ -3,8 +3,8 @@
 Jogo mobile Android 2D vertical, offline e single-player, de escavação incremental.
 Pilote uma perfuradora industrial através de quatro biomas até o Núcleo do planeta.
 
-> **Status: Fase 2 concluída** — mineração, recursos, garagem, economia e upgrades.
-> Módulos, energia e calor chegam na Fase 3 (veja [Roadmap](#roadmap)).
+> **Status: Fase 3 concluída** — terreno orgânico, joystick, energia/impulso, calor, módulos
+> (broca lateral, drone, pulso sísmico) e sinergia. Prestígio e salvamento na Fase 4.
 
 ## Requisitos
 
@@ -30,14 +30,14 @@ godot --path . -- --seed=42          # mundo fixo
 
 | Ação | Toque | Desktop |
 |---|---|---|
-| Perfurar para baixo | segurar o dedo alinhado à máquina | segurar clique / `Espaço` / `↓` / `S` |
-| Mover | arrastar o dedo para o lado da máquina | arrastar o mouse / `←` `→` / `A` `D` |
-| Perfurar lateralmente | segurar o dedo ao lado, contra uma parede | `←`/`→` + `Espaço` |
-| Botões inferiores | `◀`, `PERFURAR`, `▶` (multitoque) | clique |
-| Garagem (vender e comprar) | botão **GARAGEM** no topo | clique; `Esc` fecha |
+| Perfurar para baixo | joystick para baixo (arraste o dedo em qualquer ponto da tela) | `↓` / `S` / `Espaço` |
+| Mover / perfurar de lado | joystick para os lados | `←` `→` / `A` `D` |
+| Para cima | nada — **a broca não sobe** | – |
+| Impulso (gasta energia) | botão **IMPULSO** (canto inferior direito) | `Shift` |
+| Garagem (vender, upgrades, módulos) | botão **GARAGEM** no topo | clique; `Esc` fecha |
 
-Degraus de um bloco são escalados automaticamente. A máquina se alinha sozinha à
-coluna mais próxima quando não há direção, para cavar poços retos.
+O joystick é flutuante: nasce onde o dedo toca. A máquina se alinha sozinha à coluna e
+transpõe degraus de um bloco ao ser empurrada para o lado.
 
 ## Testes
 
@@ -50,8 +50,8 @@ Executa, em modo headless:
 | Etapa | Comando | O que verifica |
 |---|---|---|
 | Importação | `godot --headless --path . --import` | projeto abre, cache de classes, sem erros de parser |
-| Unitários | `godot --headless --path . -s res://tests/run_tests.gd` | 35 testes: dados, determinismo da seed, biomas, cavernas, threads, modificações/JSON, dano, fórmulas, física da perfuradora (sem atravessar blocos a 60/30/20 FPS), paredes, pulo, perfuração lateral, atlas, economia (coleta, frações, venda sem duplicação), progressão (custos, compra atômica, limites, bloqueios, antes/depois) e simulação de balanceamento de 10 min |
-| Integração | `godot --headless --path . --fixed-fps 60 res://tests/scene_test.tscn` | cena principal com toques simulados: perfurar, arrastar, multitoque, barra superior ignorada, descida real, eventos de bloco, câmera; garagem: abrir/pausar, vender, comprar e o efeito na máquina, módulo bloqueado, fechar |
+| Unitários | `godot --headless --path . -s res://tests/run_tests.gd` | 46 testes: joystick (para cima não faz nada), a máquina nunca sobe com nenhuma entrada (inclusive módulos), energia/impulso, mineração sem energia, calor, broca lateral, drone, pulso, sinergia, slots; dados, determinismo da seed, biomas, cavernas, threads, modificações/JSON, dano, fórmulas, física da perfuradora (sem atravessar blocos a 60/30/20 FPS), paredes, pulo, perfuração lateral, atlas, economia (coleta, frações, venda sem duplicação), progressão (custos, compra atômica, limites, bloqueios, antes/depois) e simulação de balanceamento de 10 min |
+| Integração | `godot --headless --path . --fixed-fps 60 res://tests/scene_test.tscn` | 37 verificações com toques simulados: joystick (zona morta, baixo, lados, analógico, para cima), multitoque joystick + impulso, setas removidas, barra superior ignorada, descida real, eventos de bloco, câmera; garagem: vender, comprar, efeito na máquina, módulos (equipar automático, slots, remover/equipar) |
 | Sessão | `godot --headless --path . --fixed-fps 60 -- --seed=42 --autotest=30` | bot joga 30 s, verifica a invariante de colisão a cada passo e imprime métricas |
 
 ### Argumentos de depuração (após `--`)
@@ -65,6 +65,8 @@ Executa, em modo headless:
 | `--no-drive` | com `--autotest`, não pilota (só capturas) |
 | `--no-shop` | com `--autotest`, não vende nem compra |
 | `--open-garage-at=T` | com `--autotest`, abre a garagem em T segundos |
+| `--garage-tab=modules` | abre a garagem na aba Módulos |
+| `--grant-credits=N`, `--grant-crystals=N` | moedas iniciais (só builds de depuração) |
 
 Captura de telas sem monitor (Linux):
 
@@ -95,13 +97,14 @@ Android real será feito na Fase 5.
 | Geração de um chunk (384 células) | ~0,9–1,5 ms, **em thread de trabalho** (chunks à frente) |
 | Chunks carregados simultaneamente | 5–8 (renderers ativos: 4–6) |
 | Nós por chunk / colisores | 1 / 0 |
-| Atlas procedural (gerado 1× ao iniciar) | 30–45 ms |
+| Texturas do terreno (paleta + ruído 256², 1× ao iniciar) | ~60 ms |
+| Terreno na GPU | 1 quad + 1 chamada de desenho por chunk; ~10 leituras de textura por pixel |
 | Partículas | pool fixo de 260, nó inativo quando vazio |
 | Nós ativos na cena | ~25 |
 
-Escolhas para Android básico: renderer Compatibility, nenhum colisor de física, um
-`_draw` em lote por chunk (redesenhado apenas quando muda), um único atlas de textura,
-filtro nearest com borda replicada no atlas, sem varreduras do mundo por quadro.
+Escolhas para Android básico: renderer Compatibility, nenhum colisor de física, terreno
+desenhado na GPU com 1 quad por chunk (alterar uma célula atualiza 1 texel), ruído em
+textura (não calculado por pixel), sem varreduras do mundo por quadro.
 
 ## Exportação Android
 
@@ -140,17 +143,17 @@ Instalar: `adb install -r build/deepforge.apk`, ou copie o APK para o celular e 
 |---|---|---|
 | 1 | Projeto, máquina, terreno, câmera, controle, mineração | ✅ concluída |
 | 2 | Recursos, inventário, garagem, economia, upgrades | ✅ concluída |
-| 3 | Biomas (efeitos), módulos, energia/impulso, calor, sinergias | pendente |
+| 3 | Terreno orgânico, joystick, módulos, energia/impulso, calor, sinergias | ✅ concluída |
 | 4 | Prestígio, persistência, testes, balanceamento | pendente |
 | 5 | Arte, efeitos, áudio, otimização, exportação Android | pendente |
 
-## Limitações conhecidas (Fase 2)
+## Limitações conhecidas (Fase 3)
 
-- **Sem salvamento** (Fase 4): fechar o app perde a corrida, inclusive upgrades.
-- Energia, impulso, módulos, calor e refrigeração aparecem como "Em breve" (Fase 3).
-- A Zona Magmática (300 m+) é muito lenta só com os upgrades atuais — intencional até a Fase 3.
+- **Sem salvamento** (Fase 4): fechar o app perde a corrida, inclusive upgrades e módulos.
+- O shader do terreno ainda não foi medido em aparelho Android real; se houver queda de
+  FPS em aparelhos básicos, a Fase 5 adiciona um preset de qualidade.
+- A colisão segue a grade: o contorno orgânico desvia até ~10 px da colisão real.
 - Sem áudio (Fase 5) e com o ícone padrão do Godot.
-- Desempenho ainda não perfilado em aparelho Android real.
 
 ## Licença dos assets
 

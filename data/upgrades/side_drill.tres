@@ -6,7 +6,7 @@
 script = ExtResource("1_def")
 id = &"side_drill"
 display_name = "Broca lateral"
-description = "Módulo: golpeia blocos ao lado ao perfurar."
+description = "Módulo: chance de quebrar também os blocos ao lado ao perfurar (mais recursos, poço mais largo)."
 currency = &"credits"
 base_cost = 300.0
 cost_growth = 1.55

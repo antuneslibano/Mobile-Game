@@ -7,7 +7,11 @@ enum Icon { LEFT, RIGHT, DRILL, BOOST }
 
 var kind: StringName = &""
 var icon: Icon = Icon.DRILL
-var text: String = ""
+var text: String = "":
+	set(v):
+		if v != text:
+			text = v
+			queue_redraw()
 var accent: Color = UiTheme.ACCENT
 var pressed: bool = false:
 	set(v):

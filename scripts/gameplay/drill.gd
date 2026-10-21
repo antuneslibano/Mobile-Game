@@ -7,6 +7,7 @@ signal block_hit(cell: Vector2i, block_id: int, damage: float, crit: bool, destr
 signal block_destroyed(cell: Vector2i, block_id: int)
 signal blocked_by_unbreakable(cell: Vector2i)
 signal hopped
+signal boost_started
 
 enum Mode { IDLE, MOVING, AIRBORNE, DRILL_DOWN, DRILL_SIDE }
 
@@ -24,6 +25,11 @@ var drill_dir: Vector2i = Vector2i.DOWN   ## Direção da broca (visual).
 var has_target: bool = false
 var target_cell: Vector2i = Vector2i.ZERO
 var rng := RandomNumberGenerator.new()
+var energy := EnergySystem.new()
+var modules := ModuleSystem.new()
+## Multiplicador atual de golpes/s (impulso × calor), recalculado a cada passo.
+var speed_mult: float = 1.0
+var heat_penalty: float = 0.0
 var half: Vector2 = Balance.DRILL_SIZE_BLOCKS * Balance.BLOCK_PX * 0.5
 
 var _hit_timer: float = 0.5
@@ -39,6 +45,8 @@ func setup(p_world: WorldModel, spawn_cell: Vector2i, p_seed: int = 0) -> void:
 	grounded = false
 	has_target = false
 	mode = Mode.IDLE
+	energy.reset(stats)
+	modules.rng.seed = p_seed + 17
 
 
 # --- Consultas ----------------------------------------------------------------
@@ -103,8 +111,14 @@ func physics_step(delta: float, intent: DrillIntent) -> void:
 		if grounded and velocity.y > 0.0:
 			velocity.y = 0.0
 
+	if energy.step(delta, stats, intent.boost):
+		boost_started.emit()
+	heat_penalty = HeatRules.penalty(depth_m(), stats.cooling)
+	speed_mult = energy.speed_mult(stats) * (1.0 - heat_penalty)
+
 	_update_target(intent, move, steering)
 	_update_mining(delta)
+	modules.step(delta, self)
 
 
 func _update_target(intent: DrillIntent, move: float, steering: bool) -> void:
@@ -140,7 +154,7 @@ func _update_mining(delta: float) -> void:
 	if not has_target:
 		_hit_timer = minf(_hit_timer, 0.5)
 		return
-	_hit_timer += delta * stats.hits_per_second
+	_hit_timer += delta * stats.hits_per_second * speed_mult
 	while _hit_timer >= 1.0 and has_target:
 		_hit_timer -= 1.0
 		_do_hit()
@@ -158,11 +172,45 @@ func _do_hit() -> void:
 			blocked_by_unbreakable.emit(target_cell)
 		return
 	var roll: Vector2 = MiningRules.roll_hit(stats, def.hardness, mode == Mode.DRILL_SIDE, rng)
-	var res: WorldModel.DamageResult = world.damage_cell(target_cell, roll.x)
-	block_hit.emit(target_cell, id, roll.x, roll.y > 0.5, res.destroyed)
+	var cell: Vector2i = target_cell
+	var res: WorldModel.DamageResult = world.damage_cell(cell, roll.x)
+	block_hit.emit(cell, id, roll.x, roll.y > 0.5, res.destroyed)
 	if res.destroyed:
 		has_target = false
-		block_destroyed.emit(target_cell, id)
+		block_destroyed.emit(cell, id)
+	modules.on_drill_hit(self, cell, roll.x, roll.y > 0.5, res.destroyed)
+
+
+## Golpe vindo de módulos (broca lateral, drone, pulso). Mesmos sinais dos golpes normais.
+## Ignora células vazias/indestrutíveis e nunca afeta a célula ocupada pela própria máquina.
+func apply_external_hit(cell: Vector2i, damage: float, crit: bool) -> bool:
+	if damage <= 0.0 or _overlaps_cell(cell):
+		return false
+	var id: int = world.get_block(cell)
+	var def: BlockDef = BlockRegistry.get_def(id)
+	if not def.solid or not def.breakable:
+		return false
+	var dmg: float = MiningRules.effective_damage(damage, def.hardness)
+	var res: WorldModel.DamageResult = world.damage_cell(cell, dmg)
+	block_hit.emit(cell, id, dmg, crit, res.destroyed)
+	if res.destroyed:
+		if has_target and cell == target_cell:
+			has_target = false
+		block_destroyed.emit(cell, id)
+	return true
+
+
+## Quebra uma célula de uma vez (broca lateral). Mesmo fluxo de sinais e drops.
+func break_external(cell: Vector2i) -> bool:
+	var def: BlockDef = BlockRegistry.get_def(world.get_block(cell))
+	if not def.solid or not def.breakable:
+		return false
+	return apply_external_hit(cell, def.max_hp + def.hardness / (1.0 - Balance.MIN_DAMAGE_RATIO) + 1.0, false)
+
+
+func _overlaps_cell(cell: Vector2i) -> bool:
+	var r := _cell_range(position)
+	return cell.x >= r.position.x and cell.x <= r.end.x and cell.y >= r.position.y and cell.y <= r.end.y
 
 
 # --- Colisão em grade -------------------------------------------------------------

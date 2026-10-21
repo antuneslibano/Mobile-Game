@@ -40,7 +40,8 @@ func test_buy_is_atomic_and_respects_limits() -> void:
 	e.credits = 999999999
 	check_eq(Progression.buy_status(e, dmg), Progression.BuyStatus.MAXED, "limite máximo")
 	check(not Progression.try_buy(e, dmg), "não passa do máximo")
-	var locked: UpgradeDef = UpgradeRegistry.get_def(&"drone")
+	var locked: UpgradeDef = UpgradeRegistry.get_def(&"drone").duplicate()
+	locked.available_from_phase = UpgradeRegistry.CURRENT_PHASE + 1
 	e.crystals = 999
 	check_eq(Progression.buy_status(e, locked), Progression.BuyStatus.LOCKED, "upgrade de fase futura bloqueado")
 	check(not Progression.try_buy(e, locked), "bloqueado não compra")
@@ -54,8 +55,13 @@ func test_stats_reflect_levels_and_preview() -> void:
 	check(absf(s.hits_per_second - base.hits_per_second * 1.4) < 0.001, "velocidade +8%/nível")
 	check(absf(s.crit_chance - (base.crit_chance + 0.08)) < 0.001, "crítico +2%/nível")
 	check(absf(s.collect_mult - 1.2) < 0.001, "coleta +10%/nível")
-	var locked := Progression.build_stats({&"drone": 3, &"cooling": 2})
-	check(locked.module_levels.is_empty() and locked.cooling == 0.0, "upgrades bloqueados não afetam atributos")
+	var p3 := Progression.build_stats({&"drone": 3, &"cooling": 2, &"energy": 2, &"boost": 1})
+	check(int(p3.module_levels.get(&"drone", 0)) == 3, "nível do módulo nos atributos")
+	check(absf(p3.cooling - 0.12) < 0.001, "refrigeração −6%/nível")
+	check(absf(p3.max_energy - (Balance.ENERGY_BASE_MAX + 30.0)) < 0.001, "energia +15/nível")
+	check_eq(p3.boost_level, 1, "nível de impulso")
+	for u in UpgradeRegistry.all():
+		check(UpgradeRegistry.is_available(u), "%s liberado na Fase 3" % u.id)
 	for d in UpgradeRegistry.all():
 		var p: PackedStringArray = Progression.preview(d, {})
 		check(p.size() == 2 and p[0] != p[1], "%s mostra antes → depois (%s → %s)" % [d.id, p[0], p[1]])
@@ -74,6 +80,7 @@ func test_balance_simulation_greedy_player() -> void:
 		e.collect(BlockRegistry.get_def(id).drops, d.stats.collect_mult))
 	var intent := DrillIntent.new()
 	intent.drill = true
+	intent.boost = true   # usa o impulso sempre que houver energia
 	var dt: float = 1.0 / 60.0
 	var t: float = 0.0
 	var marks: Dictionary = {}
@@ -85,9 +92,12 @@ func test_balance_simulation_greedy_player() -> void:
 	var last_depth: int = 0
 	while t < minutes * 60.0:
 		# Desvia lateralmente de vez em quando para não ficar preso em cavernas fechadas.
+		# Preso por 4 s: tenta 1,5 s para um lado (alternando) e volta a perfurar para baixo.
 		intent.move = 0.0
 		if stuck_t > 4.0:
-			intent.move = 1.0 if int(t / 5.0) % 2 == 0 else -1.0
+			intent.move = 1.0 if int(t / 11.0) % 2 == 0 else -1.0
+			if stuck_t > 5.5:
+				stuck_t = 0.0
 		d.physics_step(dt, intent)
 		t += dt
 		var depth: int = d.depth_m()
@@ -113,17 +123,21 @@ func test_balance_simulation_greedy_player() -> void:
 				if best != null and Progression.try_buy(e, best):
 					bought += 1
 					bought_any = true
+					if best.id in ModuleSystem.ALL and e.get_level(best.id) == 1:
+						e.toggle_module(best.id, Balance.MODULE_SLOTS)
 			d.stats = Progression.build_stats(e.upgrade_levels)
+			d.modules.set_equipped(e.equipped_modules)
 		if w.loaded_chunk_indices().size() > 12:
 			var ci: int = WorldModel.chunk_index_for_row(d.feet_row())
 			w.unload_outside(ci - 2, ci + 3)
 	var parts: PackedStringArray = []
 	for m: int in marks:
 		parts.append("%dm@%.0fs" % [m, float(marks[m])])
-	note("10 min simulados: %d m, %d upgrades, níveis %s" % [d.depth_m(), bought, str(e.upgrade_levels)])
+	note("10 min simulados: %d m, %d upgrades, %d cristais, módulos %s, níveis %s" % [d.depth_m(), bought, e.crystals, str(e.equipped_modules), str(e.upgrade_levels)])
 	note("marcos: %s" % ", ".join(parts))
 	# Faixas-alvo (GAME_DESIGN.md §7.2): progresso rápido no início, desaceleração por bioma.
-	check(marks.has(50) and float(marks[50]) > 30.0 and float(marks[50]) < 300.0, "50 m entre 30 s e 5 min")
+	check(marks.has(50) and float(marks[50]) > 20.0 and float(marks[50]) < 300.0, "50 m entre 20 s e 5 min")
 	check(d.depth_m() >= 120 and d.depth_m() <= 450, "10 min levam a 120–450 m (%d m)" % d.depth_m())
 	check(bought >= 10, "compra ao menos 10 upgrades em 10 minutos (%d)" % bought)
+	check(not e.equipped_modules.is_empty(), "adquire e equipa ao menos um módulo em 10 minutos")
 	d.free()

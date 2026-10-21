@@ -17,6 +17,8 @@ var collect_mult: float = 1.0
 var max_energy: float = Balance.ENERGY_BASE_MAX
 ## Redução da penalidade de calor, 0..0.9 (Fase 3).
 var cooling: float = 0.0
+## Nível do upgrade de impulso.
+var boost_level: int = 0
 ## Níveis de módulos: StringName → int (Fase 3).
 var module_levels: Dictionary = {}
 
@@ -37,5 +39,6 @@ func duplicate_stats() -> DrillStats:
 	s.collect_mult = collect_mult
 	s.max_energy = max_energy
 	s.cooling = cooling
+	s.boost_level = boost_level
 	s.module_levels = module_levels.duplicate()
 	return s

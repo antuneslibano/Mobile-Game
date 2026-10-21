@@ -17,7 +17,7 @@ const PATHS: Array[String] = [
 ]
 
 ## Fase atual do jogo: upgrades com available_from_phase maior aparecem bloqueados.
-const CURRENT_PHASE: int = 2
+const CURRENT_PHASE: int = 3
 
 static var _list: Array[UpgradeDef] = []
 static var _by_id: Dictionary = {}

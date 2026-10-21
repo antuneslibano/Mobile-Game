@@ -11,6 +11,8 @@ var crystals: int = 0
 var cargo: Dictionary = {}            ## StringName → int
 var upgrade_levels: Dictionary = {}   ## StringName → int
 var lifetime_credits: int = 0
+## Módulos equipados (ordem = slot). Limite em Balance.MODULE_SLOTS.
+var equipped_modules: Array[StringName] = []
 var _fraction: Dictionary = {}        ## StringName → float (sobra do multiplicador de coleta)
 
 
@@ -85,3 +87,18 @@ func get_level(id: StringName) -> int:
 
 func set_level(id: StringName, level: int) -> void:
 	upgrade_levels[id] = maxi(0, level)
+
+
+func owns_module(id: StringName) -> bool:
+	return get_level(id) > 0
+
+
+## Equipa/remove um módulo. Retorna false se não possuído ou sem slot livre.
+func toggle_module(id: StringName, slots: int) -> bool:
+	if equipped_modules.has(id):
+		equipped_modules.erase(id)
+		return true
+	if not owns_module(id) or equipped_modules.size() >= slots:
+		return false
+	equipped_modules.append(id)
+	return true

@@ -50,7 +50,7 @@ static func _build() -> void:
 	list[BEDROCK] = bedrock
 
 	var chest := BlockDef.make(CHEST, &"chest", "Baú soterrado", 14.0, 0.0,
-			{&"copper": 3, &"iron": 2, &"crystal": 1}, BlockDef.Art.CHEST, Color("8b5a2b"), Color("4f3218"), Color("f2c14e"))
+			{&"copper": 3, &"iron": 2, &"crystal": 2}, BlockDef.Art.CHEST, Color("8b5a2b"), Color("4f3218"), Color("f2c14e"))
 	chest.special = &"treasure"
 	list[CHEST] = chest
 
@@ -59,9 +59,9 @@ static func _build() -> void:
 	list[HARD_ROCK] = BlockDef.make(HARD_ROCK, &"hard_rock", "Rocha dura", 110.0, 7.0,
 			{&"stone": 5}, BlockDef.Art.STONE, Color("5b5468"), Color("3d374a"), Color("7a7290"))
 	list[CRYSTAL] = BlockDef.make(CRYSTAL, &"crystal", "Cristal", 70.0, 4.0,
-			{&"crystal": 1}, BlockDef.Art.CRYSTAL, Color("4a4f72"), Color("31344f"), Color("6fe3ff"))
+			{&"crystal": 2}, BlockDef.Art.CRYSTAL, Color("4a4f72"), Color("31344f"), Color("6fe3ff"))
 	list[AMETHYST] = BlockDef.make(AMETHYST, &"amethyst", "Ametista", 100.0, 6.0,
-			{&"amethyst": 1, &"crystal": 1}, BlockDef.Art.CRYSTAL, Color("3b3d52"), Color("26273a"), Color("c57bff"))
+			{&"amethyst": 1, &"crystal": 2}, BlockDef.Art.CRYSTAL, Color("3b3d52"), Color("26273a"), Color("c57bff"))
 
 	list[BASALT] = BlockDef.make(BASALT, &"basalt", "Basalto", 220.0, 14.0,
 			{&"basalt": 1}, BlockDef.Art.STONE, Color("35302f"), Color("1f1b1b"), Color("4d4644"))

@@ -6,18 +6,18 @@ var world: WorldModel
 var camera: Camera2D
 var _active: Dictionary = {}               ## int → ChunkRenderer
 var _pool: Array[ChunkRenderer] = []
-var _tex: Texture2D
 
 
 func setup(p_world: WorldModel, p_camera: Camera2D) -> void:
 	if world != null and world.cell_changed.is_connected(_on_cell_changed):
 		world.cell_changed.disconnect(_on_cell_changed)
+		world.cell_damaged.disconnect(_on_cell_changed)
 	for index: int in _active.keys():
 		_hide(index)
 	world = p_world
 	camera = p_camera
-	_tex = TileArt.get_texture()
 	world.cell_changed.connect(_on_cell_changed)
+	world.cell_damaged.connect(_on_cell_changed)
 	update_streaming()
 
 
@@ -72,7 +72,7 @@ func _show(index: int) -> void:
 		add_child(r)
 	else:
 		r = _pool.pop_back()
-	r.setup(world, _tex)
+	r.setup(world)
 	r.assign(index)
 	_active[index] = r
 
@@ -84,17 +84,9 @@ func _hide(index: int) -> void:
 	_pool.append(r)
 
 
+## Uma célula alterada aparece no próprio chunk e no halo dos vizinhos.
 func _on_cell_changed(cell: Vector2i) -> void:
-	var index: int = WorldModel.chunk_index_for_row(cell.y)
-	_redraw(index)
-	var ly: int = cell.y - index * Balance.CHUNK_HEIGHT
-	if ly == 0:
-		_redraw(index - 1)
-	elif ly == Balance.CHUNK_HEIGHT - 1:
-		_redraw(index + 1)
-
-
-func _redraw(index: int) -> void:
-	var r: ChunkRenderer = _active.get(index)
-	if r != null:
-		r.queue_redraw()
+	for index: int in _active:
+		var r: ChunkRenderer = _active[index]
+		if r.covers(cell):
+			r.update_cell(cell)

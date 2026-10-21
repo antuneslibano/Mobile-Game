@@ -41,24 +41,29 @@ Escavar → coletar minério → (garagem) vender → comprar upgrades/módulos
                          └→ Prestígio → Núcleos Antigos → melhorias permanentes
 ```
 
-## 4. Controles
+## 4. Controles (Fase 3: joystick)
 
 | Ação | Toque | Desktop |
 |---|---|---|
-| Perfurar para baixo | Segurar o dedo na área de escavação, alinhado à máquina | Segurar botão esquerdo / `Espaço` / `↓` |
-| Mover / perfurar lateralmente | Arrastar o dedo para a esquerda/direita da máquina | Arrastar mouse / `←` `→` / `A` `D` |
-| Botões grandes inferiores | `◀`, `PERFURAR`, `▶` (multitoque) | Clique |
-| Impulso (Fase 3) | Botão `IMPULSO` | `Shift` |
+| Perfurar para baixo | Joystick para **baixo** | `↓` / `S` / `Espaço` |
+| Mover / perfurar de lado | Joystick para os **lados** (analógico) | `←` `→` / `A` `D` |
+| Para cima | **Nada** — a broca não sobe | – |
+| Impulso | Botão `IMPULSO` (canto inferior direito, multitoque com o joystick) | `Shift` |
+| Garagem | Botão `GARAGEM` no topo | clique, `Esc` fecha |
 
-Regras de direção (`[T]` em `Balance`):
-- `STEER_DEADZONE_PX = 40` – se o dedo está a menos de 40 px (horizontal, na tela) da
-  máquina, a intenção é **perfurar para baixo**; fora disso, **mover** naquela direção.
-- Sem intenção horizontal, a máquina se **auto-alinha** à coluna mais próxima
-  (`ALIGN_SPEED`), garantindo poços de 1 bloco de largura.
-- Mover contra um degrau de 1 bloco com espaço acima → **pulo automático** (`HOP_HEIGHT_BLOCKS`).
-- Mover contra uma parede alta segurando o toque → **perfuração lateral** (multiplicador
-  `SIDE_DRILL_MULT = 0.6` da taxa normal).
-- A máquina **não** perfura para cima.
+**Joystick flutuante:** nasce onde o dedo toca (qualquer ponto fora da barra superior e do
+botão de impulso); em repouso aparece "fantasma" na parte de baixo da tela. Raio
+`JOYSTICK_RADIUS_PX = 110` `[T]`. Mapeamento (`InputController.joystick_to_intent`):
+- dentro da zona morta (`0.22`): nada;
+- para baixo dominante (`y ≥ |x| × 0.8`): perfura para baixo, sem mover;
+- lateral (`|x| ≥ 0.25`): move proporcionalmente (45%→100%) e perfura de lado se houver parede;
+- **para cima: nenhuma ação.** Nem a máquina, nem os módulos abrem caminho acima dela
+  (teste `test_drill_never_rises_with_any_input`).
+
+Outras regras: sem direção horizontal a máquina se **auto-alinha** à coluna; ao mover contra
+um degrau de **1 bloco** ela o transpõe automaticamente (pulo curto) para não ficar presa —
+isso só ocorre empurrando para o lado, nunca para cima. Perfuração lateral usa
+`SIDE_DRILL_MULT = 0.6`.
 
 ## 5. Mundo
 
@@ -209,19 +214,35 @@ A Zona Magmática (dureza 14+) é um paredão intencional para a base atual: Ref
 módulos e impulso (Fase 3) e prestígio (Fase 4) são as respostas. O teste exige 50 m entre
 30 s e 5 min, 120–450 m em 10 min e ao menos 10 upgrades.
 
-### 7.3 Módulos (Fase 3)
-3 slots iniciais. Broca lateral (golpeia blocos adjacentes), Drone minerador
-(minera autonomamente um bloco próximo), Pulso sísmico (onda periódica de dano em
-área). Sinergia **Crítico × Pulso**: críticos acumulam carga e reduzem o tempo de
-recarga do pulso. Arquitetura de sinergias por regras declarativas.
+### 7.3 Módulos (Fase 3 — implementado)
+**2 slots** `[T] MODULE_SLOTS` (um 3º slot é candidato a melhoria permanente de prestígio).
+Comprar o 1º nível na aba Upgrades equipa automaticamente se houver slot livre; a aba
+Módulos da garagem equipa/remove.
 
-### 7.4 Energia e impulso (Fase 3)
-Energia máx. 100 `[T]`, regeneração 8/s `[T]`. Impulso custa 40, dura 3 s, ×1.8 de
-golpes/s. Energia **nunca** bloqueia a mineração normal.
+| Módulo | Moeda / custo base | Efeito (nível n) |
+|---|---|---|
+| Broca lateral | Créditos 300 ×1.55 | Ao quebrar o bloco alvo, cada vizinho lateral (ou o de baixo, perfurando de lado) quebra junto com chance `35% + 6,5%·(n−1)`. Rende recursos. |
+| Drone minerador | Cristais 6 ×1.70 | A cada `1,6 − 0,09·(n−1)` s, laser em um bloco a até 3 células (minério primeiro), dano `0,6 + 0,12·(n−1)` × dano da broca. Nunca acima da máquina. |
+| Pulso sísmico | Cristais 8 ×1.70 | Enquanto perfura, a cada `8 − 0,4·(n−1)` s, onda de raio `1,6 + 0,12·(n−1)` células com dano `1 + 0,2·(n−1)` × dano da broca. Não atinge acima da máquina. |
 
-### 7.5 Calor (Fase 3)
-A partir de 300 m: `calor = clamp((prof − 300)/100, 0, 3)`. Penalidade de eficiência
-`= calor × 10% × (1 − refrigeração)`, máx. 30%. Não destrói recursos.
+Visual: brocas nas laterais da máquina, drone orbitando com laser, antena sísmica com anel
+de recarga, ondas roxas (douradas quando críticas).
+
+**Sinergia — Ressonância Crítica (Crítico × Pulso):** com o Pulso equipado, cada golpe
+crítico devolve 0,6 s da recarga do pulso, e o pulso pode ser crítico com 1,5× a chance de
+crítico da broca. Sinergias são declarativas em `SynergyRules.DEFS` (módulos exigidos +
+atributo mínimo), prontas para novas combinações.
+
+### 7.4 Energia e impulso (Fase 3 — implementado)
+Energia máx. 100 (+15/nível), regeneração 8/s. Impulso: custa 40, dura `3 + 0,3·n` s e
+multiplica golpes/s por `1,8 + 0,1·n` (n = nível do upgrade Impulso). **A energia só
+alimenta o impulso; a mineração normal nunca para por falta de energia** (teste dedicado).
+Feedback: aura azul, chama no escapamento, barra brilhando, tempo restante no botão.
+
+### 7.5 Calor (Fase 3 — implementado)
+A partir de 300 m: `calor = clamp((prof − 300)/100, 0, 3)`. Penalidade de golpes/s
+`= min(30%, calor × 10%) × (1 − refrigeração)`; Refrigeração: −6%/nível (máx. 90%).
+Não destrói recursos. HUD mostra "calor X · −Y%" e tinge a tela de laranja.
 
 ### 7.6 Prestígio (Fase 4)
 Desbloqueia em 500 m (profundidade máxima da corrida). Núcleos ganhos
@@ -231,12 +252,19 @@ Proteção contra duplicação: o ganho é calculado e gravado atomicamente com 
 corrida, marcado com um `run_id`.
 
 ## 8. Direção de arte
-- Pixel art procedural original (gerada em código, sem assets externos), 16 px por bloco.
+- Pixel art procedural original (gerada em código, sem assets externos), em "pixels de
+  arte" de 3 px.
+- **Terreno orgânico (Fase 3):** a grade de blocos continua sendo o modelo de jogo, mas é
+  desenhada por um shader (`shaders/terrain.gdshader`) que a trata como campo contínuo:
+  contornos arredondados e irregulares (solidez bilinear suavizada + ruído + leve
+  deslocamento de ~0,2 célula), bordas entre materiais deformadas por ruído (~0,85 célula),
+  minérios como aglomerados de pepitas sobre a rocha hospedeira, cristais em lascas,
+  veios incandescentes na rocha magmática, luz de cima nas superfícies expostas, sombra
+  embaixo, contorno escuro e oclusão nas cavernas. Rachaduras progressivas no shader.
 - Máquina: amarelo industrial `#F2B33D`, metal `#6E7A86`, luzes azuis `#4FC3FF`.
 - Paletas por bioma: Crosta (marrons/terrosos), Cristalinas (azul-violeta frio),
   Magmática (preto-basalto e laranja), Abismo (verde-petróleo e roxo profundo).
-- Contorno claro na borda superior dos blocos expostos e sombra na inferior.
-- Fundo "parede de caverna" escurecida atrás de blocos escavados.
+- Aviso grande com o nome do bioma ao entrar em um novo.
 
 ## 9. Áudio (Fase 5)
 Buses: `Master` → `Music`, `SFX`, `UI`. Sons originais sintetizados (placeholders
@@ -246,7 +274,8 @@ identificados). Eventos: impacto, quebra, coleta, upgrade, prestígio.
 | Item | Meta |
 |---|---|
 | FPS | 60 (intermediário), ≥30 (básico) |
-| Nós por chunk | 1 (`ChunkRenderer` com `_draw` em lote, 1 textura atlas) |
+| Nós por chunk | 1 (`ChunkRenderer`: 1 quad com shader; dados em textura 28×20) |
+| Custo de GPU do terreno | ~10 leituras de textura por pixel; validar em aparelho básico (Fase 5) |
 | Colisores de física | 0 – colisão por consulta à grade |
 | Partículas simultâneas | ≤ `MAX_PARTICLES = 260` (`[T]`; reduzido na qualidade baixa) |
 | Geração de chunk | < 2 ms (medido em teste) |

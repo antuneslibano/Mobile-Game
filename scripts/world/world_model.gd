@@ -4,6 +4,8 @@ extends RefCounted
 ## Não depende de nós nem de renderização.
 
 signal cell_changed(cell: Vector2i)
+## Dano parcial mudou (ou expirou) numa célula — usado para desenhar rachaduras.
+signal cell_damaged(cell: Vector2i)
 signal chunk_loaded(index: int)
 signal chunk_unloaded(index: int)
 
@@ -225,8 +227,11 @@ func damage_cell(cell: Vector2i, amount: float) -> DamageResult:
 	if not _damage.has(cell):
 		_damage_order.append(cell)
 		if _damage_order.size() > Balance.MAX_DAMAGED_CELLS:
-			_damage.erase(_damage_order.pop_front())
+			var expired: Vector2i = _damage_order.pop_front()
+			_damage.erase(expired)
+			cell_damaged.emit(expired)
 	_damage[cell] = taken
+	cell_damaged.emit(cell)
 	r.hp_ratio = 1.0 - taken / def.max_hp
 	return r
 

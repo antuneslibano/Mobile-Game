@@ -30,6 +30,7 @@ func new_run(p_seed: int = -1) -> void:
 	EventBus.biome_changed.emit(biome_id)
 	_emit_economy()
 	EventBus.stats_changed.emit()
+	EventBus.modules_changed.emit(economy.equipped_modules)
 
 
 func update_depth(d: int) -> void:
@@ -72,9 +73,20 @@ func buy_upgrade(id: StringName) -> bool:
 	if def == null or not Progression.try_buy(economy, def):
 		return false
 	stats = Progression.build_stats(economy.upgrade_levels)
+	# Primeiro nível de um módulo: equipa automaticamente se houver slot livre.
+	if id in ModuleSystem.ALL and economy.get_level(id) == 1 and not economy.equipped_modules.has(id):
+		if economy.toggle_module(id, Balance.MODULE_SLOTS):
+			EventBus.modules_changed.emit(economy.equipped_modules)
 	EventBus.upgrade_purchased.emit(id, economy.get_level(id))
 	EventBus.stats_changed.emit()
 	_emit_economy()
+	return true
+
+
+func toggle_module(id: StringName) -> bool:
+	if not economy.toggle_module(id, Balance.MODULE_SLOTS):
+		return false
+	EventBus.modules_changed.emit(economy.equipped_modules)
 	return true
 
 

@@ -60,40 +60,40 @@ func _run() -> void:
 	var dig: Rect2 = hud.dig_area()
 	_check(dig.size.y > 600.0, "área de escavação ampla (%.0f px)" % dig.size.y)
 
-	var dx: float = game.drill.get_global_transform_with_canvas().origin.x
-	var y: float = dig.get_center().y
-	_touch(0, Vector2(dx, y), true)
-	await _frames(2)
+	# Joystick flutuante: nasce onde o dedo toca; a direção relativa define a intenção.
+	var o := Vector2(dig.get_center().x - 120.0, dig.get_center().y)
+	var r: float = Balance.JOYSTICK_RADIUS_PX
 	var it: DrillIntent = input.get_intent()
-	_check(it.drill and absf(it.move) < 0.01, "toque alinhado: perfura para baixo")
-	_drag(0, Vector2(dx + 250.0, y))
+	_touch(0, o, true)
 	await _frames(2)
-	_check(it.drill and it.move > 0.3, "arrastar à direita: move à direita (%.2f)" % it.move)
-	_drag(0, Vector2(dx - 250.0, y))
+	_check(not it.drill and it.move == 0.0, "toque parado (zona morta): nada")
+	var stick: VirtualJoystick = hud.find_child("Joystick", true, false)
+	_check(stick != null and stick.active and stick.base_pos == o, "joystick aparece onde o dedo tocou")
+	_drag(0, o + Vector2(0, r))
 	await _frames(2)
-	_check(it.move < -0.3, "arrastar à esquerda: move à esquerda (%.2f)" % it.move)
-	_touch(0, Vector2(dx - 250.0, y), false)
+	_check(it.drill and absf(it.move) < 0.01, "joystick para baixo: perfura para baixo")
+	_drag(0, o + Vector2(r, 0))
 	await _frames(2)
-	_check(not it.drill and it.move == 0.0, "soltar: para")
-
-	# Botões inferiores com multitoque.
-	var left_pad: Control = hud.find_child("Pad_left", true, false)
-	var drill_pad: Control = hud.find_child("Pad_drill", true, false)
-	var right_pad: Control = hud.find_child("Pad_right", true, false)
-	_touch(1, left_pad.get_global_rect().get_center(), true)
+	_check(it.drill and it.move > 0.9, "joystick à direita: move (%.2f)" % it.move)
+	_drag(0, o + Vector2(-r * 0.5, 0))
 	await _frames(2)
-	_check(it.move < -0.99 and not it.drill, "botão ◀ move sem perfurar")
-	_touch(2, drill_pad.get_global_rect().get_center(), true)
+	_check(it.move < -0.3 and it.move > -0.9, "joystick analógico à esquerda (%.2f)" % it.move)
+	_drag(0, o + Vector2(0, -r))
 	await _frames(2)
-	_check(it.move < -0.99 and it.drill, "multitoque ◀ + PERFURAR")
-	_check((left_pad as PadButton).pressed and (drill_pad as PadButton).pressed, "botões mostram estado pressionado")
-	_drag(1, right_pad.get_global_rect().get_center())
+	_check(not it.drill and it.move == 0.0, "joystick para cima: nada (a broca não sobe)")
+	# Multitoque: joystick + impulso.
+	var boost_b: Control = hud.find_child("BoostButton", true, false)
+	_check(boost_b != null, "botão de impulso existe")
+	_drag(0, o + Vector2(0, r))
+	_touch(1, boost_b.get_global_rect().get_center(), true)
 	await _frames(2)
-	_check(it.move > 0.99, "deslizar de ◀ para ▶ troca a direção")
-	_touch(1, right_pad.get_global_rect().get_center(), false)
-	_touch(2, drill_pad.get_global_rect().get_center(), false)
+	_check(it.drill and it.boost, "multitoque: joystick + impulso")
+	_touch(1, boost_b.get_global_rect().get_center(), false)
+	_touch(0, o + Vector2(0, r), false)
 	await _frames(2)
-	_check(not it.drill and it.move == 0.0, "soltar botões: para")
+	_check(not it.drill and not it.boost and it.move == 0.0, "soltar: para")
+	_check(not stick.active, "joystick volta ao repouso")
+	_check(hud.find_child("Pad_left", true, false) == null and hud.find_child("Pad_drill", true, false) == null, "setas e PERFURAR removidos")
 
 	# Barra superior não aciona perfuração.
 	_touch(3, Vector2(100, 60), true)
@@ -101,11 +101,11 @@ func _run() -> void:
 	_check(not it.drill, "toque na barra superior é ignorado")
 	_touch(3, Vector2(100, 60), false)
 
-	# Sessão curta segurando o dedo: precisa descer e coletar.
-	dx = game.drill.get_global_transform_with_canvas().origin.x
-	_touch(0, Vector2(dx, y), true)
+	# Sessão curta com o joystick para baixo: precisa descer e coletar.
+	_touch(0, o, true)
+	_drag(0, o + Vector2(0, r))
 	await _frames(600)
-	_touch(0, Vector2(dx, y), false)
+	_touch(0, o + Vector2(0, r), false)
 	await _frames(5)
 	var max_depth: int = GameState.max_depth_m
 	_check(max_depth >= 5, "desceu segurando o toque (%d m)" % max_depth)
@@ -140,7 +140,16 @@ func _run() -> void:
 	await _frames(1)
 	_check(bought and econ.get_level(&"damage") == 1, "comprou Dano nível 1")
 	_check(game.drill.stats.damage > dmg_before, "perfuradora recebeu o novo dano (%.0f → %.0f)" % [dmg_before, game.drill.stats.damage])
-	_check(not garage.buy(&"drone"), "módulo da Fase 3 bloqueado")
+	# Módulos (Fase 3): comprar equipa automaticamente; slots limitados; remover/equipar.
+	econ.crystals += 500
+	econ.credits += 5000
+	_check(garage.buy(&"seismic"), "comprou Pulso sísmico")
+	_check(econ.equipped_modules.has(&"seismic") and game.drill.modules.has(&"seismic"), "pulso equipado na máquina")
+	_check(garage.buy(&"drone") and garage.buy(&"side_drill"), "comprou drone e broca lateral")
+	_check(econ.equipped_modules.size() == Balance.MODULE_SLOTS, "slots respeitados (%d)" % econ.equipped_modules.size())
+	_check(not econ.equipped_modules.has(&"side_drill"), "terceiro módulo fica na garagem")
+	_check(garage.toggle_module(&"seismic") and not game.drill.modules.has(&"seismic"), "remover módulo")
+	_check(garage.toggle_module(&"side_drill") and game.drill.modules.has(&"side_drill"), "equipar no slot livre")
 	var close_b: Button = garage.find_child("CloseButton", true, false)
 	close_b.pressed.emit()
 	await _frames(2)

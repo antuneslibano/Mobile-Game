@@ -67,6 +67,22 @@ func _draw() -> void:
 	else:
 		_draw_bit_side(dir.x, drilling)
 
+	var mods: Array[StringName] = drill.modules.equipped if drill != null else ([] as Array[StringName])
+	var boosting: bool = drill != null and drill.energy.is_boosting()
+	if boosting:
+		var pulse_a: float = 0.18 + 0.08 * sin(_t * 18.0)
+		draw_circle(Vector2(0, -4), 34.0, Color(0.31, 0.76, 1.0, pulse_a))
+		draw_circle(Vector2(0, -4), 26.0, Color(0.6, 0.9, 1.0, pulse_a * 0.8))
+
+	# Brocas laterais (módulo).
+	if mods.has(ModuleSystem.SIDE_DRILL):
+		for sx: float in [-1.0, 1.0]:
+			var base_x: float = 17.0 * sx
+			draw_colored_polygon(PackedVector2Array([Vector2(base_x, -4), Vector2(base_x, 6), Vector2(base_x + 11.0 * sx, 1)]), OUTLINE)
+			draw_colored_polygon(PackedVector2Array([Vector2(base_x, -3), Vector2(base_x, 5), Vector2(base_x + 9.0 * sx, 1)]), METAL_LIGHT)
+			var ph: float = fposmod(_spin, 1.0)
+			draw_line(Vector2(base_x + 3.0 * sx * (1.0 + ph), -2), Vector2(base_x + 3.0 * sx * (1.0 + ph), 4), METAL_DARK, 1.5)
+
 	# Esteiras.
 	var tread_rect := Rect2(-21, 5 + squash * 0.5, 42, 12 - squash * 0.5)
 	draw_rect(tread_rect.grow(1.5), OUTLINE)
@@ -103,6 +119,22 @@ func _draw() -> void:
 	# Escapamento.
 	draw_rect(Rect2(9, body.position.y - 7, 5, 8), OUTLINE)
 	draw_rect(Rect2(10, body.position.y - 6, 3, 7), METAL)
+	# Emissor sísmico (módulo): antena com anel pulsante.
+	if mods.has(ModuleSystem.SEISMIC):
+		var ex: Vector2 = Vector2(-8, body.position.y - 4)
+		draw_line(ex, ex + Vector2(0, -9), METAL_DARK, 3.0)
+		draw_circle(ex + Vector2(0, -11), 4.0, Color("c57bff"))
+		var cd: float = drill.modules.pulse_cd if drill != null else 1.0
+		var charge: float = 1.0 - clampf(cd / ModuleSystem.pulse_interval(drill.stats), 0.0, 1.0) if drill != null else 0.0
+		draw_arc(ex + Vector2(0, -11), 7.0, -PI * 0.5, -PI * 0.5 + TAU * charge, 16, Color("e3c2ff"), 2.0)
+	# Base do drone (módulo).
+	if mods.has(ModuleSystem.DRONE):
+		draw_rect(Rect2(-3, body.position.y - 3, 8, 3), BLUE)
+	# Chamas de impulso no escapamento.
+	if boosting:
+		var fl: float = 8.0 + 4.0 * sin(_t * 30.0)
+		draw_colored_polygon(PackedVector2Array([Vector2(10, body.position.y - 7), Vector2(13, body.position.y - 7), Vector2(11.5, body.position.y - 7 - fl)]), Color(0.6, 0.9, 1.0, 0.9))
+
 	# Farol azul.
 	var lamp := Vector2(-15 if dir.x < 0 else 15, body.position.y + 17)
 	draw_circle(lamp, 7.0 + _kick * 3.0, BLUE_GLOW)
