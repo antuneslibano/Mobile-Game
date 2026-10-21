@@ -102,10 +102,34 @@ filtro nearest com borda replicada no atlas, sem varreduras do mundo por quadro.
 
 ## Exportação Android
 
-A configuração de exportação (`export_presets.cfg`), ícones adaptativos e instruções
-completas de APK debug/release fazem parte da **Fase 5**. Pré-requisitos já conhecidos:
-JDK 17+, Android SDK (platform-tools, build-tools, platform 34+), e os *export templates*
-da mesma versão do Godot. Nenhum APK foi gerado nesta fase.
+O preset `Android` já está em `export_presets.cfg` (APK sem Gradle, arm64-v8a + armeabi-v7a,
+`com.deepforge.rumoaonucleo`, retrato, imersivo). Senhas **não** ficam no repositório.
+
+Pré-requisitos (uma vez):
+1. JDK 17+ e Android SDK (`platform-tools` e `build-tools` com `apksigner`).
+2. Templates de exportação da mesma versão do Godot (Editor → Gerenciar Templates de Exportação).
+3. Em Editor → Configurações do Editor → Exportar → Android: caminho do SDK, do JDK e o
+   *debug keystore* (o Godot cria um automaticamente, ou use
+   `keytool -genkeypair -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -validity 10000 -dname "CN=Android Debug,O=Android,C=US"`).
+
+APK debug (contador de FPS visível):
+
+```bash
+godot --headless --path . --export-debug "Android" build/deepforge-debug.apk
+```
+
+APK release (crie sua chave uma vez e guarde-a: ela é necessária para atualizar o app instalado):
+
+```bash
+keytool -genkeypair -keystore deepforge-release.keystore -alias deepforge -keyalg RSA -keysize 2048 -validity 10000
+export GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$PWD/deepforge-release.keystore
+export GODOT_ANDROID_KEYSTORE_RELEASE_USER=deepforge
+export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=sua_senha
+godot --headless --path . --export-release "Android" build/deepforge.apk
+```
+
+Instalar: `adb install -r build/deepforge.apk`, ou copie o APK para o celular e abra-o
+(permita "instalar apps desconhecidos" para o app usado para abrir o arquivo).
 
 ## Roadmap
 
@@ -125,6 +149,7 @@ da mesma versão do Godot. Nenhum APK foi gerado nesta fase.
 - Sem áudio (infraestrutura de buses na Fase 5).
 - Não é possível voltar à superfície por um caminho fechado (a garagem da Fase 2 terá retorno).
 - Desempenho ainda não perfilado em aparelho Android real.
+- Ícone do app ainda é o padrão do Godot (ícones adaptativos na Fase 5).
 
 ## Licença dos assets
 

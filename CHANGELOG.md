@@ -3,6 +3,13 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.1.1] — Build Android
+
+### Adicionado
+- Preset de exportação Android (`export_presets.cfg`), sem Gradle, arm64-v8a + armeabi-v7a.
+- Compressão de textura ETC2/ASTC habilitada (exigida pelo Android).
+- Instruções de APK debug/release no README.
+
 ## [0.1.0] — Fase 1: base jogável
 
 ### Adicionado
