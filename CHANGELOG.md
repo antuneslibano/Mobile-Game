@@ -3,6 +3,12 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.1.2] — APK menor
+
+### Alterado
+- Exportação apenas arm64-v8a (APK de 51 MB → 26 MB); praticamente todos os celulares atuais são 64 bits.
+- APK publicado em `releases/` para download direto pelo GitHub.
+
 ## [0.1.1] — Build Android
 
 ### Adicionado
