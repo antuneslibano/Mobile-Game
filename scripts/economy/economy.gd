@@ -17,6 +17,8 @@ var equipped_modules: Array[StringName] = []
 var discovered: Dictionary = {}       ## StringName → true
 ## Nível tecnológico: guardiões de câmara final vencidos (libera projetos grandes).
 var tech: int = 0
+## Plantas de visual exclusivo achadas em baús (0.12).
+var blueprints: Dictionary = {}       ## StringName → true
 var _fraction: Dictionary = {}        ## StringName → float (sobra do multiplicador de coleta)
 
 
@@ -155,6 +157,7 @@ func to_dict() -> Dictionary:
 	return {
 		"credits": credits, "crystals": crystals, "lifetime_credits": lifetime_credits,
 		"cargo": cargo_out, "upgrades": levels, "equipped": eq, "discovered": disc,
+		"blueprints": blueprints.keys().map(func(k: StringName) -> String: return String(k)),
 	}
 
 
@@ -184,6 +187,11 @@ static func from_dict(d: Dictionary) -> Economy:
 				e.discovered[StringName(str(k))] = true
 	for k: StringName in e.cargo:
 		e.discovered[k] = true
+	var bp_in: Variant = d.get("blueprints", [])
+	if bp_in is Array:
+		for k: Variant in bp_in:
+			if Chests.BLUEPRINTS.has(StringName(str(k))):
+				e.blueprints[StringName(str(k))] = true
 	var eq_in: Variant = d.get("equipped", [])
 	if eq_in is Array:
 		for m: Variant in eq_in:

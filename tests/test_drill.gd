@@ -144,6 +144,22 @@ func test_up_input_does_nothing() -> void:
 	d.free()
 
 
+## 0.12: a nave sobe em rampa (diagonal para cima), nunca na vertical.
+func test_climbs_ramps() -> void:
+	var w := _model(18)
+	_rect(w, Vector2(60, 0), Vector2(1100, 900), BlockRegistry.STONE)
+	var start := Vector2(300, 600)
+	w.fill_circle(start, 40.0, BlockRegistry.AIR)
+	var d := _new_drill(w, start)
+	_run(d, DrillIntent.new(), 0.5)
+	var p0: Vector2 = d.position
+	_run(d, _aim(Vector2(1, -1)), 2.0)
+	var climbed: Vector2 = d.position - p0
+	check(climbed.y < -20.0 and climbed.x > 0.0, "diagonal para cima: sobe cavando a rampa (%s)" % climbed)
+	check(absf(climbed.y) <= climbed.x * Balance.CLIMB_SLOPE + 4.0, "subida limitada à inclinação da rampa (%s)" % climbed)
+	d.free()
+
+
 func test_no_tunneling_when_falling_fast() -> void:
 	for dt: float in [1.0 / 60.0, 1.0 / 30.0, 1.0 / 20.0]:
 		var w := _model(16)

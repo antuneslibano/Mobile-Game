@@ -3,6 +3,32 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.12.0] — Broca por nível, rampas, cavernas, baús raros e som
+
+### Adicionado
+- **Broca por nível**: a broca inicial quebra cobre, quartzo, carvão e terreno; Broca
+  Nv. 2 quebra ferro, prata, cristal e fóssil; Nv. 5 ouro e ametista; Nv. 9 rubi,
+  esmeralda, titânio, urânio e obsidiana; Nv. 13 diamante, meteorito, arcano, cristal raro
+  e artefato. Minério duro demais faz barulho de metal e mostra "BROCA FRACA PARA …".
+- **Subida em rampa**: mirando na diagonal para cima a nave sobe cavando (até ~35°);
+  reto para cima continua sem efeito.
+- **Baús com raridade**: comum (aura dourada), raro (azul) e lendário (roxa); mais fundo,
+  melhores. Abrir rende cristais e materiais e pode trazer uma **planta**: visual exclusivo
+  da nave (8 no total: Broca Fóssil/Brasa, Casco de Casca/Dourado, Motor Vaga-lume,
+  Pinturas Âmbar/Meia-noite/Cromada). Lendário sempre traz planta. Laboratório mostra
+  "Plantas de baú x/8"; o Hangar libera o visual.
+- **Explorar nova área** (mapa): troca o mapa da região por um novo, com aviso de que a
+  área atual (túneis, minério, baús e recorde) será apagada; objetivos, guardião vencido,
+  catálogo e armazém continuam.
+- **Sons** sintetizados: broca girando (loop), motor, golpes, bloco quebrando, metal,
+  coleta, baú, casco atingido, criatura, Sobrecarga e toque na base.
+
+### Alterado
+- **Cavernas**: salões em patamares (pisos planos com degraus) ligados por galerias
+  horizontais compridas.
+- **Toupeira** pula degraus, escala paredes e desce bordas baixas.
+- **Carvão**: 6 de combustível por bloco (era 12) e ~55% menos carvão no mapa.
+
 ## [0.11.0] — Criaturas do Vale, visual da nave e baús
 
 ### Adicionado

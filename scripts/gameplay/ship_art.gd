@@ -31,6 +31,8 @@ const DRILLS: Dictionary = {
 	&"crystal": [Color("dcfaff"), Color("6fd8ff"), Color("1f6ab0")],
 	&"root": [Color("e0a070"), Color("94522a"), Color("4a2210")],
 	&"plasma": [Color("ffffff"), Color("ff7ae0"), Color("8a2aa0")],
+	&"fossil": [Color("f4ead0"), Color("cdb98a"), Color("7a6440")],
+	&"ember": [Color("ffe08a"), Color("ff6a1a"), Color("8a1a08")],
 }
 
 
@@ -57,6 +59,12 @@ static func build(phase: int, look: Dictionary = {}) -> Image:
 	if hull_kind == &"titanium":
 		HULL = Color("c8d8f0")
 		HULL_SHADE = Color("7f98c0")
+	elif hull_kind == &"bark":
+		HULL = Color("b07a48")
+		HULL_SHADE = Color("6e4424")
+	elif hull_kind == &"gilded":
+		HULL = Color("ffe08a")
+		HULL_SHADE = Color("c89a2a")
 	var dc: Array = DRILLS.get(drill_kind, DRILLS[&"steel"])
 	var img := PixelArt.new_img(W, H)
 	# Pods de propulsão em cima e embaixo (cinza com luzes azuis).
@@ -103,8 +111,8 @@ static func build(phase: int, look: Dictionary = {}) -> Image:
 	PixelArt.rect(img, 10, 15, 8, 1, YELLOW_LO)
 	# Cabine azul com reflexo.
 	PixelArt.rect(img, 13, 7, 5, 5, STEEL_DARK)
-	var scr: Color = Color("3ad890") if engine == &"reactor" else SCREEN
-	var scr_hi: Color = Color("c8ffe0") if engine == &"reactor" else SCREEN_HI
+	var scr: Color = Color("3ad890") if engine == &"reactor" else (Color("d8ff4a") if engine == &"firefly" else SCREEN)
+	var scr_hi: Color = Color("c8ffe0") if engine == &"reactor" else (Color("ffffc0") if engine == &"firefly" else SCREEN_HI)
 	PixelArt.rect(img, 14, 8, 3, 3, scr)
 	PixelArt.px(img, 14, 8, scr_hi)
 	PixelArt.px(img, 15, 8, scr_hi)
@@ -114,7 +122,7 @@ static func build(phase: int, look: Dictionary = {}) -> Image:
 	# Detalhes do casco.
 	PixelArt.rect(img, 10, 8, 2, 1, HULL_SHADE)
 	PixelArt.rect(img, 10, 10, 2, 1, HULL_SHADE)
-	if hull_kind != &"standard":
+	if hull_kind in [&"armored", &"titanium"]:
 		# Placas de blindagem rebitadas na frente e atrás da cabine.
 		for x0: int in [9, 18]:
 			PixelArt.rect(img, x0, 6, 2, 8, STEEL_HI)
@@ -139,8 +147,13 @@ static func build(phase: int, look: Dictionary = {}) -> Image:
 			if stripe:
 				c = c.lightened(0.5) if drill_kind == &"plasma" else c.darkened(0.35)
 			img.set_pixel(x, y, c)
-	if drill_kind == &"crystal" or drill_kind == &"plasma":
+	if drill_kind in [&"crystal", &"plasma", &"ember"]:
 		PixelArt.px(img, W - 3, 9, Color.WHITE)
+	elif drill_kind == &"fossil":
+		# Sulcos de osso.
+		for x: int in [26, 29, 32]:
+			PixelArt.px(img, x, 9, dc[2])
+			PixelArt.px(img, x, 11, dc[2])
 	elif drill_kind == &"root":
 		# Espinhos de raiz ao longo do cone.
 		for x: int in [25, 28, 31]:

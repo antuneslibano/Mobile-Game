@@ -17,17 +17,22 @@ const OPTIONS: Dictionary = {
 		[&"crystal", "Cristal", "lvl:damage:8"],
 		[&"root", "Raiz-Mãe", "guardian:vale"],
 		[&"plasma", "Plasma", "lvl:damage:12"],
+		[&"fossil", "Fóssil", "bp:bp_fossil"],
+		[&"ember", "Brasa", "bp:bp_ember"],
 	],
 	&"hull": [
 		[&"standard", "Padrão", ""],
 		[&"armored", "Blindado", "lvl:hull:4"],
 		[&"titanium", "Titânio", "lvl:hull:8"],
+		[&"bark", "Casca", "bp:bp_bark"],
+		[&"gilded", "Dourado", "bp:bp_gilded"],
 	],
 	&"engine": [
 		[&"standard", "Padrão", ""],
 		[&"turbo", "Turbo", "lvl:speed:4"],
 		[&"tanks", "Tanques extras", "lvl:fuel_tank:4"],
 		[&"reactor", "Reator", "lvl:energy:6"],
+		[&"firefly", "Vaga-lume", "bp:bp_firefly"],
 	],
 	&"paint": [
 		[&"yellow", "Amarelo", ""],
@@ -35,6 +40,9 @@ const OPTIONS: Dictionary = {
 		[&"emerald", "Esmeralda", "res:emerald"],
 		[&"ruby", "Rubi", "res:ruby"],
 		[&"amethyst", "Ametista", "res:amethyst"],
+		[&"amber", "Âmbar", "bp:bp_amber"],
+		[&"midnight", "Meia-noite", "bp:bp_midnight"],
+		[&"chrome", "Cromada", "bp:bp_chrome"],
 	],
 }
 
@@ -45,6 +53,9 @@ const PAINTS: Dictionary = {
 	&"emerald": [Color("8affc0"), Color("2fd46a"), Color("10703a")],
 	&"ruby": [Color("ff9aa8"), Color("ff3d5a"), Color("8a1024")],
 	&"amethyst": [Color("e2c2ff"), Color("b07cff"), Color("5a2a9a")],
+	&"amber": [Color("ffe0a0"), Color("ff9a1a"), Color("a04a00")],
+	&"midnight": [Color("8a9cff"), Color("3a4aa8"), Color("181e48")],
+	&"chrome": [Color("ffffff"), Color("c8d4e4"), Color("6a7890")],
 }
 
 
@@ -59,6 +70,8 @@ static func is_unlocked(req: String, econ: Economy, done: Dictionary) -> bool:
 			return econ.discovered.has(StringName(p[1]))
 		"guardian":
 			return done.has(StringName(p[1]))
+		"bp":
+			return econ.blueprints.has(StringName(p[1]))
 	return false
 
 
@@ -74,6 +87,8 @@ static func requirement_text(req: String) -> String:
 			return "Descobrir %s" % (rd.display_name if rd != null else p[1])
 		"guardian":
 			return "Vencer o guardião de %s" % RegionRegistry.get_def(StringName(p[1])).display_name
+		"bp":
+			return "Planta em baú raro"
 	return ""
 
 
@@ -86,7 +101,7 @@ static func resolve(chosen: Dictionary, econ: Economy, done: Dictionary) -> Dict
 		var pick_ok: bool = false
 		for o: Array in OPTIONS[slot]:
 			if is_unlocked(String(o[2]), econ, done):
-				if slot != &"paint":
+				if slot != &"paint" and not String(o[2]).begins_with("bp:"):
 					best = o[0]
 				if o[0] == pick:
 					pick_ok = true

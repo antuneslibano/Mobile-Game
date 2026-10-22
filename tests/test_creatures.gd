@@ -111,3 +111,64 @@ func test_ship_looks() -> void:
 	var c: Image = ShipArt.build(0, auto)
 	check(a.get_data() != c.get_data(), "visual diferente muda o sprite")
 	check(ShipArt.frame(0, auto) == ShipArt.frame(0, auto), "sprite do visual em cache")
+
+
+## 0.12: a broca só quebra minérios até o seu nível.
+func test_drill_tiers() -> void:
+	check_eq(MiningRules.tier_for_level(0), 0, "broca inicial: nível 0")
+	check(MiningRules.can_break(BlockRegistry.COPPER, 0) and not MiningRules.can_break(BlockRegistry.IRON, 0), "broca inicial quebra cobre, não ferro")
+	var t: int = MiningRules.tier_for_level(Balance.DRILL_TIER_LEVELS[1])
+	check(MiningRules.can_break(BlockRegistry.IRON, t) and not MiningRules.can_break(BlockRegistry.GOLD, t), "aprimorada quebra ferro, não ouro")
+	check(MiningRules.can_break(BlockRegistry.DIRT, 0) and MiningRules.can_break(BlockRegistry.CHEST, 0), "terreno e baús com qualquer broca")
+	check_eq(Progression.build_stats({&"damage": Balance.DRILL_TIER_LEVELS[2]}).drill_tier, 2, "nível da Broca define o nível de corte")
+	var w := WorldModel.new(5, RegionRegistry.get_def(RegionRegistry.VALE))
+	w.threaded = false
+	var c := Vector2i(40, 200)
+	w.get_chunk(WorldModel.chunk_index_for_row(c.y))
+	w.set_cell(c, BlockRegistry.GOLD)
+	var res: WorldModel.DigResult = w.dig_cells([c] as Array[Vector2i], 9999.0, -INF, 1)
+	check(res.too_hard == BlockRegistry.GOLD and w.get_cell(c) == BlockRegistry.GOLD, "ouro resiste à broca fraca")
+	res = w.dig_cells([c] as Array[Vector2i], 9999.0, -INF, 2)
+	check(w.get_cell(c) == BlockRegistry.AIR, "broca dourada quebra o ouro")
+
+
+## 0.12: baús com raridade (cor) e plantas de visual exclusivo.
+func test_chests_and_blueprints() -> void:
+	var counts: Array[int] = [0, 0, 0]
+	for i in 2000:
+		counts[Chests.rarity(Vector2i(i % 24, i / 24), 99, 300)] += 1
+	note("raridade em 2000 baús a 300 m: %s" % str(counts))
+	check(counts[0] > counts[1] and counts[1] > counts[2] and counts[2] > 0, "comum > raro > lendário")
+	var deep: int = 0
+	var shallow: int = 0
+	for i in 2000:
+		if Chests.rarity(Vector2i(i % 24, i / 24), 99, 590) == Chests.LEGENDARY:
+			deep += 1
+		if Chests.rarity(Vector2i(i % 24, i / 24), 99, 20) == Chests.LEGENDARY:
+			shallow += 1
+	check(deep > shallow, "mais fundo, mais lendários (%d × %d)" % [deep, shallow])
+	var owned: Dictionary = {}
+	var r: Dictionary = Chests.open(Chests.LEGENDARY, Vector2i(3, 40), 1, 40, owned)
+	check(StringName(r.blueprint) != &"" and int(r.drops.get(&"crystal", 0)) > 0, "lendário traz planta e cristais")
+	for id: StringName in Chests.BLUEPRINTS:
+		owned[id] = true
+	r = Chests.open(Chests.LEGENDARY, Vector2i(3, 40), 1, 40, owned)
+	check(StringName(r.blueprint) == &"", "com todas as plantas, vira bônus de cristais")
+	var e := Economy.new()
+	e.blueprints[&"bp_ember"] = true
+	check_eq(ShipLooks.resolve({&"drill": &"ember"}, e, {})[&"drill"], &"ember", "planta libera o visual no Hangar")
+	check_eq(ShipLooks.resolve({}, e, {})[&"drill"], &"steel", "planta não troca o visual sozinha")
+	check(Economy.from_dict(e.to_dict()).blueprints.has(&"bp_ember"), "plantas salvas")
+	check(ShipArt.build(0, {&"drill": &"ember", &"hull": &"gilded", &"engine": &"firefly", &"paint": &"chrome"}).get_width() == ShipArt.W, "visuais de planta desenham")
+
+
+## 0.12: sons sintetizados existem e têm o formato certo.
+func test_sounds() -> void:
+	var s := load("res://scripts/audio/sfx.gd").new() as Node
+	s.call("_build_all")
+	for n: StringName in [&"drill", &"engine", &"hit", &"break", &"clank", &"pickup", &"chest", &"ship_hit", &"creature", &"boost", &"click"]:
+		var st: AudioStreamWAV = (s.get("_streams") as Dictionary).get(n)
+		check(st != null and st.data.size() > 100, "som %s gerado" % n)
+	var drill: AudioStreamWAV = (s.get("_streams") as Dictionary)[&"drill"]
+	check(drill.loop_mode == AudioStreamWAV.LOOP_FORWARD, "broca em loop")
+	s.free()

@@ -60,6 +60,7 @@ static func build_stats(levels: Dictionary) -> DrillStats:
 		var lvl: int = int(levels.get(def.id, 0))
 		if lvl > 0 and UpgradeRegistry.is_available(def):
 			apply_upgrade(s, def, lvl)
+	s.drill_tier = MiningRules.tier_for_level(int(levels.get(&"damage", 0)))
 	return s
 
 

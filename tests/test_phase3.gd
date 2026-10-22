@@ -39,7 +39,7 @@ func test_joystick_free_directions_never_up() -> void:
 		InputController.joystick_to_intent(v, it)
 		check(it.aim == Vector2.ZERO, "para cima %s: nada" % v)
 	InputController.joystick_to_intent(Vector2(1, -1).normalized(), it)
-	check(it.aim.y == 0.0 and it.aim.x > 0.0, "diagonal para cima vira lateral (sem subir)")
+	check(it.aim.y < 0.0 and it.aim.x > 0.0 and it.aim.y >= -it.aim.x * Balance.CLIMB_SLOPE - 0.001, "diagonal para cima vira rampa (subida limitada)")
 
 
 func test_energy_is_earned_not_regenerated() -> void:

@@ -16,6 +16,8 @@ class DigResult:
 	var touched: int = 0             ## células quebráveis atingidas
 	var main_id: int = BlockRegistry.AIR  ## material mais atingido (para FX)
 	var unbreakable: bool = false    ## tocou rocha-mãe
+	var too_hard: int = -1           ## minério acima do nível da broca (id), se tocou
+	var chest_blocks: Array[Vector2i] = []  ## blocos de baú com células removidas agora
 
 	func removed() -> int:
 		var n: int = 0
@@ -337,13 +339,13 @@ func blocking_cells(center: Vector2, radius: float) -> Array[Vector2i]:
 
 ## Escava um círculo: cada célula sólida quebrável cujo centro está no círculo recebe o golpe.
 ## min_y: não afeta células acima dessa altura (a broca nunca abre caminho para cima).
-func dig_circle(center: Vector2, radius: float, raw_damage: float, min_y: float = -INF) -> DigResult:
-	return dig_cells(cells_in_circle(center, radius, min_y), raw_damage, min_y)
+func dig_circle(center: Vector2, radius: float, raw_damage: float, min_y: float = -INF, drill_tier: int = 99) -> DigResult:
+	return dig_cells(cells_in_circle(center, radius, min_y), raw_damage, min_y, drill_tier)
 
 
 ## Aplica um golpe a uma lista de células (com dureza). Vida da célula = vida do bloco /
 ## CELL_SUB, então atravessar 1 bloco custa o mesmo número de golpes que um bloco inteiro.
-func dig_cells(cells: Array[Vector2i], raw_damage: float, min_y: float = -INF) -> DigResult:
+func dig_cells(cells: Array[Vector2i], raw_damage: float, min_y: float = -INF, drill_tier: int = 99) -> DigResult:
 	var res := DigResult.new()
 	var changed: Array[Vector2i] = []
 	var touched_by_id: Dictionary = {}
@@ -361,6 +363,9 @@ func dig_cells(cells: Array[Vector2i], raw_damage: float, min_y: float = -INF) -
 		if not def.breakable:
 			res.unbreakable = true
 			continue
+		if not MiningRules.can_break(id, drill_tier):
+			res.too_hard = id
+			continue
 		res.touched += 1
 		touched_by_id[id] = int(touched_by_id.get(id, 0)) + 1
 		var cell_hp: float = def.max_hp / Balance.CELL_SUB
@@ -368,6 +373,10 @@ func dig_cells(cells: Array[Vector2i], raw_damage: float, min_y: float = -INF) -
 		if frac >= 1.0:
 			_set_raw(c, BlockRegistry.AIR)
 			res.counts[id] = int(res.counts.get(id, 0)) + 1
+			if id == BlockRegistry.CHEST:
+				var blk := Vector2i(c.x / Balance.CELL_SUB, c.y / Balance.CELL_SUB)
+				if not res.chest_blocks.has(blk):
+					res.chest_blocks.append(blk)
 		else:
 			ch.dmg[local] = mini(254, ceili(frac * 255.0))
 		changed.append(c)

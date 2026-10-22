@@ -71,6 +71,9 @@ func _draw() -> void:
 		elif engine == &"reactor":
 			col_out = Color(0.3, 1.0, 0.6, 0.85)
 			col_in = Color(0.85, 1.0, 0.92, 0.95)
+		elif engine == &"firefly":
+			col_out = Color(0.85, 1.0, 0.3, 0.85)
+			col_in = Color(1.0, 1.0, 0.75, 0.95)
 		for ny: float in [7.0, 13.0]:
 			var y: float = o.y + ny * s
 			var x0: float = o.x

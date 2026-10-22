@@ -28,6 +28,10 @@ func _ready() -> void:
 	drill.dig_hit.connect(_on_dig_hit)
 	drill.dug.connect(_on_dug)
 	drill.blocked_by_unbreakable.connect(_on_unbreakable)
+	drill.blocked_by_hardness.connect(func(p: Vector2, id: int) -> void:
+		_on_unbreakable(p)
+		EventBus.drill_too_weak.emit(id))
+	drill.chest_opened.connect(_on_chest_opened)
 	drill.boost_started.connect(_on_boost_started)
 	drill.overdrive_ready.connect(func() -> void: EventBus.overdrive_ready.emit())
 	drill.refueled.connect(func(amount: float) -> void:
@@ -100,6 +104,8 @@ func play_extraction(duration: float = 1.6) -> void:
 	if world == null or extracting:
 		return
 	extracting = true
+	Sfx.drill(false)
+	Sfx.engine(false)
 	if camera.combat:
 		camera.combat = false
 		EventBus.guardian_combat.emit(false)
@@ -128,6 +134,9 @@ func _physics_process(delta: float) -> void:
 	GameState.check_final_chamber(floori(drill.position.x / Balance.BLOCK_PX), drill.depth_m())
 	_guardian_step(delta, intent)
 	creatures.step(delta, drill, DrillIntent.sanitize(intent.aim).length() > 0.05)
+	# Som: broca girando ao cavar (mais aguda na Sobrecarga) e motor ao se mover.
+	Sfx.drill(drill.digging and not drill.disabled, 1.25 if drill.energy.is_boosting() else 1.0)
+	Sfx.engine(drill.velocity.length() > 20.0 and not drill.disabled)
 
 
 ## Depuração/capturas: abre uma caverna à frente da nave com uma criatura de cada espécie.
@@ -142,7 +151,20 @@ func debug_creature_showcase() -> void:
 		creatures.creatures.append(Creature.new(sp, spots[sp], hash(sp)))
 
 
+## Baú aberto: raridade pela posição; cristais, materiais e talvez uma planta de visual.
+func _on_chest_opened(block: Vector2i) -> void:
+	var depth: int = block.y
+	var rar: int = Chests.rarity(block, world.generator.seed_value, depth)
+	var res: Dictionary = Chests.open(rar, block, world.generator.seed_value, depth, GameState.economy.blueprints)
+	var at := Vector2((block.x + 0.5) * Balance.BLOCK_PX, (block.y + 0.5) * Balance.BLOCK_PX)
+	fx.emit_burst(at, Chests.COLORS[rar], 14 + rar * 14, 300.0, 0.9, 4.0, 200.0)
+	camera.add_shake(0.15 + rar * 0.2)
+	GameState.open_chest(rar, res, at)
+	Sfx.play(&"chest", 1.0 + rar * 0.12)
+
+
 func _on_bitten(damage: float, _species: StringName) -> void:
+	Sfx.play(&"ship_hit")
 	drill.apply_hull_damage(damage)
 	camera.add_shake(0.5)
 	fx.emit_burst(drill.position, Color("ff5a3a"), 10, 240.0, 0.5, 3.0, 300.0)
@@ -153,6 +175,7 @@ func _on_creature_defeated(species: StringName, at: Vector2) -> void:
 	fx.emit_burst(at, Color("9bff5a") if species != &"firefly" else Color("e8ff8a"), 18, 260.0, 0.7, 4.0, 400.0)
 	camera.add_shake(0.2)
 	GameState.defeat_creature(species, at)
+	Sfx.play(&"creature", randf_range(0.9, 1.2))
 
 
 ## Combate com o guardião: dentro da arena a câmera entra em modo de combate; raízes que
@@ -172,6 +195,7 @@ func _guardian_step(delta: float, intent: DrillIntent) -> void:
 		fx.emit_burst(drill.position, guardian.glow_color, 16, 300.0, 0.6, 4.0, 300.0)
 		fx.emit_burst(drill.position, Color("ff5a3a"), 10, 240.0, 0.5, 3.0, 300.0)
 		EventBus.ship_hit.emit(hit)
+		Sfx.play(&"ship_hit")
 	var steering: bool = DrillIntent.sanitize(intent.aim).length() > 0.05
 	if not steering or not guardian.on_body(drill.position, drill.radius):
 		return
@@ -214,6 +238,9 @@ func _apply_look() -> void:
 
 func _on_dig_hit(point: Vector2, material_id: int, crit: bool, removed: int) -> void:
 	var def: BlockDef = BlockRegistry.get_def(material_id)
+	Sfx.play(&"hit", randf_range(0.85, 1.15) * (1.2 if crit else 1.0), -8.0, 0.05)
+	if removed > 0:
+		Sfx.play(&"break", randf_range(0.8, 1.2) - minf(0.3, def.hardness * 0.02), -6.0, 0.09)
 	fx.hit(point, def, -drill.facing, crit)
 	if removed > 0:
 		fx.emit_burst(point, def.color_base, mini(2 + removed, 10), 200.0, 0.5, 5.0, 900.0)
@@ -238,11 +265,13 @@ func _on_dug(counts: Dictionary, at: Vector2) -> void:
 
 
 func _on_unbreakable(point: Vector2) -> void:
+	Sfx.play(&"clank", randf_range(0.9, 1.1), -6.0, 0.2)
 	fx.sparks(point, 5)
 	camera.add_shake(0.08)
 
 
 func _on_resources_collected(at: Vector2, gained: Dictionary) -> void:
+	Sfx.play(&"pickup", randf_range(0.95, 1.1), -8.0, 0.12)
 	pickups.show_gain(at + Vector2(0, -16), gained)
 
 
@@ -251,6 +280,7 @@ func _on_modules_changed(equipped: Array[StringName]) -> void:
 
 
 func _on_boost_started() -> void:
+	Sfx.play(&"boost")
 	fx.emit_burst(drill.position, Color(0.5, 0.85, 1.0), 24, 320.0, 0.6, 4.0, 0.0)
 	camera.add_shake(0.35)
 	EventBus.boost_started.emit()

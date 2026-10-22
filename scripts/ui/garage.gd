@@ -539,6 +539,15 @@ func _refresh_lab(econ: Economy) -> void:
 		nl.custom_minimum_size = Vector2(60, 0)
 		v.add_child(nl)
 		grid.add_child(cell)
+	# Plantas de visual achadas em baús.
+	var bps: Array = []
+	for id: StringName in Chests.BLUEPRINTS:
+		bps.append(String(Chests.BLUEPRINTS[id][1]) if econ.blueprints.has(id) else "???")
+	_lab_box.add_child(UiTheme.label("PLANTAS DE BAÚ  ·  %d/%d" % [econ.blueprints.size(), Chests.BLUEPRINTS.size()], 30, UiTheme.ORANGE, 700))
+	var bl := UiTheme.label(" · ".join(bps), 22, UiTheme.TEXT, 500)
+	bl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	bl.custom_minimum_size = Vector2(300, 0)
+	_lab_box.add_child(bl)
 	# Criaturas catalogadas.
 	var seen_n: int = GameState.creatures.size()
 	_lab_box.add_child(UiTheme.label("CRIATURAS  ·  %d/%d" % [seen_n, Creature.ORDER.size()], 30, UiTheme.ORANGE, 700))

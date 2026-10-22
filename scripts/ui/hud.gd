@@ -65,6 +65,12 @@ func _ready() -> void:
 	EventBus.final_chamber_reached.connect(_on_final_chamber)
 	EventBus.ship_hit.connect(func(_d: float) -> void: _hit_flash = 1.0)
 	EventBus.guardian_combat.connect(_on_combat)
+	EventBus.drill_too_weak.connect(_on_too_weak)
+	EventBus.chest_opened.connect(func(rar: int, bp: StringName) -> void:
+		var txt: String = "BAÚ %s!" % Chests.NAMES[rar]
+		if bp != &"":
+			txt = "PLANTA: " + String(Chests.BLUEPRINTS[bp][1]).to_upper()
+		_show_banner(txt, Chests.COLORS[rar]))
 	EventBus.creature_discovered.connect(func(sp: StringName) -> void:
 		_show_banner(("NOVA CRIATURA: " + String(Creature.DEFS[sp].name)).to_upper(), Color("9bff5a")))
 	EventBus.wallet_changed.connect(set_currencies)
@@ -245,6 +251,7 @@ func _build() -> void:
 	_banner = _label("", 44, UiTheme.TEXT)
 	_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_banner.add_theme_constant_override("outline_size", 10)
+	_banner.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_banner.modulate.a = 0.0
 	_root.add_child(_banner)
 
@@ -355,7 +362,8 @@ func _apply_layout() -> void:
 	_hint.position = Vector2(0, _joystick.rest_pos.y - Balance.JOYSTICK_RADIUS_PX - 110.0)
 	_hint.size = Vector2(vp.x, 80)
 	_banner.position = Vector2(0, vp.y * 0.36)
-	_banner.size = Vector2(vp.x, 70)
+	_banner.size = Vector2(vp.x - 40.0, 120)
+	_banner.position.x = 20.0
 	_fps_label.position = Vector2(SIDE_MARGIN, _top.position.y + _top.size.y + 6.0)
 	_warn.position = Vector2(0, _top.position.y + _top.size.y + 14.0)
 	_warn.size = Vector2(vp.x, 44)
@@ -441,6 +449,21 @@ func _update_guardian() -> void:
 		_boss_name.text = UiTheme.display_text(guardian.region.guardian_name.to_upper())
 		_boss_bar.value = guardian.hp_ratio()
 		_boss.modulate = Color(1.4, 1.4, 1.4) if guardian.danger() and int(Time.get_ticks_msec() / 110) % 2 == 0 else Color.WHITE
+
+
+var _weak_t: float = 0.0
+
+
+## Minério duro demais: avisa qual nível de Broca é preciso (no máximo a cada 2 s).
+func _on_too_weak(block_id: int) -> void:
+	var now: float = Time.get_ticks_msec() / 1000.0
+	if now - _weak_t < 2.0:
+		return
+	_weak_t = now
+	var tier: int = MiningRules.required_tier(block_id)
+	var lvl: int = Balance.DRILL_TIER_LEVELS[tier]
+	var name: String = BlockRegistry.get_def(block_id).display_name
+	_show_banner(("BROCA FRACA PARA %s · BROCA NV. %d" % [name, lvl]).to_upper(), UiTheme.ORANGE)
 
 
 func _on_combat(active: bool) -> void:

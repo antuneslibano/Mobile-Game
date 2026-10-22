@@ -73,8 +73,8 @@ static func run(strategy: StringName, minutes: float, world_seed: int = 2024, re
 			elif strategy == &"minerios":
 				var want_fuel: bool = d.vitals.fuel_ratio() < 0.5
 				var here: Vector2i = WorldModel.world_to_cell(d.position)
-				if t >= next_scan or not _is_target(w.peek_cell(target), want_fuel):
-					target = _nearest(w, here, want_fuel)
+				if t >= next_scan or not _is_target(w.peek_cell(target), want_fuel, d.stats.drill_tier):
+					target = _nearest(w, here, want_fuel, d.stats.drill_tier)
 					next_scan = t + 1.0
 				if target.x >= 0:
 					var to: Vector2 = WorldModel.cell_center(target) - d.position
@@ -175,12 +175,14 @@ static func _is_ore(id: int) -> bool:
 	return def.solid and def.breakable and not def.is_terrain() and not def.drops.is_empty()
 
 
-static func _is_target(id: int, want_fuel: bool) -> bool:
+static func _is_target(id: int, want_fuel: bool, tier: int = 99) -> bool:
+	if not MiningRules.can_break(id, tier):
+		return false
 	return _is_ore(id) or (want_fuel and BlockRegistry.get_def(id).fuel > 0.0)
 
 
 ## Alvo mais próximo à vista, na altura da nave ou abaixo (a nave não sobe).
-static func _nearest(w: WorldModel, here: Vector2i, want_fuel: bool) -> Vector2i:
+static func _nearest(w: WorldModel, here: Vector2i, want_fuel: bool, tier: int = 99) -> Vector2i:
 	var best := Vector2i(-1, -1)
 	var best_d: float = 1e9
 	for dy in range(-1, VIEW_ROWS, 2):
@@ -188,7 +190,7 @@ static func _nearest(w: WorldModel, here: Vector2i, want_fuel: bool) -> Vector2i
 			var c := Vector2i(here.x + dx, here.y + dy)
 			if c.x < 0 or c.x >= Balance.WORLD_CELLS_X or c.y < 0:
 				continue
-			if not _is_target(w.peek_cell(c), want_fuel):
+			if not _is_target(w.peek_cell(c), want_fuel, tier):
 				continue
 			var dd: float = Vector2(dx, dy * 0.8).length()
 			if dd < best_d:

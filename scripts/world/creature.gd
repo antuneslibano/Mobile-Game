@@ -44,6 +44,8 @@ var _wander_t: float = 0.0
 var _target: Vector2
 var _rng := RandomNumberGenerator.new()
 var _carve_t: float = 0.0
+## Toupeira: tempo restante escalando uma parede.
+var climbing: float = 0.0
 
 
 func _init(p_species: StringName, p_pos: Vector2, p_seed: int) -> void:
@@ -142,33 +144,67 @@ func _step_firefly(delta: float, w: WorldModel, ship: Vector2, speed: float, b: 
 		dir = signf(vel.x)
 
 
+## Toupeira: anda pelo chão; pula degraus de até ~2 blocos, escala paredes (até 3 blocos)
+## e desce de bordas baixas; foge da nave.
 func _step_mole(delta: float, w: WorldModel, ship: Vector2, speed: float, b: float) -> void:
-	var on_floor: bool = _solid(w, pos + Vector2(0, radius + 2.0))
-	if not on_floor:
-		vel.y = minf(vel.y + Balance.GRAVITY_BLOCKS * b * delta, 10.0 * b)
-		var nx: Vector2 = pos + Vector2(0, vel.y * delta)
-		if _solid(w, nx + Vector2(0, radius)):
-			vel.y = 0.0
-		else:
-			pos = nx
-		return
-	vel.y = 0.0
 	var s: float = speed
 	if pos.distance_to(ship) < FLEE_BLOCKS * b:
-		dir = signf(pos.x - ship.x) if absf(pos.x - ship.x) > 1.0 else dir
+		if absf(pos.x - ship.x) > 1.0:
+			dir = signf(pos.x - ship.x)
 		s *= 1.8
 	else:
 		_wander_t -= delta
 		if _wander_t <= 0.0:
-			_wander_t = _rng.randf_range(1.5, 4.0)
-			if _rng.randf() < 0.35:
+			_wander_t = _rng.randf_range(2.0, 5.0)
+			if _rng.randf() < 0.3:
 				dir = -dir
-	var ahead: Vector2 = pos + Vector2(dir * (radius + 3.0), 0)
-	var floor_ahead: bool = _solid(w, pos + Vector2(dir * (radius + 4.0), radius + 6.0))
-	if _solid(w, ahead) or not floor_ahead:
-		dir = -dir
+	var feet := Vector2(0, radius * 0.6 + 2.0)
+	var on_floor: bool = _solid(w, pos + feet)
+	var wall: bool = _solid(w, pos + Vector2(dir * (radius + 2.0), 0)) or _solid(w, pos + Vector2(dir * (radius + 2.0), radius * 0.4))
+	# Escalando: sobe colado na parede enquanto houver parede à frente e teto livre.
+	if climbing > 0.0:
+		climbing -= delta
+		if wall and not _solid(w, pos + Vector2(0, -radius - 3.0)):
+			pos.y -= s * 0.8 * delta
+			return
+		climbing = 0.0
+		pos.x += dir * 4.0
 		return
-	pos.x += dir * s * delta
+	if on_floor:
+		vel.y = 0.0
+		if wall:
+			# Degrau baixo: pula; parede alta: escala; teto baixo: volta.
+			if not _solid(w, pos + Vector2(dir * (radius + 2.0), -b * 1.1)) and not _solid(w, pos + Vector2(0, -b * 1.2)):
+				vel.y = -b * 7.0
+			elif not _solid(w, pos + Vector2(0, -radius - 3.0)):
+				climbing = 3.0 * b / (s * 0.8)
+				return
+			else:
+				dir = -dir
+				return
+		elif not _solid(w, pos + Vector2(dir * (radius + 4.0), radius + 6.0)):
+			# Borda: desce se a queda for baixa (até ~4 blocos), senão volta.
+			var drop_ok: bool = false
+			for k in range(1, 5):
+				if _solid(w, pos + Vector2(dir * (radius + 6.0), k * b)):
+					drop_ok = true
+					break
+			if not drop_ok:
+				dir = -dir
+				return
+	else:
+		vel.y = minf(vel.y + Balance.GRAVITY_BLOCKS * b * delta, 10.0 * b)
+	# Vertical (pulo/queda) com colisão.
+	var ny: Vector2 = pos + Vector2(0, vel.y * delta)
+	if vel.y < 0.0 and _solid(w, ny + Vector2(0, -radius * 0.6)):
+		vel.y = 0.0
+	elif vel.y > 0.0 and _solid(w, ny + feet):
+		vel.y = 0.0
+	else:
+		pos = ny
+	# Horizontal.
+	if not _solid(w, pos + Vector2(dir * (radius + 2.0), 0)):
+		pos.x += dir * s * delta
 
 
 func _step_spider(delta: float, w: WorldModel, ship: Vector2, speed: float, b: float, ship_r: float) -> void:

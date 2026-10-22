@@ -45,6 +45,8 @@ var looks: Dictionary = {}
 var looks_seen: int = 0
 ## Criaturas catalogadas: { espécie: { "seen": true, "defeated": n } }.
 var creatures: Dictionary = {}
+## Quantas vezes cada região foi trocada por uma área nova ({id: n}).
+var region_variant: Dictionary = {}
 
 
 ## Perfil novo (sem salvamento): economia zerada, apenas a primeira região liberada.
@@ -66,6 +68,7 @@ func reset_profile() -> void:
 	looks = {}
 	looks_seen = 0
 	creatures = {}
+	region_variant = {}
 	_refresh_stats()
 
 
@@ -116,7 +119,20 @@ func is_region_unlocked(id: StringName) -> bool:
 
 ## Mapa fixo de cada região, derivado da seed do perfil (mundo persistente).
 func region_seed(id: StringName) -> int:
-	return (hash([profile_seed, String(id)]) & 0x7FFFFFFF)
+	var v: int = int(region_variant.get(id, 0))
+	if v == 0:
+		return (hash([profile_seed, String(id)]) & 0x7FFFFFFF)
+	return (hash([profile_seed, String(id), v]) & 0x7FFFFFFF)
+
+
+## "Explorar nova área" (0.12): troca o mapa da região por um novo. A escavação e o recorde
+## de profundidade da área anterior são apagados; objetivos, guardião vencido, catálogo e
+## o que já está no armazém continuam.
+func new_area(id: StringName) -> void:
+	region_variant[id] = int(region_variant.get(id, 0)) + 1
+	world_mods.erase(id)
+	region_progress.erase(id)
+	SaveService.mark_dirty()
 
 
 func is_objective_done(id: StringName, obj_id: StringName) -> bool:
@@ -333,6 +349,7 @@ func to_profile() -> Dictionary:
 		"looks": _string_keys(looks),
 		"looks_seen": looks_seen,
 		"creatures": _string_keys(creatures),
+		"variants": _string_keys(region_variant),
 	}
 
 
@@ -420,6 +437,12 @@ func apply_profile(d: Dictionary) -> void:
 	economy.tech = done.size()
 	journal_seen = maxi(0, int(d.get("journal_seen", 0)))
 	looks_seen = maxi(0, int(d.get("looks_seen", 0)))
+	region_variant = {}
+	var rv: Variant = d.get("variants", {})
+	if rv is Dictionary:
+		for k: Variant in rv:
+			if _valid_region(k):
+				region_variant[StringName(str(k))] = maxi(0, int(rv[k]))
 	creatures = {}
 	var cr: Variant = d.get("creatures", {})
 	if cr is Dictionary:
@@ -492,6 +515,20 @@ func _count_research(gained: Dictionary) -> void:
 	for o: Dictionary in region().objectives:
 		if o.kind == &"collect" and not is_objective_done(region_id, o.id) and int(res.get(String(o.key), 0)) >= int(o.target):
 			complete_objective(region_id, o.id)
+
+
+## Baú aberto (Chests.open): recompensa e, se houver, planta de visual exclusivo.
+func open_chest(rarity: int, res: Dictionary, at: Vector2) -> void:
+	var drops: Dictionary = {}
+	for k: Variant in res.drops:
+		drops[k] = float(res.drops[k])
+	collect_drops(at, drops)
+	var bp: StringName = StringName(res.get("blueprint", &""))
+	if bp != &"":
+		economy.blueprints[bp] = true
+		expedition_events.append("Planta encontrada: %s" % Chests.BLUEPRINTS[bp][1])
+		SaveService.mark_dirty()
+	EventBus.chest_opened.emit(rarity, bp)
 
 
 ## Criatura avistada (catálogo). Retorna true na primeira vez.

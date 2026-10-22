@@ -184,6 +184,7 @@ Instalar: `adb install -r build/deepforge.apk`, ou copie o APK para o celular e 
 | 0.9.2 | Combate contra o guardião: arena, ataques de baixo, câmera de combate | ✅ |
 | 0.10 | Base com estações tocáveis, construção com materiais, mercado de excedente, laboratório | ✅ |
 | 0.11 | Criaturas no Vale, visual da nave escolhido no Hangar, baús novos | ✅ |
+| 0.12 | Broca por nível, subida em rampa, cavernas em patamares, baús raros com plantas, nova área, sons | ✅ |
 | 0.10–0.11 | Base com construção, criaturas — ver [ROADMAP_EXPEDICOES.md](ROADMAP_EXPEDICOES.md) | planejado |
 | 5 | Arte, efeitos, áudio, otimização, exportação Android | pendente |
 

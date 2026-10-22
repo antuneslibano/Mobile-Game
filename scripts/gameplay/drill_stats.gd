@@ -22,6 +22,8 @@ var boost_level: int = 0
 var fuel_max: float = Balance.FUEL_BASE
 var fuel_use: float = 1.0
 var hull_max: float = Balance.HULL_BASE
+## Nível da broca (0.12): quais minérios ela consegue quebrar (MiningRules.required_tier).
+var drill_tier: int = 0
 ## Níveis de módulos: StringName → int (Fase 3).
 var module_levels: Dictionary = {}
 

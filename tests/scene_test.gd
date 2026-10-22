@@ -348,6 +348,13 @@ func _run() -> void:
 	_check(GameState.is_objective_done(RegionRegistry.VALE, &"guardian"), "estrela: guardião vencido com mais da metade do casco")
 	_check(GameState.is_objective_done(RegionRegistry.VALE, &"haul") == (int(rep2.value_kept) >= int(RegionRegistry.objective(vale_def, &"haul").target)), "estrela: carga grande")
 	_check(GameState.stars(RegionRegistry.VALE) >= 1 and GameState.region_completion(RegionRegistry.VALE) > 0.3, "estrelas e conclusão da região")
+	# Nova área (0.12): mapa novo, escavação e recorde apagados, progresso mantido.
+	var seed_before: int = GameState.region_seed(RegionRegistry.VALE)
+	GameState.world_mods[RegionRegistry.VALE] = {"1": "AAAA"}
+	GameState.region_progress[RegionRegistry.VALE] = 99
+	GameState.new_area(RegionRegistry.VALE)
+	_check(GameState.region_seed(RegionRegistry.VALE) != seed_before and not GameState.world_mods.has(RegionRegistry.VALE)
+			and GameState.region_depth(RegionRegistry.VALE) == 0 and GameState.done.has(RegionRegistry.VALE), "nova área: mapa novo, progresso da região mantido")
 	var mods := {"3": {"17": 0, "4000": 9}}
 	var round_trip: Dictionary = GameState.decode_mods(GameState.encode_mods(mods))
 	_check(int(round_trip["3"]["17"]) == 0 and int(round_trip["3"]["4000"]) == 9, "escavação salva codifica e decodifica")

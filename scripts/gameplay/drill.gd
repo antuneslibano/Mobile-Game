@@ -2,12 +2,18 @@ class_name Drill
 extends Node2D
 ## Perfuradora de movimento livre. Corpo = círculo de colisão; broca = círculo à frente que
 ## escava micro-células na direção do joystick. Move-se em qualquer direção da metade de
-## baixo (lados, diagonais, baixo) e cai pela gravidade no vazio. NUNCA sobe: nenhuma
-## velocidade vertical negativa é gerada, e nada é escavado acima da máquina.
+## baixo (lados, diagonais, baixo) e cai pela gravidade no vazio. Não sobe na vertical:
+## só em rampa (0.12), com a subida limitada a CLIMB_SLOPE do movimento lateral; parada ou
+## mirando reto para cima, não sobe nem escava acima da máquina. A broca só quebra
+## minérios até o seu nível (MiningRules.required_tier).
 
 signal dig_hit(point: Vector2, material_id: int, crit: bool, removed: int)
 signal dug(counts: Dictionary, at: Vector2)
 signal blocked_by_unbreakable(point: Vector2)
+## Minério acima do nível da broca (precisa aprimorar a Broca).
+signal blocked_by_hardness(point: Vector2, block_id: int)
+## Um baú foi aberto (bloco do baú, em blocos).
+signal chest_opened(block: Vector2i)
 signal boost_started
 signal overdrive_ready
 ## Combustível ou casco zerou: fim da expedição (resgate de emergência).
@@ -93,6 +99,8 @@ func bit_center() -> Vector2:
 
 ## Nada acima desta altura é escavado.
 func dig_ceiling() -> float:
+	if facing.y < -0.05:
+		return -INF  # subindo em rampa: a broca abre a rampa à frente
 	return position.y - radius - HEADROOM_PX
 
 
@@ -117,7 +125,7 @@ func physics_step(delta: float, intent: DrillIntent) -> void:
 	if steering:
 		var target: Vector2 = a / throttle
 		facing = facing.slerp(target, clampf(delta * 14.0, 0.0, 1.0)).normalized()
-		facing.y = maxf(facing.y, 0.0)
+		facing.y = maxf(facing.y, -absf(facing.x) * Balance.CLIMB_SLOPE)
 		facing = facing.normalized() if facing.length() > 0.01 else target
 
 	var move_mult: float = Balance.OVERDRIVE_MOVE_MULT if energy.is_boosting() else 1.0
@@ -125,8 +133,14 @@ func physics_step(delta: float, intent: DrillIntent) -> void:
 	if steering:
 		desired = a / throttle * stats.move_speed_blocks * _b * move_mult * throttle
 	velocity.x = move_toward(velocity.x, desired.x, Balance.DRILL_ACCEL_BLOCKS * _b * delta)
-	# Vertical: gravidade e, no máximo, empurrão para BAIXO. Nunca negativo.
-	velocity.y = clampf(maxf(velocity.y + Balance.GRAVITY_BLOCKS * _b * delta, desired.y), 0.0, Balance.MAX_FALL_BLOCKS * _b)
+	# Vertical: gravidade e empurrão para baixo; subir só em rampa (propulsores vencem a
+	# gravidade enquanto a nave mira para cima na diagonal).
+	if desired.y < 0.0:
+		velocity.y = move_toward(velocity.y, desired.y, Balance.DRILL_ACCEL_BLOCKS * _b * delta)
+		# Nunca mais íngreme que a rampa: sobe só na proporção do avanço lateral.
+		velocity.y = maxf(velocity.y, -absf(velocity.x) * Balance.CLIMB_SLOPE)
+	else:
+		velocity.y = clampf(maxf(velocity.y + Balance.GRAVITY_BLOCKS * _b * delta, desired.y), 0.0, Balance.MAX_FALL_BLOCKS * _b)
 
 	_move(velocity * delta)
 	_update_dig(delta, steering)
@@ -149,7 +163,8 @@ func _move(motion: Vector2) -> void:
 				position.x += step.x
 				velocity.y = 0.0
 				moved = true
-			elif step.y != 0.0 and not world.circle_hits_solid(position + Vector2(0.0, step.y), radius):
+			elif step.y > 0.0 and not world.circle_hits_solid(position + Vector2(0.0, step.y), radius):
+				# (Subida só junto com o avanço lateral: travou do lado, não sobe na vertical.)
 				position.y += step.y
 				velocity.x = 0.0
 				moved = true
@@ -184,7 +199,10 @@ func _do_hit() -> bool:
 	var rb: float = bit_radius()
 	var cells: Array[Vector2i] = world.cells_in_circle(c, rb, dig_ceiling())
 	cells.append_array(world.blocking_cells(position + facing * PLOW_PX, radius))
-	var res: WorldModel.DigResult = world.dig_cells(cells, roll.x, dig_ceiling())
+	var res: WorldModel.DigResult = world.dig_cells(cells, roll.x, dig_ceiling(), stats.drill_tier)
+	if res.too_hard >= 0 and _unbreakable_cd <= 0.0:
+		_unbreakable_cd = UNBREAKABLE_FEEDBACK_SEC
+		blocked_by_hardness.emit(c + facing * rb * 0.6, res.too_hard)
 	if res.touched == 0:
 		if res.unbreakable and _unbreakable_cd <= 0.0:
 			_unbreakable_cd = UNBREAKABLE_FEEDBACK_SEC
@@ -201,7 +219,7 @@ func _do_hit() -> bool:
 ## Escavação vinda de módulos (drone, pulso). Mesmos sinais, drops e carga dos golpes
 ## normais; respeita o teto (nada acima da máquina).
 func apply_external_dig(center: Vector2, r: float, raw_damage: float, crit: bool) -> WorldModel.DigResult:
-	var res: WorldModel.DigResult = world.dig_circle(center, r, raw_damage, dig_ceiling())
+	var res: WorldModel.DigResult = world.dig_circle(center, r, raw_damage, dig_ceiling(), stats.drill_tier)
 	if res.touched > 0:
 		dig_hit.emit(center, res.main_id, crit, res.removed())
 		_on_dug(res, center)
@@ -216,6 +234,8 @@ func apply_hull_damage(amount: float) -> void:
 
 
 func _on_dug(res: WorldModel.DigResult, at: Vector2) -> void:
+	for blk in res.chest_blocks:
+		chest_opened.emit(blk)
 	if res.counts.is_empty():
 		return
 	dug.emit(res.counts, at)

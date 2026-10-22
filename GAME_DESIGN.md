@@ -301,7 +301,8 @@ Cavando reto quase não há materiais: ~3 peças.
 |---|---|
 | Tanque | 120 (≈ 2 min de atividade); Tanque +15%/nível |
 | Consumo | 1/s movendo ou cavando; ×1,5 na Sobrecarga; Eficiência −5%/nível |
-| Carvão | +12 de combustível por bloco |
+| Carvão | +6 de combustível por bloco (0.12; ~55% menos carvão no mapa) |
+| Níveis de broca | Broca Nv. 0 cobre/quartzo/carvão · Nv. 2 ferro/prata/cristal/fóssil · Nv. 5 ouro/ametista · Nv. 9 rubi/esmeralda/titânio/urânio/obsidiana · Nv. 13 diamante/meteorito/arcano/cristal raro/artefato |
 | Partida | sempre da superfície; cair por túneis antigos não gasta combustível |
 | Casco | 100; Blindagem +20/nível; calor acima de 1,0 tira 3/s por nível (−refrigeração) |
 | Resgate | mantém 50% da carga ganha na expedição |

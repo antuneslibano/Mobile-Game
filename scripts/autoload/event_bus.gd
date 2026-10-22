@@ -50,3 +50,9 @@ signal looks_changed
 # Criaturas (0.11)
 signal creature_discovered(species: StringName)
 signal creature_defeated(species: StringName)
+
+# 0.12
+## Minério acima do nível da broca (id do bloco).
+signal drill_too_weak(block_id: int)
+## Baú aberto: raridade (0 comum, 1 raro, 2 lendário), recompensa e planta (ou &"").
+signal chest_opened(rarity: int, blueprint: StringName)

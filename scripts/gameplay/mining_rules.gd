@@ -23,3 +23,38 @@ static func hits_to_break(stats: DrillStats, block_id: int) -> int:
 		return -1
 	var dmg: float = effective_damage(stats.damage * stats.efficiency, def.hardness)
 	return ceili(def.max_hp / dmg)
+
+
+# --- Níveis de broca (0.12) -----------------------------------------------------------
+## A broca só quebra minérios até o seu nível: a inicial não fura ferro; aprimorando a
+## Broca (dano) ela passa a quebrar ferro e prata, depois ouro, e assim por diante.
+## Terreno e baús quebram com qualquer broca. Valores `[T]` em Balance.DRILL_TIER_LEVELS.
+const TIER_NAMES: Array[String] = ["Aço", "Reforçada", "Dourada", "Cristal", "Diamante"]
+
+
+## Nível de broca necessário para quebrar um bloco (0 = qualquer broca).
+static func required_tier(block_id: int) -> int:
+	var B := BlockRegistry
+	match block_id:
+		B.IRON, B.SILVER, B.CRYSTAL, B.FOSSIL:
+			return 1
+		B.GOLD, B.AMETHYST:
+			return 2
+		B.RUBY, B.EMERALD, B.TITANIUM, B.URANIUM, B.OBSIDIAN:
+			return 3
+		B.DIAMOND, B.METEORITE, B.VOIDITE, B.RARE_CRYSTAL, B.ARTIFACT:
+			return 4
+	return 0
+
+
+## Nível da broca a partir do nível do aprimoramento Broca (dano).
+static func tier_for_level(damage_level: int) -> int:
+	var t: int = 0
+	for i in Balance.DRILL_TIER_LEVELS.size():
+		if damage_level >= Balance.DRILL_TIER_LEVELS[i]:
+			t = i
+	return t
+
+
+static func can_break(block_id: int, drill_tier: int) -> bool:
+	return required_tier(block_id) <= drill_tier

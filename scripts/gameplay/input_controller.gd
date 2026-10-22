@@ -89,7 +89,8 @@ func _process(_delta: float) -> void:
 		pressed[kind] = true
 		if kind == &"boost":
 			_intent.boost = true
-	# Teclado (desktop): setas/WASD combinam direções (diagonais incluídas); cima não existe.
+	# Teclado (desktop): setas/WASD combinam direções (diagonais incluídas); cima só em
+	# rampa (com um lado).
 	var k := Vector2.ZERO
 	if Input.is_key_pressed(KEY_LEFT) or Input.is_key_pressed(KEY_A):
 		k.x -= 1.0
@@ -97,8 +98,10 @@ func _process(_delta: float) -> void:
 		k.x += 1.0
 	if Input.is_key_pressed(KEY_DOWN) or Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_SPACE):
 		k.y += 1.0
+	if Input.is_key_pressed(KEY_UP) or Input.is_key_pressed(KEY_W):
+		k.y -= Balance.CLIMB_SLOPE
 	if k != Vector2.ZERO:
-		_intent.aim = k.normalized()
+		_intent.aim = DrillIntent.sanitize(k.normalized())
 	if Input.is_key_pressed(KEY_SHIFT):
 		_intent.boost = true
 	if hud != null:

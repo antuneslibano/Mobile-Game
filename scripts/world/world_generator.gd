@@ -14,7 +14,11 @@ const VEIN_MULT: float = 3.4
 const OUTSIDE_VEIN_MULT: float = 0.08
 const VEIN_THRESHOLD: float = 0.32
 ## Escala vertical das cavernas (<1 = cavernas mais largas que altas).
-const CAVE_Y_SCALE: float = 1.45
+const CAVE_Y_SCALE: float = 1.3
+const TERRACE_ROWS: float = 3.0
+## Galerias (0.12): túneis naturais compridos e quase horizontais que ligam as cavernas,
+## com piso mais regular para as criaturas andarem. Largura no ruído "ridged" (|n| < w).
+const GALLERY_WIDTH: float = 0.1
 ## Linhas após SAFE_SURFACE_ROWS em que as cavernas aparecem gradualmente.
 const CAVE_FADE_ROWS: int = 10
 
@@ -30,6 +34,7 @@ var _floor_cy: int = 0
 var region: RegionDef
 var _layers: Array[BiomeDef] = []
 var _cave: FastNoiseLite
+var _gallery: FastNoiseLite
 var _mix: FastNoiseLite
 var _ore: FastNoiseLite
 var _border: FastNoiseLite
@@ -49,7 +54,8 @@ func _init(p_seed: int, p_region: RegionDef = null) -> void:
 	seed_value = p_seed
 	region = p_region if p_region != null else RegionRegistry.all()[0]
 	_layers = region.layers
-	_cave = _make_noise(p_seed, 0.07, 2)
+	_cave = _make_noise(p_seed, 0.055, 2)
+	_gallery = _make_noise(p_seed + 606, 0.035, 1)
 	_mix = _make_noise(p_seed + 101, 0.11, 1)
 	_ore = _make_noise(p_seed + 202, 0.17, 1)
 	_border = _make_noise(p_seed + 303, 0.21, 1)
@@ -168,9 +174,16 @@ func _cell(x: int, y: int, biome_id: int) -> int:
 	if y >= Balance.SAFE_SURFACE_ROWS:
 		var fade: float = clampf(float(y - Balance.SAFE_SURFACE_ROWS) / CAVE_FADE_ROWS, 0.0, 1.0)
 		var threshold: float = lerpf(1.0, biome.cave_threshold, fade)
-		var c: float = (_cave.get_noise_2d(float(x), float(y) * CAVE_Y_SCALE) + 1.0) * 0.5
+		# Salões em patamares: a altura é amostrada de 3 em 3 blocos, então pisos e tetos
+		# saem planos (com degraus de 1–3 blocos que as criaturas sobem).
+		var ty: float = floorf(float(y) / TERRACE_ROWS) * TERRACE_ROWS
+		var c: float = (_cave.get_noise_2d(float(x) * 0.75, ty * CAVE_Y_SCALE) + 1.0) * 0.5
 		if c > threshold:
 			return BlockRegistry.AIR
+		if y >= Balance.SAFE_SURFACE_ROWS + 4:
+			var gy: float = floorf(float(y) / 2.0) * 2.0
+			if absf(_gallery.get_noise_2d(float(x) * 0.5, gy * 1.6)) < GALLERY_WIDTH * fade:
+				return BlockRegistry.AIR
 
 	# Minérios e especiais (especiais raros não se concentram em veios).
 	var ids: PackedInt32Array = _ore_ids[biome_id]

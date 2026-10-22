@@ -134,3 +134,11 @@ const GUARDIAN_INVULN_SEC: float = 1.0       ## Casco sem novo dano logo após u
 const GUARDIAN_INTERVALS: Array[float] = [1.7, 1.3, 0.95]  ## Entre ataques, por fase.
 const GUARDIAN_WARNS: Array[float] = [0.85, 0.75, 0.65]    ## Aviso antes de subir, por fase.
 const GUARDIAN_REWARD_CRYSTALS: int = 8      ## Cristais (× dificuldade) + 1 Artefato ao vencê-lo.
+
+# --- Níveis de broca (0.12) -----------------------------------------------------------
+## Nível do aprimoramento Broca em que ela passa a quebrar cada classe de minério
+## (0: cobre/quartzo/carvão; 1: ferro/prata/cristal/fóssil; 2: ouro/ametista;
+## 3: rubi/esmeralda/titânio/urânio/obsidiana; 4: diamante/meteorito/arcano/raro/artefato).
+const DRILL_TIER_LEVELS: Array[int] = [0, 2, 5, 9, 13]
+## Subida em rampa: componente para cima ≤ esta fração do movimento lateral (~35°).
+const CLIMB_SLOPE: float = 0.7

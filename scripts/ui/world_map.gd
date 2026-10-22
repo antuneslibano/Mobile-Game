@@ -18,6 +18,7 @@ var _close: Button
 var _credits: Label
 var _crystals: Label
 var _garage: Button
+var _confirm: Control
 
 
 func _ready() -> void:
@@ -398,6 +399,71 @@ func _tunnels_panel(r: RegionDef) -> void:
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	l.custom_minimum_size = Vector2(240, 0)
 	row.add_child(l)
+	var nb := Button.new()
+	nb.name = "NewAreaButton"
+	nb.text = UiTheme.display_text("EXPLORAR NOVA ÁREA")
+	nb.custom_minimum_size = Vector2(0, 76)
+	nb.add_theme_font_size_override("font_size", UiTheme.font_size(24, 700))
+	UiTheme.style_button(nb, &"steel")
+	nb.pressed.connect(func() -> void: ask_new_area(r))
+	box.add_child(nb)
+
+
+## Confirmação de "nova área" (a área atual da região é apagada).
+func ask_new_area(r: RegionDef) -> void:
+	if _confirm != null:
+		_confirm.queue_free()
+	_confirm = Control.new()
+	_confirm.name = "NewAreaConfirm"
+	_confirm.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_root.add_child(_confirm)
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.7)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_confirm.add_child(dim)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", PixelArt.style(&"frame"))
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.custom_minimum_size = Vector2(620, 0)
+	panel.position = Vector2(50, 360)
+	_confirm.add_child(panel)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 14)
+	panel.add_child(v)
+	var plate := PanelContainer.new()
+	plate.add_theme_stylebox_override("panel", PixelArt.style(&"red_pressed"))
+	v.add_child(plate)
+	var t := UiTheme.label("NOVA ÁREA?", 34, UiTheme.TEXT, 700)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	plate.add_child(t)
+	var msg := UiTheme.label("Você vai explorar um mapa novo de %s. A área atual será APAGADA: túneis, minério e baús que ficaram para trás e o recorde de profundidade. Objetivos, guardião vencido, catálogo e o armazém continuam." % r.display_name, 24, UiTheme.TEXT, 500)
+	msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	msg.custom_minimum_size = Vector2(560, 0)
+	v.add_child(msg)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	v.add_child(row)
+	var no := Button.new()
+	no.name = "Cancel"
+	no.text = UiTheme.display_text("CANCELAR")
+	no.custom_minimum_size = Vector2(0, 80)
+	no.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	no.add_theme_font_size_override("font_size", UiTheme.font_size(26, 700))
+	UiTheme.style_button(no, &"steel")
+	no.pressed.connect(func() -> void: _confirm.queue_free())
+	row.add_child(no)
+	var yes := Button.new()
+	yes.name = "Confirm"
+	yes.text = UiTheme.display_text("NOVA ÁREA")
+	yes.custom_minimum_size = Vector2(0, 80)
+	yes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	yes.add_theme_font_size_override("font_size", UiTheme.font_size(26, 700))
+	UiTheme.style_button(yes, &"red")
+	yes.pressed.connect(func() -> void:
+		GameState.new_area(r.id)
+		_confirm.queue_free()
+		_refresh())
+	row.add_child(yes)
 
 
 func _safe_top() -> float:

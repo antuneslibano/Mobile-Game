@@ -85,6 +85,7 @@ func has_badge(kind: StringName) -> bool:
 
 
 func press(kind: StringName) -> void:
+	Sfx.play(&"click")
 	station_requested.emit(kind)
 
 

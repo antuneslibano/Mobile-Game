@@ -353,3 +353,22 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
 - **Visual da nave**: `ShipLooks` (opções por encaixe e requisitos; `resolve` = escolha
   salva ou a melhor liberada); `ShipArt.frame(i, look)` gera e guarda o sprite de cada
   combinação; `DrillVisual.look`, a vitrine do Hangar e a base usam `GameState.ship_look()`.
+
+## 16. 0.12: broca por nível, rampas, baús e som
+
+- **Níveis de broca**: `MiningRules.required_tier/tier_for_level` (limiares em
+  `Balance.DRILL_TIER_LEVELS`); `DrillStats.drill_tier`; `WorldModel.dig_cells(..., drill_tier)`
+  devolve `too_hard` e a `Drill` emite `blocked_by_hardness` → HUD "BROCA FRACA".
+- **Rampas**: `DrillIntent.sanitize` limita a subida a `CLIMB_SLOPE` do lateral (quase
+  vertical = nada); `Drill` deixa os propulsores vencerem a gravidade só nessa proporção e
+  não desliza para cima quando trava de lado; `dig_ceiling` libera a broca na subida.
+- **Cavernas**: `WorldGenerator._cell` amostra os salões em patamares de 3 blocos e soma
+  galerias horizontais (`_gallery`, ruído ridged).
+- **Baús**: `Chests.rarity` (posição + seed + profundidade) e `Chests.open` (recompensa e
+  planta); `DigResult.chest_blocks` → `Drill.chest_opened` → `Game._on_chest_opened` →
+  `GameState.open_chest`; `Economy.blueprints` (salvo) liberam opções `bp:` em `ShipLooks`;
+  `OreGlow` pinta a aura do baú com a cor da raridade.
+- **Nova área**: `GameState.new_area` incrementa `region_variant` (entra na seed da região)
+  e apaga escavação e recorde.
+- **Som**: autoload `Sfx` sintetiza `AudioStreamWAV` na inicialização; `play`, `drill`,
+  `engine`; loops silenciam com o jogo pausado.

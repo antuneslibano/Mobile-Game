@@ -39,6 +39,12 @@ static func plan(w: WorldModel, index: int) -> Dictionary:
 				continue
 			var center := Vector2((bx + 0.5) * sub * Balance.CELL_PX, (by + 0.5) * sub * Balance.CELL_PX)
 			var col: Color = def.color_accent.lightened(0.35)
+			if id == BlockRegistry.CHEST:
+				# Baú: a cor da aura mostra a raridade (dourada, azul, roxa).
+				var gy: int = by + index * (ch / sub)
+				var rar: int = Chests.rarity(Vector2i(bx, gy), w.generator.seed_value, gy)
+				col = Chests.COLORS[rar]
+				tier = 1 if rar == Chests.COMMON else 2
 			out[Vector2i(lc.x, lc.y + index * ch)] = [center, tier, col, EnvArt.hash01(bx, by + index * 16, 913)]
 	return out
 
