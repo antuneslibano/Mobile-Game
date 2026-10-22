@@ -185,9 +185,46 @@ func test_sounds() -> void:
 	for n: StringName in [&"drill", &"engine", &"hit", &"break", &"clank", &"pickup", &"chest", &"ship_hit", &"creature", &"boost", &"click", &"whoosh", &"firefly", &"mole", &"spider", &"worm", &"bite"]:
 		var st: AudioStreamWAV = (s.get("_streams") as Dictionary).get(n)
 		check(st != null and st.data.size() > 100, "som %s gerado" % n)
+	for n: StringName in [&"shutter", &"door_slam"]:
+		check((s.get("_streams") as Dictionary).has(n), "som %s gerado" % n)
+	# 0.15: trilha normalizada (pico ~90%) tocando a 25% do volume da broca.
+	s.call("_build_music_thread")
+	var music: AudioStreamWAV = s.get("_music_wav")
+	var peak: int = 0
+	for i in range(0, music.data.size() / 2, 7):
+		peak = maxi(peak, absi(music.data.decode_s16(i * 2)))
+	check(peak > 26000, "trilha normalizada (pico %d)" % peak)
+	check(is_equal_approx(db_to_linear(float(s.get("music_db"))) / db_to_linear(float(s.get("DRILL_DB"))), 0.25), "trilha a 25% do volume da broca")
 	var drill: AudioStreamWAV = (s.get("_streams") as Dictionary)[&"drill"]
 	check(drill.loop_mode == AudioStreamWAV.LOOP_FORWARD, "broca em loop")
 	s.free()
+
+
+## 0.15: plantas bioluminescentes nas cavernas do Vale (e só no Vale), espaçadas.
+func test_bio_plants() -> void:
+	var total: int = 0
+	var other: int = 0
+	var too_close: bool = false
+	var w := WorldModel.new(77, RegionRegistry.get_def(RegionRegistry.VALE))
+	var w2 := WorldModel.new(77, RegionRegistry.get_def(&"dunas"))
+	for idx in range(2, 20):
+		var bios: Array[Vector2i] = []
+		var plan: Dictionary = CaveDecor.plan(w, idx, &"vale")
+		for c: Vector2i in plan:
+			if CaveDecor.is_bio(plan[c]):
+				for o in bios:
+					if absi(o.x - c.x) < CaveDecor.BIO_SPACING and absi(o.y - c.y) < CaveDecor.BIO_SPACING:
+						too_close = true
+				bios.append(c)
+		total += bios.size()
+		var plan2: Dictionary = CaveDecor.plan(w2, idx, &"dunas")
+		for c: Vector2i in plan2:
+			if CaveDecor.is_bio(plan2[c]):
+				other += 1
+	note("plantas bioluminescentes em 18 chunks do Vale: %d" % total)
+	check(total >= 5 and total <= 120, "Vale tem plantas bioluminescentes, mas poucas (%d)" % total)
+	check(not too_close, "plantas espaçadas")
+	check_eq(other, 0, "nenhuma planta bioluminescente fora do Vale")
 
 
 ## 0.13: forçar minério duro demais esquenta a broca e fere o casco.

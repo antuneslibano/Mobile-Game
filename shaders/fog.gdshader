@@ -9,7 +9,7 @@ uniform float radius = 220.0;
 uniform float strength = 0.92;
 uniform vec4 fog_color : source_color = vec4(0.012, 0.016, 0.03, 1.0);
 uniform int light_count = 0;
-uniform vec4 lights[8];    // xy = posição (px de tela), z = raio, w = intensidade
+uniform vec4 lights[12];    // xy = posição (px de tela), z = raio, w = intensidade
 
 float band(float d, float r) {
 	// Transição longa e suave (0.14): começa a escurecer em 30% do raio e só fecha em 100%,
@@ -23,7 +23,7 @@ void fragment() {
 	// Pixels de 6 px: a borda da luz fica serrilhada como pixel art.
 	p = floor(p / 6.0) * 6.0 + 3.0;
 	float vis = band(distance(p, ship_pos), radius);
-	for (int i = 0; i < 8; i++) {
+	for (int i = 0; i < 12; i++) {
 		if (i >= light_count) break;
 		vec4 l = lights[i];
 		vis = max(vis, band(distance(p, l.xy), l.z) * l.w);

@@ -190,6 +190,7 @@ Instalar: `adb install -r build/deepforge.apk`, ou copie o APK para o celular e 
 | 0.12 | Broca por nível, subida em rampa, cavernas em patamares, baús raros com plantas, nova área, sons | ✅ |
 | 0.13 | Névoa com luz da nave, sonar, broca forçada esquenta, onda de choque em anéis, correções de interface | ✅ |
 | 0.14 | Catálogo com fichas no Laboratório, trilha sonora e sons das criaturas, tela de abertura, transições, baú coletável, receitas graduais, desempenho | ✅ |
+| 0.15 | Porta de metal nas trocas de tela, plantas bioluminescentes no Vale, volume da trilha e da máquina | ✅ |
 | 0.10–0.11 | Base com construção, criaturas — ver [ROADMAP_EXPEDICOES.md](ROADMAP_EXPEDICOES.md) | planejado |
 | 5 | Arte, efeitos, áudio, otimização, exportação Android | pendente |
 

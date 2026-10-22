@@ -155,18 +155,21 @@ func _notification(what: int) -> void:
 	if what != NOTIFICATION_WM_GO_BACK_REQUEST:
 		return
 	if garage != null and garage.is_open():
-		garage.close()
+		garage.close_animated()
 	elif world_map != null and world_map.is_open():
-		world_map.close()
+		world_map.close_animated()
 	elif base != null and base.is_open():
 		get_tree().quit()
 
 
 ## EXPLORAR no mapa: começa uma expedição na região, sempre a partir da superfície.
 func _on_explore(region_id: StringName) -> void:
-	_start_expedition(region_id)
-	world_map.close()
-	base.close()
+	if Transitions.shutter_busy():
+		return
+	Transitions.shutter(get_tree(), func() -> void:
+		_start_expedition(region_id)
+		world_map.close()
+		base.close())
 
 
 ## start_row > 0 só em testes/depuração (--start-row).
@@ -219,8 +222,12 @@ func _back_to_base() -> void:
 
 
 ## Estação tocada na base.
+## A troca passa pela porta de metal (Transitions.shutter).
 func _on_station(kind: StringName) -> void:
-	if kind == &"map":
-		world_map.open()
-	else:
-		garage.open_station(kind)
+	if Transitions.shutter_busy():
+		return
+	Transitions.shutter(get_tree(), func() -> void:
+		if kind == &"map":
+			world_map.open()
+		else:
+			garage.open_station(kind))

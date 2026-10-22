@@ -115,7 +115,7 @@ func _build(r: Dictionary) -> void:
 	back.custom_minimum_size = Vector2(0, 88)
 	back.add_theme_font_size_override("font_size", UiTheme.font_size(34, 700))
 	UiTheme.style_button(back, &"green")
-	back.pressed.connect(close)
+	back.pressed.connect(func() -> void: Transitions.shutter(get_tree(), close))
 	v.add_child(back)
 
 

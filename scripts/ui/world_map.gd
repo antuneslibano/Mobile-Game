@@ -45,8 +45,6 @@ func open() -> void:
 	_crystals.text = UiTheme.short_number(GameState.economy.crystals)
 	_carousel.setup(RegionRegistry.all(), RegionRegistry.index_of(GameState.region_id))
 	_refresh()
-	Transitions.slide_in(_root)
-	Sfx.play(&"whoosh")
 	EventBus.map_opened.emit()
 
 
@@ -60,6 +58,12 @@ func close() -> void:
 	get_tree().paused = _was_paused
 	EventBus.map_closed.emit()
 	closed.emit()
+
+
+## Volta para a base passando pela porta de metal.
+func close_animated() -> void:
+	if visible and not Transitions.shutter_busy():
+		Transitions.shutter(get_tree(), close)
 
 
 func current_region() -> RegionDef:
@@ -82,7 +86,7 @@ func explore() -> bool:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if visible and event.is_action_pressed("ui_cancel"):
-		close()
+		close_animated()
 		get_viewport().set_input_as_handled()
 
 
@@ -142,7 +146,7 @@ func _build() -> void:
 	_close.add_theme_constant_override("icon_max_width", 30)
 	_close.custom_minimum_size = Vector2(64, 64)
 	UiTheme.style_button(_close, &"red")
-	_close.pressed.connect(close)
+	_close.pressed.connect(close_animated)
 	header.add_child(_close)
 
 	# Carrossel.
@@ -180,7 +184,7 @@ func _build() -> void:
 	_garage.custom_minimum_size = Vector2(230, 88)
 	_garage.add_theme_font_size_override("font_size", UiTheme.font_size(30, 700))
 	UiTheme.style_button(_garage, &"gold")
-	_garage.pressed.connect(close)
+	_garage.pressed.connect(close_animated)
 	bottom.add_child(_garage)
 	bottom.add_child(_explore)
 

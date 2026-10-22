@@ -9,6 +9,7 @@ var creatures: CreatureManager
 var guardian: FinalGuardian
 var sonar: SonarOverlay
 var _rect: ColorRect
+const MAX_LIGHTS: int = 12
 var _mat: ShaderMaterial
 
 
@@ -55,16 +56,27 @@ func _process(_delta: float) -> void:
 		lights.append(Vector4(sp.x, sp.y, sonar.wave_radius * sc, 0.2 * glow))
 	if creatures != null:
 		for c in creatures.creatures:
-			if lights.size() >= 8:
+			if lights.size() >= MAX_LIGHTS - 4:  # deixa vaga para as plantas
 				break
 			if c.species == &"firefly":
 				var fp: Vector2 = xf * c.pos
 				if fp.x > -100 and fp.y > -100 and fp.x < vp.x + 100 and fp.y < vp.y + 100:
 					lights.append(Vector4(fp.x, fp.y, 70.0 * sc, 0.8))
+	# Plantas bioluminescentes (0.15): luz fraca e pulsando devagar, só para guiar.
+	var now: float = Time.get_ticks_msec() / 1000.0
+	for d in CaveDecor.live:
+		if lights.size() >= MAX_LIGHTS:
+			break
+		for wp in d.bio_lights():
+			if lights.size() >= MAX_LIGHTS:
+				break
+			var bp: Vector2 = xf * wp
+			if bp.x > -120 and bp.y > -120 and bp.x < vp.x + 120 and bp.y < vp.y + 120:
+				lights.append(Vector4(bp.x, bp.y, Balance.BIO_LIGHT_BLOCKS * Balance.BLOCK_PX * sc, 0.7 + 0.08 * sin(now * 1.6 + wp.x * 0.05)))
 	var arr: Array = []
 	for l in lights:
 		arr.append(l)
-	while arr.size() < 8:
+	while arr.size() < MAX_LIGHTS:
 		arr.append(Vector4.ZERO)
 	_mat.set_shader_parameter("lights", arr)
 	_mat.set_shader_parameter("light_count", lights.size())

@@ -33,3 +33,25 @@ static func bump(c: Control) -> void:
 	var tw: Tween = c.create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tw.tween_property(c, "scale", Vector2(0.92, 0.92), 0.06)
 	tw.tween_property(c, "scale", Vector2.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+# --- Porta de metal (0.15) -------------------------------------------------------------
+
+## Desligada nos testes de cena que trocam de tela muitas vezes (a troca fica imediata).
+static var shutter_enabled: bool = true
+static var _door: ShutterDoor = null
+
+
+## Troca de tela com a porta de metal: desce batendo nos trilhos, fecha com um "clank",
+## on_closed troca a tela por trás dela, e ela sobe de novo. Sem porta: troca na hora.
+static func shutter(tree: SceneTree, on_closed: Callable) -> void:
+	if not shutter_enabled or tree == null or is_instance_valid(_door):
+		on_closed.call()
+		return
+	_door = ShutterDoor.new()
+	_door.on_closed = on_closed
+	tree.root.add_child(_door)
+
+
+static func shutter_busy() -> bool:
+	return is_instance_valid(_door)

@@ -404,3 +404,15 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
 - **Receitas**: `Recipes.materials` cresce a cada nível dentro do tier.
 - **Desempenho**: `OreGlow` redesenha a 30 Hz só na tela; `GameState.ship_look` em cache
   (500 ms, invalidado em `set_look`).
+
+## 19. 0.15: porta de metal, plantas bioluminescentes e volume
+
+- **Porta** (`ShutterDoor`, CanvasLayer 45): `Transitions.shutter(tree, on_closed)` cria a
+  porta, que desce, quica, chama `on_closed` (a troca de tela) e sobe. Usada por
+  `main._on_station`/`_on_explore`, `close_animated` da Garage e do WorldMap e pelo botão
+  do relatório. `Transitions.shutter_enabled = false` deixa a troca imediata (testes).
+- **Plantas** (`CaveDecor`): itens `bio_floor`/`bio_ceil` só nas regiões `BIO_REGIONS`,
+  com `BIO_CHANCE`, `BIO_SPACING` e `BIO_MIN_ROW`; `bio_lights()` (cache) alimenta a
+  `FogLayer` pelo registro estático `CaveDecor.live`. A névoa aceita até 12 luzes.
+- **Volume**: `Sfx.DRILL_DB`/`ENGINE_DB`; `music_db = DRILL_DB + linear_to_db(0.25)` com a
+  trilha normalizada.

@@ -8,6 +8,15 @@ extends Node2D
 
 const SINK_PX: float = 3.0           ## Base afundada 1 pixel de arte no apoio.
 const CHANCE_PER_CELL: float = 0.35  ## Multiplica a densidade da camada (por célula de borda).
+## Plantas bioluminescentes (0.15, só no Vale): chance por célula de borda de caverna,
+## distância mínima entre elas (células) e profundidade mínima (células, abaixo da névoa).
+const BIO_CHANCE: float = 0.014
+const BIO_SPACING: int = 30
+const BIO_MIN_ROW: int = 64
+const BIO_REGIONS: Array[StringName] = [&"vale"]
+
+## Decorações vivas (a névoa procura as luzes das plantas nelas).
+static var live: Array[CaveDecor] = []
 
 var world: WorldModel
 var chunk_index: int = 0
@@ -51,6 +60,9 @@ static func plan(w: WorldModel, index: int, region_id: StringName) -> Dictionary
 				kind = &"ceil"
 			else:
 				continue
+			if region_id in BIO_REGIONS and cy >= BIO_MIN_ROW and EnvArt.hash01(cx, cy, 5151) < BIO_CHANCE and not _bio_near(out, c):
+				out[c] = [-1, EnvArt.hash01(cx, cy, 99) < 0.5, &"bio_" + String(kind)]
+				continue
 			var layer: int = gen.biome_at_cell(cx, cy)
 			if not tables.has(layer):
 				tables[layer] = TerrainSkins.decor_for(region_id, layer)
@@ -67,6 +79,44 @@ static func plan(w: WorldModel, index: int, region_id: StringName) -> Dictionary
 	return out
 
 
+static func is_bio(e: Array) -> bool:
+	return String(e[2]).begins_with("bio_")
+
+
+static func _bio_near(out: Dictionary, c: Vector2i) -> bool:
+	for o: Vector2i in out:
+		if is_bio(out[o]) and absi(o.x - c.x) < BIO_SPACING and absi(o.y - c.y) < BIO_SPACING:
+			return true
+	return false
+
+
+## Posições (mundo) das luzes das plantas bioluminescentes deste chunk (em cache).
+func bio_lights() -> PackedVector2Array:
+	return _bio
+
+
+var _bio := PackedVector2Array()
+
+
+func _update_bio() -> void:
+	var out := PackedVector2Array()
+	for c: Vector2i in items:
+		var e: Array = items[c]
+		if is_bio(e):
+			var up: bool = e[2] == &"bio_floor"
+			out.append(Vector2(c.x * Balance.CELL_PX + Balance.CELL_PX * 0.5, c.y * Balance.CELL_PX + (-40.0 if up else Balance.CELL_PX + 40.0)))
+	_bio = out
+
+
+func _enter_tree() -> void:
+	if not self in live:
+		live.append(self)
+
+
+func _exit_tree() -> void:
+	live.erase(self)
+
+
 static func _natural_air(w: WorldModel, c: Vector2i) -> bool:
 	return c.y >= 0 and w.peek_cell(c) == BlockRegistry.AIR and not w.is_modified(c)
 
@@ -75,6 +125,7 @@ func build(p_world: WorldModel, index: int) -> void:
 	world = p_world
 	chunk_index = index
 	items = plan(world, index, TerrainTextures.region_id)
+	_update_bio()
 	queue_redraw()
 
 
@@ -86,6 +137,7 @@ func on_cells_changed(cells: Array[Vector2i]) -> void:
 			items.erase(c)
 			changed = true
 	if changed:
+		_update_bio()
 		queue_redraw()
 
 
@@ -98,6 +150,9 @@ func _draw() -> void:
 	var y0: int = chunk_index * Balance.CHUNK_CELLS_Y
 	for c: Vector2i in items:
 		var e: Array = items[c]
+		if is_bio(e):
+			_draw_bio(c, e, y0)
+			continue
 		var x: float = c.x * Balance.CELL_PX + Balance.CELL_PX * 0.5 - size * 0.5
 		var y: float = (c.y - y0) * Balance.CELL_PX
 		if e[2] == &"floor":
@@ -109,3 +164,38 @@ func _draw() -> void:
 		if e[1]:
 			rect = Rect2(x + size, y, -size, size)
 		draw_texture_rect_region(tex, rect, TerrainTextures.decor_region(e[0]), Color(0.9, 0.9, 0.9))
+
+
+## Planta bioluminescente em pixels de arte: caule com folhas escuras e bulbos que brilham
+## (no chão cresce para cima; no teto pende para baixo).
+func _draw_bio(c: Vector2i, e: Array, y0: int) -> void:
+	var a: float = float(Balance.CELL_PX) / Balance.CELL_SUB * 2.0  # pixel grosso (6 px)
+	var up: bool = e[2] == &"bio_floor"
+	var sy: float = -1.0 if up else 1.0
+	var bx: float = roundf((c.x * Balance.CELL_PX + Balance.CELL_PX * 0.5) / a) * a
+	var by: float = (c.y - y0) * Balance.CELL_PX + (SINK_PX if up else Balance.CELL_PX - SINK_PX)
+	var fl: float = -1.0 if e[1] else 1.0
+	var leaf := Color("1f5a52")
+	var stem := Color("2f8a6e")
+	var glow := Color("5cf2d0")
+	var core := Color("eafffa")
+	var px := func(dx: float, dy: float, w: float, h: float, col: Color) -> void:
+		# dy cresce para longe da parede de apoio.
+		var x: float = bx + dx * fl * a
+		var rx: float = x if fl > 0.0 else x - w * a + a
+		var ry: float = by + sy * dy * a
+		draw_rect(Rect2(rx, ry if sy > 0.0 else ry - h * a + a, w * a, h * a), col)
+	draw_circle(Vector2(bx, by + sy * 7.0 * a), 6.0 * a, Color(0.5, 1.0, 0.9, 0.12))
+	draw_circle(Vector2(bx, by + sy * 8.0 * a), 3.5 * a, Color(0.6, 1.0, 0.9, 0.16))
+	px.call(0.0, 0.0, 1.0, 9.0, stem)
+	px.call(-3.0, 2.0, 3.0, 1.0, leaf)
+	px.call(1.0, 3.0, 3.0, 1.0, leaf)
+	px.call(-2.0, 5.0, 2.0, 1.0, leaf)
+	px.call(1.0, 4.0, 1.0, 3.0, stem)
+	px.call(-2.0, 6.0, 1.0, 2.0, stem)
+	px.call(-1.0, 9.0, 3.0, 2.0, glow)
+	px.call(0.0, 10.0, 1.0, 1.0, core)
+	px.call(1.0, 7.0, 2.0, 2.0, glow)
+	px.call(1.0, 8.0, 1.0, 1.0, core)
+	px.call(-3.0, 8.0, 2.0, 2.0, glow)
+	px.call(-3.0, 9.0, 1.0, 1.0, core)

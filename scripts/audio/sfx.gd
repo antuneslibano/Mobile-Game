@@ -24,7 +24,12 @@ var _music_task: int = -1
 var _music_wav: AudioStreamWAV = null  ## Escrita pela thread; lida depois que ela termina.
 const MUSIC_RATE: int = 11025
 const MUSIC_SEC: float = 24.0
-const MUSIC_DB: float = -21.0
+## Volume da máquina (loops da broca e do motor). 0.15: metade do que era (-6 dB).
+const DRILL_DB: float = -12.0
+const ENGINE_DB: float = -22.0
+## A trilha (normalizada) toca com 25% do volume da broca: -12 dB abaixo dela.
+const MUSIC_REL: float = 0.25
+var music_db: float = DRILL_DB + linear_to_db(MUSIC_REL)
 
 
 func _ready() -> void:
@@ -48,7 +53,11 @@ func _build_music_thread() -> void:
 	var n: int = int(MUSIC_SEC * MUSIC_RATE)
 	var data := PackedByteArray()
 	data.resize(n * 2)
-	var chords: Array = [[110.0, 130.81, 164.81], [87.31, 110.0, 130.81], [130.81, 164.81, 196.0], [98.0, 123.47, 146.83]]
+	# Uma oitava acima da 0.14: alto-falante de celular quase não toca graves.
+	var chords: Array = [[220.0, 261.63, 329.63], [174.61, 220.0, 261.63], [261.63, 329.63, 392.0], [196.0, 246.94, 293.66]]
+	var buf := PackedFloat32Array()
+	buf.resize(n)
+	var peak: float = 0.001
 	var seg: float = MUSIC_SEC / chords.size()
 	var bells: Array[float] = [440.0, 523.25, 587.33, 659.25, 783.99]
 	var bell_seq: Array[int] = [0, 2, 4, 3, -1, 1, 0, -1, 2, 4, -1, 3, 1, -1, 0, 2]
@@ -64,15 +73,20 @@ func _build_music_thread() -> void:
 				continue
 			env = env * env * (3.0 - 2.0 * env)
 			for f: float in chords[c]:
-				v += (sin(TAU * f * t) + 0.25 * sin(TAU * f * 2.0 * t + 0.5)) * env * 0.12
+				# Harmônicos médios (2×, 3×, 4×): é o que o alto-falante do celular reproduz.
+				v += (sin(TAU * f * t) + 0.45 * sin(TAU * f * 2.0 * t + 0.5) + 0.25 * sin(TAU * f * 3.0 * t + 1.1) + 0.12 * sin(TAU * f * 4.0 * t + 2.0)) * env * 0.1
 		var step: float = MUSIC_SEC / bell_seq.size()
 		var k: int = int(t / step) % bell_seq.size()
 		if bell_seq[k] >= 0:
 			var bt: float = t - k * step
 			var bf: float = bells[bell_seq[k]]
-			v += (sin(TAU * bf * bt) + 0.3 * sin(TAU * bf * 3.01 * bt)) * exp(-bt * 2.2) * 0.07
+			v += (sin(TAU * bf * bt) + 0.3 * sin(TAU * bf * 3.01 * bt)) * exp(-bt * 2.2) * 0.12
 		lp += (v - lp) * 0.35
-		data.encode_s16(i * 2, clampi(int(lp * 0.8 * 32767.0), -32768, 32767))
+		buf[i] = lp
+		peak = maxf(peak, absf(lp))
+	# Normaliza (pico em 90%); o volume final vem de music_db.
+	for i in n:
+		data.encode_s16(i * 2, clampi(int(buf[i] / peak * 0.9 * 32767.0), -32768, 32767))
 	var w := AudioStreamWAV.new()
 	w.format = AudioStreamWAV.FORMAT_16_BITS
 	w.mix_rate = MUSIC_RATE
@@ -140,13 +154,13 @@ func _process(delta: float) -> void:
 			_start_music(_music_wav)
 	var paused: bool = get_tree().paused
 	var dt: float = clampf(delta * 8.0, 0.0, 1.0)
-	var dv: float = -6.0 if (_drill_on and not paused) else -60.0
+	var dv: float = DRILL_DB if (_drill_on and not paused) else -60.0
 	_drill.volume_db = lerpf(_drill.volume_db, dv, dt)
 	_drill.pitch_scale = lerpf(_drill.pitch_scale, _drill_pitch, dt)
-	var ev: float = -16.0 if (_engine_on and not paused) else -60.0
+	var ev: float = ENGINE_DB if (_engine_on and not paused) else -60.0
 	_engine.volume_db = lerpf(_engine.volume_db, ev, dt)
 	if music_ready:
-		_music.volume_db = lerpf(_music.volume_db, MUSIC_DB if enabled else -80.0, clampf(delta * 0.8, 0.0, 1.0))
+		_music.volume_db = lerpf(_music.volume_db, music_db if enabled else -80.0, clampf(delta * 0.8, 0.0, 1.0))
 
 
 # --- Síntese -------------------------------------------------------------------------
@@ -204,6 +218,15 @@ func _build_all() -> void:
 	# Transição de tela: sopro de ar.
 	_streams[&"whoosh"] = _synth(0.28, false, func(t: float, _i: int) -> float:
 		return (rng.randf() * 2.0 - 1.0) * sin(PI * t / 0.28) * 0.5, 0.35)
+	# Porta de metal (0.15): chapas batendo nos trilhos ("tududu") ao descer/subir.
+	_streams[&"shutter"] = _synth(0.3, false, func(t: float, _i: int) -> float:
+		var ph: float = fposmod(t, 0.045)
+		var tick: float = exp(-ph * 90.0)
+		return ((rng.randf() * 2.0 - 1.0) * 0.6 + sin(TAU * 180.0 * t) * 0.6) * tick, 0.7)
+	# Porta fechando: batida grave de metal.
+	_streams[&"door_slam"] = _synth(0.35, false, func(t: float, _i: int) -> float:
+		var n: float = (rng.randf() * 2.0 - 1.0) * exp(-t * 40.0)
+		return (n + sin(TAU * 95.0 * t) * 0.9 + sin(TAU * 263.0 * t) * 0.35) * exp(-t * 11.0), 0.85)
 	# Criaturas.
 	_streams[&"firefly"] = _synth(0.22, false, func(t: float, _i: int) -> float:
 		var on: float = 1.0 if fposmod(t, 0.11) < 0.05 else 0.0

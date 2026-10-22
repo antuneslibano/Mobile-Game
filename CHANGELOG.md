@@ -3,6 +3,20 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.15.0] — Porta de metal, plantas que brilham e volume
+
+### Adicionado
+- **Porta de metal** nas trocas de tela (base ↔ estações, mapa, relatório, EXPLORAR): a
+  porta de enrolar desce batendo nos trilhos, fecha com um "clank" e um quique, a tela
+  troca por trás e ela sobe de novo.
+- **Plantas bioluminescentes** nas cavernas do Vale (chão e teto, espaçadas): brilham
+  fraquinho e clareiam um pouco a névoa em volta, servindo de guia.
+
+### Alterado
+- **Volume**: broca e motor com metade do volume (-6 dB); a trilha toca com 25% do
+  volume da broca. A trilha subiu uma oitava, ganhou harmônicos médios e é normalizada
+  — antes ela era quase só grave, que o alto-falante do celular não reproduz.
+
 ## [0.14.0] — Catálogo, trilha sonora, abertura e polimento
 
 ### Adicionado

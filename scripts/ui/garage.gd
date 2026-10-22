@@ -79,8 +79,6 @@ func open_station(kind: StringName) -> void:
 		_was_paused = get_tree().paused
 		get_tree().paused = true
 		EventBus.garage_opened.emit()
-		Transitions.slide_in(_root)
-		Sfx.play(&"whoosh")
 	else:
 		Transitions.fade_in(_root, 0.18)
 	_show_page()
@@ -95,6 +93,12 @@ func station() -> StringName:
 	return _kind
 
 
+## Volta para a base passando pela porta de metal.
+func close_animated() -> void:
+	if visible and not Transitions.shutter_busy():
+		Transitions.shutter(get_tree(), close)
+
+
 func close() -> void:
 	if not visible:
 		return
@@ -106,7 +110,7 @@ func close() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if visible and event.is_action_pressed("ui_cancel"):
-		close()
+		close_animated()
 		get_viewport().set_input_as_handled()
 
 
@@ -219,7 +223,7 @@ func _build() -> void:
 	close_b.add_theme_constant_override("icon_max_width", 34)
 	close_b.custom_minimum_size = Vector2(72, 72)
 	UiTheme.style_button(close_b, &"red")
-	close_b.pressed.connect(close)
+	close_b.pressed.connect(close_animated)
 	header.add_child(close_b)
 
 	# Corpo rolável (arraste em qualquer ponto): vitrine, carga, abas e cartões.
