@@ -71,21 +71,27 @@ func test_stats_reflect_levels_and_preview() -> void:
 
 
 ## Simulação de balanceamento com expedições (tests/balance_sim.gd): o jogador que vai atrás
-## dos minérios conclui o Vale das Raízes (câmara final) e progride nas faixas-alvo.
+## dos minérios conclui o Vale das Raízes (vence o guardião) e progride nas faixas-alvo.
 func test_balance_simulation_greedy_player() -> void:
-	var r: Dictionary = Sim.run(&"minerios", 12.0)
-	note("12 min buscando minérios: " + Sim.summary(r))
+	var r: Dictionary = Sim.run(&"minerios", 16.0)
+	note("16 min buscando minérios: " + Sim.summary(r))
 	var marks: Dictionary = r.marks
 	# Faixas-alvo (GAME_DESIGN.md §7.2.1).
 	check(marks.has(50) and float(marks[50]) > 20.0 and float(marks[50]) < 300.0, "50 m entre 20 s e 5 min")
-	check(float(r.final_at) > 120.0 and float(r.final_at) < 720.0, "câmara final do Vale entre 2 e 12 min (%.0f s)" % float(r.final_at))
+	check(float(r.final_at) > 360.0 and float(r.final_at) < 900.0, "câmara final do Vale entre 6 e 15 min (%.0f s)" % float(r.final_at))
+	check(float(r.guardian_at) > float(r.final_at) + 5.0, "o guardião resiste a mais de 5 s de broca (%.0f s)" % (float(r.guardian_at) - float(r.final_at)))
 	check(int(r.expeditions) >= 3, "o combustível divide o jogo em expedições (%d)" % int(r.expeditions))
-	check((r.elevators as Array).size() >= 2, "elevadores instalados (%s)" % str(r.elevators))
+	check(int(r.first_trip_depth) < r_target(), "a 1ª expedição não chega ao fundo (%d m)" % int(r.first_trip_depth))
+	check(int(r.fuel_outs) >= 2, "o combustível acaba de verdade (%d expedições no limite)" % int(r.fuel_outs))
 	check(r.bought >= 10, "compra ao menos 10 upgrades (%d)" % r.bought)
 	check(not (r.modules as Array).is_empty(), "adquire e equipa ao menos um módulo")
 	check(r.first_full > 20.0, "a energia exige esforço: 1ª Sobrecarga após 20 s (%.0f s)" % r.first_full)
 	check(r.overdrives >= 2 and r.overdrives <= 30, "Sobrecargas são eventos, não spam (%d)" % r.overdrives)
 	check(float(r.refuel) > 0.0, "carvão abastece o tanque")
+
+
+func r_target() -> int:
+	return RegionRegistry.get_def(RegionRegistry.VALE).target_depth_m / 2
 
 
 ## O dinheiro está nos minérios: desviar até eles rende muito mais do que cavar reto.

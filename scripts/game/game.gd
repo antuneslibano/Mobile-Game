@@ -14,9 +14,13 @@ extends Node2D
 
 var world: WorldModel
 var rig: ElevatorRig
+var guardian: FinalGuardian
 ## Extração em andamento (a nave sobe pelo cabo; física parada).
 var extracting: bool = false
+var _spark_t: float = 0.0
 signal extraction_finished
+## Guardião da câmara final vencido (casco restante, 0..1).
+signal guardian_defeated(hull_ratio: float)
 
 
 func _ready() -> void:
@@ -38,17 +42,23 @@ func _ready() -> void:
 	rig.name = "ElevatorRig"
 	add_child(rig)
 	move_child(rig, drill.get_index())
+	guardian = FinalGuardian.new()
+	guardian.name = "FinalGuardian"
+	add_child(guardian)
+	move_child(guardian, rig.get_index())
 
 
 ## Começa uma expedição: mundo fixo da região (com a escavação salva) e a nave na
-## superfície ou num elevador (start_row em metros, com o combustível já descontado).
-## mods vazio = mundo intocado.
-func start_run(world_seed: int, start_row: int = -1, mods: Dictionary = {}, fuel_ratio: float = 1.0) -> void:
+## superfície (start_row > 0 só em testes). mods vazio = mundo intocado.
+## guardian_defeated: o guardião da câmara final já foi vencido (núcleo aberto).
+func start_run(world_seed: int, start_row: int = -1, mods: Dictionary = {}, guardian_defeated: bool = false) -> void:
 	if world != null:
 		world.shutdown()
 	extracting = false
 	var region: RegionDef = GameState.region()
 	world = WorldModel.new(world_seed, region)
+	world.generator.guardian_alive = not guardian_defeated
+	guardian.setup(region, not guardian_defeated)
 	if not mods.is_empty():
 		world.import_modifications(mods)
 	background.setup(world_seed, region)
@@ -58,11 +68,13 @@ func start_run(world_seed: int, start_row: int = -1, mods: Dictionary = {}, fuel
 		world.fill_circle(spawn, Balance.BIT_RADIUS_PX + 6.0, BlockRegistry.AIR)
 	_apply_stats()
 	drill.setup(world, spawn, world_seed)
-	drill.vitals.reset(drill.stats, fuel_ratio)
 	drill.visible = true
-	rig.show_at(spawn, start_row > 0)
+	rig.show_at(spawn, false)
 	_on_modules_changed(GameState.economy.equipped_modules)
 	camera.target = drill
+	camera.bottom_limit = (region.target_depth_m + 6) * Balance.BLOCK_PX
+	# Abertura: mostra o céu e a base; a câmera desce quando a nave começa a cavar.
+	camera.intro = start_row <= 0
 	camera.snap_to_target()
 	terrain.setup(world, camera)
 
@@ -89,9 +101,49 @@ func _exit_tree() -> void:
 func _physics_process(delta: float) -> void:
 	if world == null or extracting:
 		return
-	drill.physics_step(delta, input.get_intent())
+	var intent: DrillIntent = input.get_intent()
+	drill.physics_step(delta, intent)
+	if camera.intro and (drill.depth_m() > 0 or DrillIntent.sanitize(intent.aim).length() > 0.05):
+		camera.end_intro()
 	GameState.update_depth(drill.depth_m())
 	GameState.check_final_chamber(floori(drill.position.x / Balance.BLOCK_PX), drill.depth_m())
+	_guardian_step(delta, intent)
+
+
+## Combate com o guardião: pulsos ferem o casco; a broca encostada o desgasta.
+func _guardian_step(delta: float, intent: DrillIntent) -> void:
+	if not guardian.alive or drill.disabled:
+		return
+	var hit: float = guardian.step(delta, drill.position)
+	if hit > 0.0:
+		drill.apply_hull_damage(hit)
+		camera.add_shake(0.5)
+		fx.emit_burst(drill.position, guardian.glow_color, 12, 260.0, 0.5, 4.0, 300.0)
+		EventBus.guardian_pulse.emit(hit)
+	var steering: bool = DrillIntent.sanitize(intent.aim).length() > 0.05
+	if not steering or not guardian.touches(drill.bit_center(), drill.bit_radius()):
+		return
+	var s: DrillStats = drill.stats
+	var dps: float = s.damage * s.hits_per_second * drill.speed_mult * (1.0 + s.crit_chance * (s.crit_mult - 1.0))
+	_spark_t -= delta
+	if _spark_t <= 0.0:
+		_spark_t = 0.09
+		var p: Vector2 = guardian.center + (drill.bit_center() - guardian.center).normalized() * guardian.radius
+		fx.emit_burst(p, guardian.glow_color, 4, 220.0, 0.35, 3.0, 600.0)
+		camera.add_shake(0.06)
+	if guardian.take_damage(dps * delta):
+		_on_guardian_defeated()
+
+
+func _on_guardian_defeated() -> void:
+	var c: Vector2 = guardian.center
+	world.fill_circle(c, guardian.radius + 2.0, BlockRegistry.AIR)
+	fx.emit_burst(c, guardian.glow_color, 60, 520.0, 1.2, 5.0, 300.0)
+	fx.emit_burst(c, Color("fff2a8"), 30, 380.0, 1.0, 3.0, 150.0)
+	camera.add_shake(1.0)
+	var region: RegionDef = GameState.region()
+	GameState.collect_drops(c + Vector2(0, -40), {&"artifact": 1, &"crystal": Balance.GUARDIAN_REWARD_CRYSTALS * region.difficulty})
+	guardian_defeated.emit(drill.vitals.hull_ratio())
 
 
 func _apply_stats() -> void:

@@ -59,7 +59,13 @@ func _physics_process(delta: float) -> void:
 		_rises += 1
 		push_error("[autotest] a perfuradora subiu (%.2f → %.2f)" % [_last_y, game.drill.position.y])
 	_last_y = game.drill.position.y
-	if drive:
+	var g: FinalGuardian = game.guardian
+	if drive and g != null and g.alive and g.in_arena(game.drill.position):
+		# Na câmara final: vai até o guardião e o perfura.
+		var to: Vector2 = g.center - game.drill.position
+		_intent.aim = Vector2(signf(to.x), 1.0).normalized() if absf(to.x) > g.radius else Vector2.DOWN
+		_intent.boost = true
+	elif drive:
 		_plan_left -= delta
 		if _plan_left <= 0.0:
 			# Direções livres: majoritariamente para baixo, com diagonais e laterais.

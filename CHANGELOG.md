@@ -3,6 +3,30 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.9.1] — Guardiões e mapas fundos
+
+### Adicionado
+- **Guardião na câmara final** de cada região (marco e chefe): um coração preso por raízes
+  (Vale, Pântano) ou cercado de cristais (demais regiões). A broca o desgasta por contato;
+  a cada 2,4 s ele brilha e solta um pulso que fere o casco de quem estiver perto. Barra de
+  vida no HUD, rachaduras e alerta "CASCO ATINGIDO!".
+- Vencê-lo conclui a região, libera a próxima, dá 1 Artefato + Cristais e abre o painel
+  **REGIÃO CONCLUÍDA** com **VOLTAR À BASE** (extração com toda a carga) ou continuar.
+- Nova estrela: vencer o guardião com mais da metade do casco.
+- **Câmera de abertura**: a expedição começa mostrando o céu, a base e a torre, com a nave
+  abaixo do HUD; a câmera desce quando a nave começa a se mover.
+
+### Alterado
+- **Mapas 2,4× mais fundos** (Vale 600 m … Vazio 1000 m), com camadas, minérios e calor
+  reescalonados e mais carvão nas camadas fundas. O tanque cheio leva a ~170–250 m: o
+  combustível volta a ser o limite de cada expedição.
+- Objetivos de pesquisa e de carga um pouco maiores.
+- A câmera não mostra abaixo do fundo da região (a câmara final fica enquadrada).
+
+### Removido
+- **Elevadores**: toda expedição parte da superfície. Os túneis continuam salvos e cair por
+  eles não gasta combustível, então cada expedição chega mais fundo pelo seu poço.
+
 ## [0.9.0] — Expedições
 
 ### Adicionado

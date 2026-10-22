@@ -21,7 +21,8 @@ Ciclo: **Base → Expedição → Extração → Pesquisa/Construção → Base*
 | Economia | **Híbrida**: construir peças custa materiais + créditos; vender só o excedente [decidido] |
 | Base | Tela com **estações tocáveis** (sem personagem andando) [decidido] |
 | Criaturas | Comportamento **depende da espécie** (ambiente, guardiã, escavadora, chefe) [decidido] |
-| Elevadores | A próxima expedição pode **começar da última camada alcançada** [decidido] |
+| Elevadores | ~~Começar da última camada~~ — **removidos na 0.9.1** (o autor não gostou); os túneis salvos fazem o papel: cair por eles não gasta combustível [decidido] |
+| Fim do mapa | Câmara final com **guardião** (marco + chefe) e saída clara para a base (0.9.1) [decidido] |
 
 ---
 
@@ -46,11 +47,9 @@ Ciclo: **Base → Expedição → Extração → Pesquisa/Construção → Base*
   arredondado para baixo). Cristais já na carteira não se perdem.
 - Tela de resultado da expedição: carga trazida, perdas, descobertas, objetivos cumpridos.
 
-### Elevadores
-- Ao entrar pela primeira vez numa camada da região, um **elevador** fica instalado no topo
-  dela (marcos já existentes: as camadas de `RegionRegistry`).
-- Na mesa de mapas, escolhe-se onde começar: superfície ou qualquer elevador liberado. Descer
-  custa combustível proporcional (`10% do tanque por 100 m` `[T]`).
+### ~~Elevadores~~ (removidos na 0.9.1)
+- Toda expedição parte da superfície; o mundo persistente guarda o poço, e cair por ele não
+  gasta combustível.
 
 ### Mundo persistente por região
 - **Seed fixa por região** e **escavação salva** (`WorldModel.export_modifications` já existe):
@@ -58,21 +57,21 @@ Ciclo: **Base → Expedição → Extração → Pesquisa/Construção → Base*
 
 ### Fundo e câmara final
 - O `target_depth_m` de cada região vira um **fundo real** (rocha-mãe) com uma **câmara final**
-  gerada (sala grande, marco visual). Alcançá-la = **objetivo principal**:
+  gerada (sala grande) com um **guardião** (0.9.1). Vencê-lo = **objetivo principal**:
   - libera a **próxima região** (substitui o requisito atual de profundidade);
   - libera um **projeto grande** (0.10).
 
-| Região | Fundo | Câmara final |
+| Região | Fundo (0.9.1) | Câmara final · guardião |
 |---|---|---|
-| Vale das Raízes | 250 m | Raiz-Mãe (chefe: minhocão, na 0.11) |
-| Dunas de Âmbar | 300 m | Templo soterrado com fóssil gigante |
-| Cordilheira de Ferro | 350 m | Veio-mãe de titânio |
-| Pântano das Profundezas | 350 m | Ninho no lodo |
-| Abismo de Obsidiana | 450 m | Câmara de magma (o limite é o calor) |
-| Vazio Cristalino | 500 m | O Núcleo — fim do jogo |
+| Vale das Raízes | 600 m | Raiz-Mãe · Coração da Raiz-Mãe (minhocão na 0.11) |
+| Dunas de Âmbar | 700 m | Templo soterrado · Ídolo de âmbar |
+| Cordilheira de Ferro | 800 m | Veio-mãe de titânio · Núcleo de titânio |
+| Pântano das Profundezas | 850 m | Ninho no lodo · Ovo do lodo |
+| Abismo de Obsidiana | 950 m | Câmara de magma · Coração de magma (o limite é o calor) |
+| Vazio Cristalino | 1000 m | O Núcleo · Cristal-Núcleo — fim do jogo |
 
 ### Objetivos por região (painel do mapa)
-- **Principal**: alcançar a câmara final.
+- **Principal**: vencer o guardião da câmara final.
 - **Pesquisa** (3): ex.: catalogar os minérios novos da região, encontrar 5 fósseis,
   trazer 10 amostras de X.
 - **Desafios** (3 estrelas): ex.: chegar ao fundo numa expedição; voltar com carga ≥ X;

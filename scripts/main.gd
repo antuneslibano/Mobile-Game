@@ -14,6 +14,7 @@ extends Node
 ##   --unlock-all        (debug) libera todas as regiões
 ##   --fuel=F            (debug) combustível inicial (fração do tanque)
 ##   --extract-at=T      (com --autotest) chama a extração em T segundos
+##   --guardian-hp=F     (debug) vida inicial do guardião da câmara final (fração)
 ## Em --autotest o salvamento fica desligado (não toca no perfil real).
 
 @onready var game: Game = $Game
@@ -43,6 +44,7 @@ func _ready() -> void:
 	GameState.start_dive(GameState.region_id, world_seed)
 	game.input.hud = hud
 	hud.drill = game.drill
+	hud.guardian = game.guardian
 	garage = Garage.new()
 	garage.name = "Garage"
 	add_child(garage)
@@ -58,6 +60,7 @@ func _ready() -> void:
 	hud.extract_requested.connect(extract)
 	game.drill.stranded.connect(_on_stranded)
 	game.extraction_finished.connect(_on_extraction_finished)
+	game.guardian_defeated.connect(_on_guardian_defeated)
 	_debug_seed = world_seed
 	var start_row: int = int(args.get("start-row", "-1"))
 	if testing or args.has("no-map"):
@@ -65,10 +68,12 @@ func _ready() -> void:
 		_start_expedition(GameState.region_id, maxi(0, start_row))
 		if OS.is_debug_build() and args.has("fuel"):
 			game.drill.vitals.fuel = game.drill.vitals.fuel_max * clampf(float(args["fuel"]), 0.0, 1.0)
+		if OS.is_debug_build() and args.has("guardian-hp"):
+			game.guardian.hp = game.guardian.max_hp * clampf(float(args["guardian-hp"]), 0.01, 1.0)
 		if args.has("extract-at"):
 			get_tree().create_timer(float(args["extract-at"])).timeout.connect(extract)
 	else:
-		game.start_run(GameState.world_seed, -1, GameState.region_mods(GameState.region_id))
+		game.start_run(GameState.world_seed, -1, GameState.region_mods(GameState.region_id), GameState.done.has(GameState.region_id))
 	if OS.is_debug_build() and (args.has("grant-credits") or args.has("grant-crystals")):
 		GameState.economy.credits += int(args.get("grant-credits", "0"))
 		GameState.economy.crystals += int(args.get("grant-crystals", "0"))
@@ -116,17 +121,17 @@ func _notification(what: int) -> void:
 		get_tree().quit()
 
 
-## EXPLORAR no mapa: começa uma expedição na região, na superfície ou num elevador.
-func _on_explore(region_id: StringName, start_m: int = 0) -> void:
-	_start_expedition(region_id, start_m)
+## EXPLORAR no mapa: começa uma expedição na região, sempre a partir da superfície.
+func _on_explore(region_id: StringName) -> void:
+	_start_expedition(region_id)
 	world_map.close()
 
 
-func _start_expedition(region_id: StringName, start_m: int) -> void:
+## start_row > 0 só em testes/depuração (--start-row).
+func _start_expedition(region_id: StringName, start_row: int = 0) -> void:
 	GameState.start_dive(region_id, _debug_seed)
-	var fuel: float = ShipVitals.elevator_fuel_ratio(start_m) if start_m > 0 else 1.0
-	game.start_run(GameState.world_seed, start_m, GameState.region_mods(region_id), fuel)
-	GameState.begin_expedition(start_m)
+	game.start_run(GameState.world_seed, start_row, GameState.region_mods(region_id), GameState.done.has(region_id))
+	GameState.begin_expedition()
 	_rescue = false
 	SaveService.mark_dirty()
 
@@ -147,6 +152,18 @@ func _on_stranded(reason: StringName) -> void:
 	_rescue_reason = reason
 	hud.show_alert("RESGATE DE EMERGÊNCIA", UiTheme.RED)
 	get_tree().create_timer(1.2).timeout.connect(func() -> void: game.play_extraction())
+
+
+## Guardião vencido: conclui a região, libera a próxima e oferece a volta à base.
+func _on_guardian_defeated(hull_ratio: float) -> void:
+	var before: Dictionary = GameState.unlocked.duplicate()
+	GameState.complete_region(hull_ratio)
+	var unlocked_name: String = ""
+	for r in RegionRegistry.all():
+		if GameState.unlocked.has(r.id) and not before.has(r.id):
+			unlocked_name = r.display_name
+	SaveService.mark_dirty()
+	hud.show_region_complete(GameState.region(), unlocked_name)
 
 
 func _on_extraction_finished() -> void:

@@ -35,5 +35,5 @@ func test_biomes_are_contiguous() -> void:
 	# Sem região escolhida, as camadas são as da primeira região (Vale das Raízes).
 	BiomeRegistry.set_layers(RegionRegistry.get_def(RegionRegistry.VALE).layers)
 	check_eq(BiomeRegistry.id_for_row(0), BiomeRegistry.CRUST, "0 m é a primeira camada")
-	check_eq(BiomeRegistry.id_for_row(60), 1, "60 m é a segunda camada do Vale")
+	check_eq(BiomeRegistry.id_for_row(100), 1, "100 m é a segunda camada do Vale")
 	check_eq(BiomeRegistry.id_for_row(800), BiomeRegistry.layer_count() - 1, "800 m é a última camada")

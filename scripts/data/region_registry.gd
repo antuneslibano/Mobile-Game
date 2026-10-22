@@ -64,7 +64,7 @@ static func requirement_text(r: RegionDef) -> String:
 	if r.unlock_region == &"":
 		return "Disponível desde o início."
 	var prev: RegionDef = get_def(r.unlock_region)
-	return "Alcance a câmara final de %s (%s, %d m)." % [prev.display_name, prev.final_name, prev.target_depth_m]
+	return "Vença %s na câmara final de %s (%d m)." % [prev.guardian_name, prev.display_name, prev.target_depth_m]
 
 
 ## Camadas alcançáveis (as que começam acima do fundo).
@@ -85,6 +85,20 @@ static func chamber_center_x() -> int:
 	return Balance.WORLD_WIDTH / 2
 
 
+## Centro (px) do guardião: no piso da câmara final, no meio.
+static func guardian_center(r: RegionDef) -> Vector2:
+	var radius: float = Balance.GUARDIAN_RADIUS_BLOCKS * Balance.BLOCK_PX
+	return Vector2((chamber_center_x() + 0.5) * Balance.BLOCK_PX, r.target_depth_m * Balance.BLOCK_PX - radius * 0.85)
+
+
+static func guardian_hp(r: RegionDef) -> float:
+	return Balance.GUARDIAN_HP * (1.0 + Balance.GUARDIAN_HP_PER_DIFFICULTY * (r.difficulty - 1))
+
+
+static func guardian_pulse_damage(r: RegionDef) -> float:
+	return Balance.GUARDIAN_PULSE_DAMAGE + Balance.GUARDIAN_PULSE_DAMAGE_PER_DIFFICULTY * (r.difficulty - 1)
+
+
 static func objective(r: RegionDef, obj_id: StringName) -> Dictionary:
 	for o: Dictionary in r.objectives:
 		if o.id == obj_id:
@@ -92,19 +106,19 @@ static func objective(r: RegionDef, obj_id: StringName) -> Dictionary:
 	return {}
 
 
-## Objetivos: 1 principal (câmara final), 3 de pesquisa e 3 desafios (estrelas).
+## Objetivos: 1 principal (vencer o guardião da câmara final), 3 de pesquisa e 3 desafios.
 ## Pesquisa: kind &"collect" (recurso, quantidade acumulada na região).
-## Estrelas: &"one_trip" (câmara final numa expedição saindo da superfície),
+## Estrelas: &"guardian" (vencer o guardião com mais da metade do casco),
 ## &"haul" (extrair com carga ≥ valor), &"clean" (extrações sem resgate).
 static func _objectives(r: RegionDef, research: Array, haul: int) -> Array[Dictionary]:
 	var out: Array[Dictionary] = [{"id": &"final", "group": &"main", "kind": &"final", "key": &"", "target": 1,
-			"text": "Alcançar a câmara final: %s (%d m)" % [r.final_name, r.target_depth_m]}]
+			"text": "Vencer %s na câmara final (%d m)" % [r.guardian_name, r.target_depth_m]}]
 	for e: Array in research:
 		var rd: ResourceDef = ResourceRegistry.get_def(e[0])
 		out.append({"id": StringName("res_" + String(e[0])), "group": &"research", "kind": &"collect", "key": e[0],
 				"target": e[1], "text": "Coletar %d de %s" % [e[1], rd.display_name if rd != null else String(e[0])]})
-	out.append({"id": &"one_trip", "group": &"star", "kind": &"one_trip", "key": &"", "target": 1,
-			"text": "Chegar à câmara final numa só expedição, saindo da superfície"})
+	out.append({"id": &"guardian", "group": &"star", "kind": &"guardian", "key": &"", "target": 1,
+			"text": "Vencer o guardião com mais da metade do casco"})
 	out.append({"id": &"haul", "group": &"star", "kind": &"haul", "key": &"", "target": haul,
 			"text": "Extrair com carga de pelo menos %d créditos" % haul})
 	out.append({"id": &"clean", "group": &"star", "kind": &"clean", "key": &"", "target": 5,
@@ -169,103 +183,105 @@ static func _build() -> void:
 	_list = [
 		_region(VALE, "Vale das Raízes", &"savanna",
 			"Uma vasta região de solo avermelhado, raízes antigas e formações orgânicas enterradas.",
-			1, 250, 300, &"", 0, _layers([
-				[0, 30, "Solo superficial", "Solo superficial e raízes.", B.DIRT, B.STONE, 0.15, 0.7,
+			1, 600, 800, &"", 0, _layers([
+				[0, 70, "Solo superficial", "Solo superficial e raízes.", B.DIRT, B.STONE, 0.15, 0.7,
 					[[B.COPPER, 0.05, 3], [B.COAL, 0.04, 5], [B.CHEST, 0.002, 10]]],
-				[30, 80, "Areia instável", "Areia instável e areia movediça.", B.SAND, B.DIRT, 0.3, 0.66,
-					[[B.COPPER, 0.04, 30], [B.IRON, 0.025, 30], [B.QUARTZ, 0.02, 30], [B.FOSSIL, 0.006, 30]]],
-				[80, 150, "Argila compactada", "Argila compactada.", B.CLAY, B.STONE, 0.3, 0.66,
-					[[B.IRON, 0.035, 80], [B.SILVER, 0.02, 80], [B.CRYSTAL, 0.04, 90], [B.QUARTZ, 0.02, 80], [B.CHEST, 0.002, 80]]],
-				[150, 250, "Cavernas fossilizadas", "Cavernas fossilizadas.", B.STONE, B.HARD_ROCK, 0.35, 0.6,
-					[[B.GOLD, 0.025, 150], [B.CRYSTAL, 0.04, 150], [B.FOSSIL, 0.01, 150], [B.AMETHYST, 0.012, 150], [B.SILVER, 0.02, 150]]],
-				[250, M, "Zona abissal", "Zona abissal misteriosa.", B.ABYSS_STONE, B.BASALT, 0.2, 0.62,
-					[[B.VOIDITE, 0.02, 250], [B.RUBY, 0.012, 250], [B.ARTIFACT, 0.003, 250]]],
+				[70, 190, "Areia instável", "Areia instável e areia movediça.", B.SAND, B.DIRT, 0.3, 0.66,
+					[[B.COPPER, 0.04, 70], [B.COAL, 0.02, 70], [B.IRON, 0.025, 70], [B.QUARTZ, 0.02, 70], [B.FOSSIL, 0.006, 70]]],
+				[190, 360, "Argila compactada", "Argila compactada.", B.CLAY, B.STONE, 0.3, 0.66,
+					[[B.IRON, 0.035, 190], [B.COAL, 0.015, 190], [B.SILVER, 0.02, 190], [B.CRYSTAL, 0.04, 210], [B.QUARTZ, 0.02, 190], [B.CHEST, 0.002, 190]]],
+				[360, 600, "Cavernas fossilizadas", "Cavernas fossilizadas.", B.STONE, B.HARD_ROCK, 0.35, 0.6,
+					[[B.GOLD, 0.025, 360], [B.COAL, 0.012, 360], [B.CRYSTAL, 0.04, 360], [B.FOSSIL, 0.01, 360], [B.AMETHYST, 0.012, 360], [B.SILVER, 0.02, 360]]],
+				[600, M, "Zona abissal", "Zona abissal misteriosa.", B.ABYSS_STONE, B.BASALT, 0.2, 0.62,
+					[[B.VOIDITE, 0.02, 600], [B.RUBY, 0.012, 600], [B.ARTIFACT, 0.003, 600]]],
 			]), [&"copper", &"quartz", &"fossil", &"gold", &"amethyst"],
 			[&"quicksand", &"cave_in", &"unstable"], [&"damage", &"speed", &"energy", &"collect"],
 			[Color("2a1a3a"), Color("e8894a"), Color("7a3e2a"), Color("4e2a1e"), Color("f0a050")]),
 		_region(DUNAS, "Dunas de Âmbar", &"desert",
 			"Um mar de areia dourada que esconde arenito, argila vermelha e ossadas de criaturas antigas.",
-			2, 300, 200, VALE, 80, _layers([
-				[0, 40, "Dunas", "Dunas de areia fina e solta.", B.SAND, B.DIRT, 0.1, 0.72,
-					[[B.COPPER, 0.04, 3], [B.QUARTZ, 0.03, 3], [B.FOSSIL, 0.008, 6]]],
-				[40, 120, "Arenito", "Arenito compactado e veios de quartzo.", B.STONE, B.SAND, 0.35, 0.66,
-					[[B.COPPER, 0.03, 40], [B.GOLD, 0.015, 40], [B.QUARTZ, 0.03, 40], [B.CHEST, 0.003, 40]]],
-				[120, 220, "Argila vermelha", "Argila vermelha e rochas duras.", B.CLAY, B.HARD_ROCK, 0.3, 0.64,
-					[[B.GOLD, 0.025, 120], [B.RUBY, 0.01, 120], [B.FOSSIL, 0.01, 120]]],
-				[220, M, "Rocha queimada", "Rocha queimada pelo calor profundo.", B.BASALT, B.MAGMA_ROCK, 0.25, 0.64,
-					[[B.RUBY, 0.015, 220], [B.GOLD, 0.02, 220], [B.METEORITE, 0.003, 220]]],
+			2, 700, 600, VALE, 80, _layers([
+				[0, 90, "Dunas", "Dunas de areia fina e solta.", B.SAND, B.DIRT, 0.1, 0.72,
+					[[B.COPPER, 0.04, 3], [B.COAL, 0.025, 5], [B.QUARTZ, 0.03, 3], [B.FOSSIL, 0.008, 6]]],
+				[90, 280, "Arenito", "Arenito compactado e veios de quartzo.", B.STONE, B.SAND, 0.35, 0.66,
+					[[B.COPPER, 0.03, 90], [B.COAL, 0.02, 90], [B.GOLD, 0.015, 90], [B.QUARTZ, 0.03, 90], [B.CHEST, 0.003, 90]]],
+				[280, 510, "Argila vermelha", "Argila vermelha e rochas duras.", B.CLAY, B.HARD_ROCK, 0.3, 0.64,
+					[[B.GOLD, 0.025, 280], [B.COAL, 0.012, 280], [B.RUBY, 0.01, 280], [B.FOSSIL, 0.01, 280]]],
+				[510, M, "Rocha queimada", "Rocha queimada pelo calor profundo.", B.BASALT, B.MAGMA_ROCK, 0.25, 0.64,
+					[[B.RUBY, 0.015, 510], [B.COAL, 0.01, 510], [B.GOLD, 0.02, 510], [B.METEORITE, 0.003, 510]]],
 			]), [&"gold", &"quartz", &"fossil", &"ruby", &"copper"],
 			[&"quicksand", &"heat", &"cave_in"], [&"cooling", &"speed", &"damage", &"collect"],
 			[Color("3a2a20"), Color("f2b25a"), Color("c88a3a"), Color("9a6428"), Color("ffc65a")]),
 		_region(CORDILHEIRA, "Cordilheira de Ferro", &"mountain",
 			"Montanhas de rocha maciça cortadas por veios de ferro, prata e titânio.",
-			3, 350, 300, DUNAS, 120, _layers([
-				[0, 50, "Encosta rochosa", "Pedra exposta e veios de ferro.", B.STONE, B.DIRT, 0.25, 0.66,
+			3, 800, 720, DUNAS, 120, _layers([
+				[0, 120, "Encosta rochosa", "Pedra exposta e veios de ferro.", B.STONE, B.DIRT, 0.25, 0.66,
 					[[B.IRON, 0.05, 3], [B.COAL, 0.04, 3], [B.COPPER, 0.02, 3]]],
-				[50, 150, "Rocha dura", "Rocha dura e compacta.", B.HARD_ROCK, B.STONE, 0.35, 0.62,
-					[[B.IRON, 0.04, 50], [B.SILVER, 0.03, 50], [B.TITANIUM, 0.008, 80]]],
-				[150, 300, "Veios de titânio", "Basalto com veios de titânio.", B.BASALT, B.HARD_ROCK, 0.35, 0.62,
-					[[B.TITANIUM, 0.025, 150], [B.GOLD, 0.02, 150], [B.EMERALD, 0.008, 150]]],
-				[300, M, "Raízes da montanha", "As raízes profundas da cordilheira.", B.ABYSS_STONE, B.BASALT, 0.3, 0.62,
-					[[B.TITANIUM, 0.02, 300], [B.DIAMOND, 0.005, 300], [B.ARTIFACT, 0.002, 300]]],
+				[120, 350, "Rocha dura", "Rocha dura e compacta.", B.HARD_ROCK, B.STONE, 0.35, 0.62,
+					[[B.IRON, 0.04, 120], [B.COAL, 0.02, 120], [B.SILVER, 0.03, 120], [B.TITANIUM, 0.008, 190]]],
+				[350, 700, "Veios de titânio", "Basalto com veios de titânio.", B.BASALT, B.HARD_ROCK, 0.35, 0.62,
+					[[B.TITANIUM, 0.025, 350], [B.COAL, 0.012, 350], [B.GOLD, 0.02, 350], [B.EMERALD, 0.008, 350]]],
+				[700, M, "Raízes da montanha", "As raízes profundas da cordilheira.", B.ABYSS_STONE, B.BASALT, 0.3, 0.62,
+					[[B.TITANIUM, 0.02, 700], [B.COAL, 0.01, 700], [B.DIAMOND, 0.005, 700], [B.ARTIFACT, 0.002, 700]]],
 			]), [&"iron", &"silver", &"titanium", &"coal", &"emerald"],
 			[&"hard_rock", &"cave_in"], [&"damage", &"side_drill", &"speed", &"energy"],
 			[Color("1e2433"), Color("8aa0b8"), Color("4a5262"), Color("343a48"), Color("b8c8dc")]),
 		_region(PANTANO, "Pântano das Profundezas", &"swamp",
 			"Águas paradas, lama densa e turfa escondem esmeraldas e minerais radioativos.",
-			3, 350, 300, CORDILHEIRA, 160, _layers([
-				[0, 40, "Lama", "Lama encharcada e raízes podres.", B.MUD, B.DIRT, 0.2, 0.7,
+			3, 850, 770, CORDILHEIRA, 160, _layers([
+				[0, 100, "Lama", "Lama encharcada e raízes podres.", B.MUD, B.DIRT, 0.2, 0.7,
 					[[B.COAL, 0.05, 3], [B.FOSSIL, 0.006, 6]]],
-				[40, 120, "Turfa", "Turfa escura rica em carvão.", B.DIRT, B.CLAY, 0.35, 0.66,
-					[[B.COAL, 0.04, 40], [B.EMERALD, 0.012, 40], [B.IRON, 0.02, 40]]],
-				[120, 250, "Argila submersa", "Argila encharcada e veios verdes.", B.CLAY, B.STONE, 0.3, 0.64,
-					[[B.URANIUM, 0.012, 120], [B.EMERALD, 0.015, 120], [B.SILVER, 0.02, 120]]],
-				[250, M, "Grutas esmeralda", "Grutas cristalinas sob o pântano.", B.CRYSTAL_ROCK, B.HARD_ROCK, 0.35, 0.58,
-					[[B.EMERALD, 0.02, 250], [B.URANIUM, 0.015, 250], [B.CRYSTAL, 0.03, 250]]],
+				[100, 290, "Turfa", "Turfa escura rica em carvão.", B.DIRT, B.CLAY, 0.35, 0.66,
+					[[B.COAL, 0.04, 100], [B.EMERALD, 0.012, 100], [B.IRON, 0.02, 100]]],
+				[290, 600, "Argila submersa", "Argila encharcada e veios verdes.", B.CLAY, B.STONE, 0.3, 0.64,
+					[[B.URANIUM, 0.012, 290], [B.COAL, 0.015, 290], [B.EMERALD, 0.015, 290], [B.SILVER, 0.02, 290]]],
+				[600, M, "Grutas esmeralda", "Grutas cristalinas sob o pântano.", B.CRYSTAL_ROCK, B.HARD_ROCK, 0.35, 0.58,
+					[[B.EMERALD, 0.02, 600], [B.COAL, 0.01, 600], [B.URANIUM, 0.015, 600], [B.CRYSTAL, 0.03, 600]]],
 			]), [&"coal", &"emerald", &"uranium", &"fossil", &"crystal"],
 			[&"mud", &"unstable", &"cave_in"], [&"collect", &"energy", &"side_drill", &"damage"],
 			[Color("16261e"), Color("5a7a4a"), Color("2a4a32"), Color("1c3324"), Color("7fd08a")]),
 		_region(ABISMO, "Abismo de Obsidiana", &"volcanic",
 			"Uma fenda vulcânica com rios de magma, campos de obsidiana e fragmentos de meteoritos.",
-			4, 450, 0, PANTANO, 200, _layers([
-				[0, 80, "Crosta vulcânica", "Rocha escura com veios de basalto quente.", B.HARD_ROCK, B.BASALT, 0.25, 0.66,
+			4, 950, 0, PANTANO, 200, _layers([
+				[0, 180, "Crosta vulcânica", "Rocha escura com veios de basalto quente.", B.HARD_ROCK, B.BASALT, 0.25, 0.66,
 					[[B.COAL, 0.03, 3], [B.GOLD, 0.02, 3], [B.RUBY, 0.01, 10]]],
-				[80, 200, "Rios de magma", "Rocha magmática incandescente.", B.MAGMA_ROCK, B.BASALT, 0.4, 0.64,
-					[[B.RUBY, 0.02, 80], [B.OBSIDIAN, 0.02, 80], [B.TITANIUM, 0.01, 80]]],
-				[200, 400, "Campos de obsidiana", "Vidro vulcânico e meteoritos.", B.BASALT, B.MAGMA_ROCK, 0.3, 0.62,
-					[[B.OBSIDIAN, 0.03, 200], [B.GOLD, 0.02, 200], [B.METEORITE, 0.004, 200]]],
-				[400, M, "Câmara do núcleo", "O coração ardente do abismo.", B.ABYSS_STONE, B.MAGMA_ROCK, 0.3, 0.62,
-					[[B.METEORITE, 0.006, 400], [B.VOIDITE, 0.015, 400], [B.DIAMOND, 0.006, 400]]],
+				[180, 440, "Rios de magma", "Rocha magmática incandescente.", B.MAGMA_ROCK, B.BASALT, 0.4, 0.64,
+					[[B.RUBY, 0.02, 180], [B.COAL, 0.015, 180], [B.OBSIDIAN, 0.02, 180], [B.TITANIUM, 0.01, 180]]],
+				[440, 840, "Campos de obsidiana", "Vidro vulcânico e meteoritos.", B.BASALT, B.MAGMA_ROCK, 0.3, 0.62,
+					[[B.OBSIDIAN, 0.03, 440], [B.COAL, 0.012, 440], [B.GOLD, 0.02, 440], [B.METEORITE, 0.004, 440]]],
+				[840, M, "Câmara do núcleo", "O coração ardente do abismo.", B.ABYSS_STONE, B.MAGMA_ROCK, 0.3, 0.62,
+					[[B.METEORITE, 0.006, 840], [B.COAL, 0.01, 840], [B.VOIDITE, 0.015, 840], [B.DIAMOND, 0.006, 840]]],
 			]), [&"obsidian", &"ruby", &"gold", &"meteorite", &"titanium"],
 			[&"heat", &"magma", &"hard_rock"], [&"cooling", &"damage", &"speed", &"energy"],
 			[Color("1a0d10"), Color("8a2a1a"), Color("2a1a1c"), Color("1a1012"), Color("ff6a3a")]),
 		_region(VAZIO, "Vazio Cristalino", &"crystal",
 			"Ilhas de gelo e cristal flutuando sobre um vazio misterioso, repletas de gemas raras.",
-			5, 500, 300, ABISMO, 250, _layers([
-				[0, 60, "Gelo cristalino", "Gelo antigo e quartzo.", B.ICE, B.CRYSTAL_ROCK, 0.3, 0.66,
-					[[B.QUARTZ, 0.04, 3], [B.CRYSTAL, 0.03, 3]]],
-				[60, 200, "Rocha cristalina", "Rocha cristalina e geodos.", B.CRYSTAL_ROCK, B.HARD_ROCK, 0.4, 0.58,
-					[[B.CRYSTAL, 0.04, 60], [B.AMETHYST, 0.02, 60], [B.DIAMOND, 0.004, 100]]],
-				[200, 400, "Fendas do vazio", "Fendas que levam ao vazio.", B.ABYSS_STONE, B.CRYSTAL_ROCK, 0.35, 0.6,
-					[[B.DIAMOND, 0.01, 200], [B.VOIDITE, 0.02, 200], [B.RARE_CRYSTAL, 0.004, 200]]],
-				[400, M, "Coração do vazio", "Onde nascem os cristais raros.", B.ABYSS_STONE, B.ICE, 0.2, 0.6,
-					[[B.RARE_CRYSTAL, 0.008, 400], [B.VOIDITE, 0.02, 400], [B.ARTIFACT, 0.004, 400]]],
+			5, 1000, 800, ABISMO, 250, _layers([
+				[0, 130, "Gelo cristalino", "Gelo antigo e quartzo.", B.ICE, B.CRYSTAL_ROCK, 0.3, 0.66,
+					[[B.QUARTZ, 0.04, 3], [B.COAL, 0.025, 5], [B.CRYSTAL, 0.03, 3]]],
+				[130, 430, "Rocha cristalina", "Rocha cristalina e geodos.", B.CRYSTAL_ROCK, B.HARD_ROCK, 0.4, 0.58,
+					[[B.CRYSTAL, 0.04, 130], [B.COAL, 0.015, 130], [B.AMETHYST, 0.02, 130], [B.DIAMOND, 0.004, 220]]],
+				[430, 850, "Fendas do vazio", "Fendas que levam ao vazio.", B.ABYSS_STONE, B.CRYSTAL_ROCK, 0.35, 0.6,
+					[[B.DIAMOND, 0.01, 430], [B.COAL, 0.012, 430], [B.VOIDITE, 0.02, 430], [B.RARE_CRYSTAL, 0.004, 430]]],
+				[850, M, "Coração do vazio", "Onde nascem os cristais raros.", B.ABYSS_STONE, B.ICE, 0.2, 0.6,
+					[[B.RARE_CRYSTAL, 0.008, 850], [B.COAL, 0.01, 850], [B.VOIDITE, 0.02, 850], [B.ARTIFACT, 0.004, 850]]],
 			]), [&"crystal", &"amethyst", &"diamond", &"rare_crystal", &"voidite"],
 			[&"ice", &"hard_rock", &"unstable"], [&"damage", &"crit", &"side_drill", &"energy"],
 			[Color("120a24"), Color("4a2a7a"), Color("2a1a4a"), Color("1a1030"), Color("c08cff")]),
 	]
+	# [câmara final, guardião, pesquisa, carga da estrela]
 	var finals: Dictionary = {
-		VALE: ["Raiz-Mãe", [[&"copper", 20], [&"crystal", 10], [&"fossil", 3]], 1500],
-		DUNAS: ["Templo soterrado", [[&"gold", 10], [&"quartz", 15], [&"fossil", 4]], 4000],
-		CORDILHEIRA: ["Veio-mãe de titânio", [[&"iron", 25], [&"silver", 12], [&"titanium", 5]], 8000],
-		PANTANO: ["Ninho no lodo", [[&"emerald", 8], [&"uranium", 5], [&"fossil", 4]], 10000],
-		ABISMO: ["Câmara de magma", [[&"obsidian", 10], [&"ruby", 8], [&"meteorite", 1]], 20000],
-		VAZIO: ["O Núcleo", [[&"diamond", 5], [&"rare_crystal", 2], [&"voidite", 10]], 40000],
+		VALE: ["Raiz-Mãe", "o Coração da Raiz-Mãe", [[&"copper", 30], [&"crystal", 15], [&"fossil", 4]], 2000],
+		DUNAS: ["Templo soterrado", "o Ídolo de âmbar", [[&"gold", 15], [&"quartz", 20], [&"fossil", 5]], 5000],
+		CORDILHEIRA: ["Veio-mãe de titânio", "o Núcleo de titânio", [[&"iron", 35], [&"silver", 15], [&"titanium", 6]], 9000],
+		PANTANO: ["Ninho no lodo", "o Ovo do lodo", [[&"emerald", 10], [&"uranium", 6], [&"fossil", 5]], 12000],
+		ABISMO: ["Câmara de magma", "o Coração de magma", [[&"obsidian", 12], [&"ruby", 10], [&"meteorite", 1]], 22000],
+		VAZIO: ["O Núcleo", "o Cristal-Núcleo", [[&"diamond", 6], [&"rare_crystal", 2], [&"voidite", 12]], 45000],
 	}
 	for r in _list:
 		var f: Array = finals[r.id]
 		r.final_name = f[0]
-		r.objectives = _objectives(r, f[1], f[2])
+		r.guardian_name = f[1]
+		r.objectives = _objectives(r, f[2], f[3])
 	_by_id.clear()
 	for r in _list:
 		_by_id[r.id] = r

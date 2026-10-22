@@ -97,17 +97,17 @@ no mapa mundial (mesmo gerador, mineração, economia e garagem). Cada região t
 contíguas de 0 m até a profundidade máxima; cada camada define material principal/secundário,
 limiar de caverna e tabela de minérios. Valores `[T]` em `scripts/data/region_registry.gd`.
 
-| # | Região | Tema | Dificuldade | 100% em | Calor desde | Desbloqueio |
-|---|---|---|---|---|---|---|
-| 1 | Vale das Raízes | savana | ★ Fácil | 250 m | 300 m | livre |
-| 2 | Dunas de Âmbar | deserto | ★★ Moderada | 300 m | 200 m | 80 m no Vale |
-| 3 | Cordilheira de Ferro | montanhas | ★★★ Difícil | 350 m | 300 m | 120 m nas Dunas |
-| 4 | Pântano das Profundezas | pântano | ★★★ Difícil | 350 m | 300 m | 160 m na Cordilheira |
-| 5 | Abismo de Obsidiana | vulcânico | ★★★★ Muito difícil | 450 m | 0 m | 200 m no Pântano |
-| 6 | Vazio Cristalino | cristalino | ★★★★★ Extrema | 500 m | 300 m | 250 m no Abismo |
+| # | Região | Tema | Dificuldade | Fundo | Calor desde | Guardião | Desbloqueio |
+|---|---|---|---|---|---|---|---|
+| 1 | Vale das Raízes | savana | ★ Fácil | 600 m | — | Coração da Raiz-Mãe | livre |
+| 2 | Dunas de Âmbar | deserto | ★★ Moderada | 700 m | 600 m | Ídolo de âmbar | guardião do Vale |
+| 3 | Cordilheira de Ferro | montanhas | ★★★ Difícil | 800 m | 720 m | Núcleo de titânio | guardião das Dunas |
+| 4 | Pântano das Profundezas | pântano | ★★★ Difícil | 850 m | 770 m | Ovo do lodo | guardião da Cordilheira |
+| 5 | Abismo de Obsidiana | vulcânico | ★★★★ Muito difícil | 950 m | 0 m | Coração de magma | guardião do Pântano |
+| 6 | Vazio Cristalino | cristalino | ★★★★★ Extrema | 1000 m | 800 m | Cristal-Núcleo | guardião do Abismo |
 
-- **Desbloqueio** usa só a progressão existente (profundidade máxima alcançada na região
-  anterior) — sem moedas novas. Regiões bloqueadas aparecem no mapa com cadeado e o requisito.
+- **Desbloqueio** (0.9.1): vencer o guardião da câmara final da região anterior. Regiões
+  bloqueadas aparecem no mapa com cadeado e o requisito.
 - **Progresso** = profundidade máxima da região ÷ "100% em" (exibido em % no mapa).
 - **Riscos ambientais** são informativos e descrevem as camadas (areia movediça = areia
   solta, desmoronamento = muitas cavernas, rochas resistentes = camadas duras…), exceto
@@ -263,23 +263,26 @@ e sobe o nível, ou não muda nada.
 
 ### 7.2.1 Ritmo-alvo (validado por simulação)
 `tests/balance_sim.gd` simula a perfuradora real no mundo real do Vale (seed 2024) em
-**expedições** (0.9): cada uma começa no elevador mais fundo (descontando o combustível),
-extrai com 10% de combustível e, na base, vende tudo e compra o upgrade mais barato.
+**expedições**: cada uma parte da superfície (o mundo persiste: cai pelos túneis antigos
+sem gastar combustível), extrai com 10% de combustível, enfrenta o guardião ao chegar à
+câmara final e, na base, vende tudo e compra o upgrade mais barato.
 - **minérios** – vai até o minério visível mais próximo (nunca para cima); com menos de meio
   tanque também busca carvão; sem nada à vista, cava para baixo;
 - **reto** – só cava para baixo.
 
-| Vale das Raízes | Buscando minérios | Cavando reto |
+| Vale das Raízes (20 min) | Buscando minérios | Cavando reto |
 |---|---|---|
-| Câmara final (250 m) | ~5 min | ~11,5 min |
-| Créditos em 12–15 min | ~11 000 | ~60 |
-| Upgrades | ~40 | 0–1 |
-| Expedições (15 min) | 7, sem resgate | 9 |
-| Elevadores | 30, 80 e 150 m | 30, 80 e 150 m |
+| 1ª expedição (tanque cheio) | até ~166 m | até ~254 m |
+| Câmara final (600 m) | ~10 min | ~12 min |
+| Guardião vencido | ~10,5 min (≈ 23 s de luta) | ~13,5 min (1 resgate antes) |
+| Créditos | ~40 000 | ~1 800 |
+| Upgrades | ~70 | ~12 |
+| Expedições | 5 (3 até o limite do combustível) | 10 (7 até o limite) |
 
-Testes: `test_balance_simulation_greedy_player` (câmara final entre 2 e 12 min; ≥3
-expedições; ≥2 elevadores; ≥10 upgrades; ≥1 módulo; 1ª Sobrecarga após 20 s; 2–30
-Sobrecargas; carvão abastece) e `test_seeking_ores_beats_digging_straight` (≥ 4×).
+Testes: `test_balance_simulation_greedy_player` (câmara final entre 6 e 15 min; guardião
+resiste > 5 s; ≥3 expedições; 1ª expedição não passa da metade; combustível acaba em ≥2;
+≥10 upgrades; ≥1 módulo; 1ª Sobrecarga após 20 s; 2–30 Sobrecargas; carvão abastece) e
+`test_seeking_ores_beats_digging_straight` (≥ 4×).
 
 ### 7.2.2 Expedições (0.9)
 | Parâmetro `[T]` | Valor |
@@ -287,10 +290,11 @@ Sobrecargas; carvão abastece) e `test_seeking_ores_beats_digging_straight` (≥
 | Tanque | 120 (≈ 2 min de atividade); Tanque +15%/nível |
 | Consumo | 1/s movendo ou cavando; ×1,5 na Sobrecarga; Eficiência −5%/nível |
 | Carvão | +12 de combustível por bloco |
-| Elevador | desce gastando 10% do tanque a cada 100 m |
+| Partida | sempre da superfície; cair por túneis antigos não gasta combustível |
 | Casco | 100; Blindagem +20/nível; calor acima de 1,0 tira 3/s por nível (−refrigeração) |
 | Resgate | mantém 50% da carga ganha na expedição |
-| Câmara final | 8 blocos de altura no fundo, centro do mapa, relíquia no piso |
+| Câmara final | 10 blocos de altura e 17 de largura no fundo, centro do mapa |
+| Guardião | vida 4000 no Vale (+90%/dificuldade); pulso a cada 2,4 s (aviso 0,7 s) com alcance de 4,5 blocos: 8 de casco no Vale (+4/dificuldade); a broca encostada causa o dano/s da perfuração; vencido: 1 Artefato + 8 Cristais × dificuldade, região concluída |
 
 ### 7.3 Módulos (Fase 3 — implementado)
 **2 slots** `[T] MODULE_SLOTS` (um 3º slot é candidato a melhoria permanente de prestígio).

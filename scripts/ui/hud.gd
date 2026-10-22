@@ -3,7 +3,8 @@ extends CanvasLayer
 ## HUD: barra superior (profundidade, moedas, energia, combustível, casco, calor, extrair),
 ## joystick flutuante e botão de impulso. Alertas visuais: vinheta pulsante nas bordas e
 ## aviso piscando para calor/dano no casco e combustível baixo/crítico. Apenas exibe estado
-## e expõe áreas de toque; não altera regras de jogo.
+## e expõe áreas de toque; não altera regras de jogo. Na câmara final: barra de vida do
+## guardião e, ao vencê-lo, o painel de região concluída (voltar à base ou continuar).
 
 signal extract_requested
 
@@ -41,8 +42,16 @@ var _pads: Array[PadButton] = []
 var _safe_top: float = 0.0
 var _safe_bottom: float = 0.0
 var _hint_time: float = 0.0
+var _boss: PanelContainer
+var _boss_name: Label
+var _boss_bar: SegmentedBar
+var _done_panel: PanelContainer
+var _done_text: Label
+var _hit_flash: float = 0.0
 ## Perfuradora observada (somente leitura) para energia, impulso e calor.
 var drill: Drill
+## Guardião da câmara final (somente leitura) para a barra de vida.
+var guardian: FinalGuardian
 
 
 func _ready() -> void:
@@ -51,9 +60,9 @@ func _ready() -> void:
 	EventBus.biome_changed.connect(_on_biome_changed)
 	EventBus.material_dug.connect(func(_a: Vector2, _c: Dictionary) -> void: _dismiss_hint())
 	EventBus.overdrive_ready.connect(func() -> void: _show_banner("SOBRECARGA PRONTA", UiTheme.BLUE))
-	EventBus.elevator_unlocked.connect(func(_r: StringName, m: int) -> void: _show_banner("ELEVADOR INSTALADO  %d M" % m, UiTheme.GREEN))
 	EventBus.objective_completed.connect(func(_r: StringName, _o: StringName, _t: String) -> void: _show_banner("OBJETIVO CONCLUÍDO!", PixelArt.GOLD))
-	EventBus.region_completed.connect(func(_r: StringName) -> void: _show_banner("CÂMARA FINAL ALCANÇADA!", PixelArt.GOLD))
+	EventBus.final_chamber_reached.connect(_on_final_chamber)
+	EventBus.guardian_pulse.connect(func(_d: float) -> void: _hit_flash = 1.0)
 	EventBus.wallet_changed.connect(set_currencies)
 	EventBus.cargo_changed.connect(_on_cargo_changed)
 	get_viewport().size_changed.connect(_apply_layout)
@@ -68,7 +77,7 @@ func _ready() -> void:
 
 ## Pontos sobre a barra superior não devem virar comandos de perfuração.
 func is_point_blocking(p: Vector2) -> bool:
-	return _top.get_global_rect().has_point(p)
+	return _top.get_global_rect().has_point(p) or (_done_panel.visible and _done_panel.get_global_rect().has_point(p))
 
 
 ## Botões de toque do HUD (hoje só o impulso); vazio = área do joystick.
@@ -243,6 +252,65 @@ func _build() -> void:
 	_warn.visible = false
 	_root.add_child(_warn)
 
+	# Guardião: nome e barra de vida (só na arena).
+	_boss = PanelContainer.new()
+	_boss.name = "GuardianBar"
+	_boss.add_theme_stylebox_override("panel", PixelArt.style(&"frame"))
+	_boss.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_boss.visible = false
+	_root.add_child(_boss)
+	var bv := VBoxContainer.new()
+	bv.add_theme_constant_override("separation", 4)
+	_boss.add_child(bv)
+	_boss_name = UiTheme.label("", 26, UiTheme.RED, 700)
+	_boss_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	bv.add_child(_boss_name)
+	_boss_bar = SegmentedBar.new(20, UiTheme.RED, 24.0)
+	_boss_bar.name = "GuardianHp"
+	bv.add_child(_boss_bar)
+
+	# Região concluída: voltar à base (extração com toda a carga) ou continuar.
+	_done_panel = PanelContainer.new()
+	_done_panel.name = "RegionDonePanel"
+	_done_panel.add_theme_stylebox_override("panel", PixelArt.style(&"frame"))
+	_done_panel.visible = false
+	_root.add_child(_done_panel)
+	var dv := VBoxContainer.new()
+	dv.add_theme_constant_override("separation", 14)
+	_done_panel.add_child(dv)
+	var plate := PanelContainer.new()
+	plate.add_theme_stylebox_override("panel", PixelArt.style(&"plate"))
+	dv.add_child(plate)
+	var title := UiTheme.label("REGIÃO CONCLUÍDA!", 36, Color("2a1606"), 700)
+	title.add_theme_constant_override("outline_size", 0)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	plate.add_child(title)
+	_done_text = UiTheme.label("", 25, UiTheme.TEXT, 500)
+	_done_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_done_text.custom_minimum_size = Vector2(300, 0)
+	_done_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	dv.add_child(_done_text)
+	var back := Button.new()
+	back.name = "DoneBaseButton"
+	back.text = UiTheme.display_text("VOLTAR À BASE")
+	back.icon = PixelArt.icon(&"extract")
+	back.add_theme_constant_override("icon_max_width", 40)
+	back.custom_minimum_size = Vector2(0, 90)
+	back.add_theme_font_size_override("font_size", UiTheme.font_size(32, 700))
+	UiTheme.style_button(back, &"green")
+	back.pressed.connect(func() -> void:
+		_done_panel.visible = false
+		extract_requested.emit())
+	dv.add_child(back)
+	var stay := Button.new()
+	stay.name = "DoneStayButton"
+	stay.text = UiTheme.display_text("CONTINUAR AQUI")
+	stay.custom_minimum_size = Vector2(0, 70)
+	stay.add_theme_font_size_override("font_size", UiTheme.font_size(24, 700))
+	UiTheme.style_button(stay, &"steel")
+	stay.pressed.connect(func() -> void: _done_panel.visible = false)
+	dv.add_child(stay)
+
 	_fps_label = _label("", 18, UiTheme.TEXT_DIM)
 	_fps_label.visible = OS.is_debug_build()
 	_root.add_child(_fps_label)
@@ -287,6 +355,10 @@ func _apply_layout() -> void:
 	_fps_label.position = Vector2(SIDE_MARGIN, _top.position.y + _top.size.y + 6.0)
 	_warn.position = Vector2(0, _top.position.y + _top.size.y + 14.0)
 	_warn.size = Vector2(vp.x, 44)
+	_boss.position = Vector2(SIDE_MARGIN * 2.0, _warn.position.y + 52.0)
+	_boss.size = Vector2(vp.x - SIDE_MARGIN * 4.0, 0)
+	_done_panel.size = Vector2(vp.x - 80.0, 0)
+	_done_panel.position = Vector2(40.0, vp.y * 0.3)
 
 
 func _compute_safe_area(vp: Vector2) -> void:
@@ -322,6 +394,7 @@ func _process(delta: float) -> void:
 			_boost.text = "%d%%" % int(e.fill_ratio() * 100.0)
 		_set_heat(drill.depth_m(), drill.heat_penalty)
 		_update_vitals(delta)
+		_update_guardian()
 	if _banner_t > 0.0:
 		_banner_t -= delta
 		var k: float = _banner_t / BANNER_TIME
@@ -352,7 +425,35 @@ func _on_biome_changed(biome_id: int) -> void:
 		_show_banner(_biome_label.text.to_upper(), BiomeRegistry.get_def(biome_id).ui_color)
 
 
-## Aviso grande no centro (resgate, objetivo, elevador...).
+func _on_final_chamber(region_id: StringName, alive: bool) -> void:
+	var r: RegionDef = RegionRegistry.get_def(region_id)
+	_show_banner(("CÂMARA FINAL: " + r.final_name).to_upper(), UiTheme.RED if alive else PixelArt.GOLD)
+
+
+func _update_guardian() -> void:
+	var show: bool = guardian != null and guardian.alive and guardian.in_arena(drill.position)
+	_boss.visible = show
+	if show:
+		_boss_name.text = UiTheme.display_text(guardian.region.guardian_name.to_upper())
+		_boss_bar.value = guardian.hp_ratio()
+		_boss.modulate = Color(1.5, 1.5, 1.5) if guardian.warn_ratio() > 0.0 and int(Time.get_ticks_msec() / 90) % 2 == 0 else Color.WHITE
+
+
+## Guardião vencido: painel com a saída (extração com toda a carga) e o que foi liberado.
+func show_region_complete(region: RegionDef, unlocked_name: String) -> void:
+	var txt: String = "Você venceu %s!" % region.guardian_name
+	if unlocked_name != "":
+		txt += "\nNova região liberada: %s." % unlocked_name
+	txt += "\nVolte à base com toda a carga."
+	_done_text.text = txt
+	_done_panel.visible = true
+
+
+func is_region_complete_open() -> bool:
+	return _done_panel.visible
+
+
+## Aviso grande no centro (resgate, objetivo, câmara final...).
 func show_alert(text: String, color: Color) -> void:
 	_show_banner(text, color)
 
@@ -402,7 +503,12 @@ func _update_vitals(delta: float) -> void:
 	var text: String = ""
 	var color: Color = UiTheme.RED
 	var blink: float = 0.5 + 0.5 * sin(_t * 9.0)
-	if v.hull_dps > 0.0:
+	_hit_flash = maxf(0.0, _hit_flash - delta * 2.5)
+	if _hit_flash > 0.0:
+		tint = Color(1.0, 0.1, 0.05)
+		strength = 0.3 + 0.5 * _hit_flash
+		text = "CASCO ATINGIDO!"
+	elif v.hull_dps > 0.0:
 		tint = Color(1.0, 0.12, 0.05)
 		strength = 0.35 + 0.25 * blink
 		text = "SUPERAQUECIMENTO  ·  CASCO −%.0f/s" % v.hull_dps

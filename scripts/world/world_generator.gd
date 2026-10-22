@@ -19,6 +19,11 @@ const CAVE_Y_SCALE: float = 1.45
 const CAVE_FADE_ROWS: int = 10
 
 var seed_value: int = 0
+## Núcleo do guardião (rocha-mãe sob o sprite) no piso da câmara final. Defina antes de
+## gerar qualquer chunk: false quando o guardião da região já foi vencido.
+var guardian_alive: bool = true
+var _core_c: Vector2 = Vector2.ZERO   ## Centro do núcleo em células.
+var _core_r2: float = 0.0
 ## Região e camadas usadas por este gerador (cópia própria: seguro em threads).
 var region: RegionDef
 var _layers: Array[BiomeDef] = []
@@ -49,6 +54,8 @@ func _init(p_seed: int, p_region: RegionDef = null) -> void:
 	_prepare_tables()
 	_warp_x = _warp_table(p_seed + 404)
 	_warp_y = _warp_table(p_seed + 505)
+	_core_c = RegionRegistry.guardian_center(region) / Balance.CELL_PX
+	_core_r2 = pow(Balance.GUARDIAN_RADIUS_BLOCKS * Balance.CELL_SUB * 0.9, 2.0)
 
 
 static func _warp_table(p_seed: int) -> PackedByteArray:
@@ -137,7 +144,7 @@ func _cell(x: int, y: int, biome_id: int) -> int:
 		return BlockRegistry.AIR
 	if x <= 0 or x >= Balance.WORLD_WIDTH - 1 or y >= mini(Balance.MAX_DEPTH_ROWS, region.target_depth_m):
 		return BlockRegistry.BEDROCK
-	# Câmara final: salão logo acima do fundo, no centro, com a relíquia no piso.
+	# Câmara final: salão logo acima do fundo, no centro (o guardião fica no piso).
 	var top: int = region.target_depth_m - Balance.FINAL_CHAMBER_ROWS
 	if y >= top:
 		var cx: int = RegionRegistry.chamber_center_x()
@@ -145,8 +152,6 @@ func _cell(x: int, y: int, biome_id: int) -> int:
 		var dy: float = (float(y) - (top + region.target_depth_m - 1) * 0.5) / (Balance.FINAL_CHAMBER_ROWS * 0.5)
 		var wobble: float = _cave.get_noise_2d(float(x) * 1.7, float(y) * 1.7) * 0.25
 		if dx * dx + dy * dy <= 1.0 + wobble:
-			if x == cx and y == region.target_depth_m - 1:
-				return BlockRegistry.ARTIFACT
 			return BlockRegistry.AIR
 	var biome: BiomeDef = _layers[clampi(biome_id, 0, _layers.size() - 1)]
 
@@ -206,6 +211,12 @@ func _forced_cell(cx: int, cy: int) -> int:
 	if cx < Balance.WALL_CELLS or cx >= Balance.WORLD_CELLS_X - Balance.WALL_CELLS \
 			or cy >= Balance.MAX_DEPTH_ROWS * Balance.CELL_SUB:
 		return BlockRegistry.BEDROCK
+	if guardian_alive:
+		var dy: float = cy + 0.5 - _core_c.y
+		if dy * dy <= _core_r2:
+			var dx: float = cx + 0.5 - _core_c.x
+			if dx * dx + dy * dy <= _core_r2:
+				return BlockRegistry.BEDROCK
 	return -1
 
 

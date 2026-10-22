@@ -10,10 +10,11 @@ extends Resource
 @export var theme: StringName = &""
 @export_multiline var description: String = ""
 @export_range(1, 5) var difficulty: int = 1
-## Fundo da região (0.9): rocha-mãe a partir daqui, com a câmara final logo acima.
+## Fundo da região: rocha-mãe a partir daqui, com a câmara final logo acima.
 @export var target_depth_m: int = 250
-## Nome da câmara final (objetivo principal).
+## Nome da câmara final e do guardião que a protege (objetivo principal: vencê-lo).
 @export var final_name: String = ""
+@export var guardian_name: String = ""
 ## Objetivos: [{id, group (&"main"/&"research"/&"star"), kind, key, target, text}].
 @export var objectives: Array[Dictionary] = []
 ## Profundidade a partir da qual o calor aparece (vulcânico: desde a superfície).

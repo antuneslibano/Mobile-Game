@@ -208,6 +208,13 @@ func apply_external_dig(center: Vector2, r: float, raw_damage: float, crit: bool
 	return res
 
 
+## Dano externo no casco (ex.: pulso do guardião). Zerado → resgate de emergência.
+func apply_hull_damage(amount: float) -> void:
+	if not disabled and vitals.damage(amount):
+		disabled = true
+		stranded.emit(&"hull")
+
+
 func _on_dug(res: WorldModel.DigResult, at: Vector2) -> void:
 	if res.counts.is_empty():
 		return

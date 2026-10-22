@@ -1,12 +1,12 @@
 class_name WorldMap
 extends CanvasLayer
 ## Mapa mundial = base entre expedições (0.9): carrossel com uma região por vez e painel
-## com descrição, dificuldade, objetivos (principal, pesquisa, estrelas), ponto de partida
-## (superfície ou elevadores), camadas até o fundo, recursos, riscos e equipamentos.
+## com descrição, dificuldade, objetivos (principal, pesquisa, estrelas), camadas até o
+## fundo, recursos, riscos e equipamentos. Toda expedição parte da superfície.
 ## EXPLORAR começa uma expedição; GARAGEM abre a garagem (só na base). Pausa o jogo enquanto
 ## aberto. Só lê GameState/registros; quem escuta explore_requested (Main) inicia a expedição.
 
-signal explore_requested(region_id: StringName, start_m: int)
+signal explore_requested(region_id: StringName)
 signal garage_requested
 signal closed
 
@@ -19,9 +19,6 @@ var _close: Button
 var _credits: Label
 var _crystals: Label
 var _garage: Button
-## Ponto de partida escolhido (0 = superfície) e a região a que ele se refere.
-var start_m: int = 0
-var _start_region: StringName = &""
 
 
 func _ready() -> void:
@@ -73,16 +70,8 @@ func explore() -> bool:
 	var r: RegionDef = current_region()
 	if not GameState.is_region_unlocked(r.id):
 		return false
-	var m: int = start_m if _start_region == r.id and GameState.elevator_depths(r.id).has(start_m) else 0
-	explore_requested.emit(r.id, m)
+	explore_requested.emit(r.id)
 	return true
-
-
-## Escolhe o ponto de partida (0 = superfície ou a profundidade de um elevador).
-func select_start(depth_m: int) -> void:
-	start_m = depth_m
-	_start_region = current_region().id
-	_refresh()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -274,7 +263,7 @@ func _refresh() -> void:
 
 	if unlocked:
 		_objectives_panel(r)
-		_start_panel(r)
+		_tunnels_panel(r)
 	else:
 		var prog := _panel("DESBLOQUEIO")
 		var lr := HBoxContainer.new()
@@ -370,7 +359,7 @@ func _objectives_panel(r: RegionDef) -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
 		box.add_child(row)
-		var icon: StringName = &"star" if done else (&"star_empty" if o.group == &"star" else (&"elevator" if o.group == &"main" else &"pick"))
+		var icon: StringName = &"star" if done else (&"star_empty" if o.group == &"star" else (&"hull" if o.group == &"main" else &"pick"))
 		var ir := UiTheme.icon_rect(icon, 34)
 		ir.modulate = Color.WHITE if done or o.group != &"research" else Color(1, 1, 1, 0.7)
 		row.add_child(ir)
@@ -395,35 +384,22 @@ func _objectives_panel(r: RegionDef) -> void:
 	box.add_child(UiTheme.label("Recorde: %d m de %d m" % [GameState.region_depth(r.id), r.target_depth_m], 23, UiTheme.TEXT_DIM, 500))
 
 
-## Ponto de partida: superfície ou um elevador (desce gastando combustível).
-func _start_panel(r: RegionDef) -> void:
-	var depths: Array[int] = GameState.elevator_depths(r.id)
-	if _start_region != r.id:
-		_start_region = r.id
-		start_m = depths[-1] if not depths.is_empty() else 0
-	var box := _panel("PONTO DE PARTIDA")
-	box.name = "StartPanel"
-	var flow := HFlowContainer.new()
-	flow.add_theme_constant_override("h_separation", 8)
-	flow.add_theme_constant_override("v_separation", 8)
-	box.add_child(flow)
-	var options: Array[int] = [0]
-	options.append_array(depths)
-	for m in options:
-		var b := Button.new()
-		b.name = "Start_%d" % m
-		var fuel: int = roundi(ShipVitals.elevator_fuel_ratio(m) * 100.0) if m > 0 else 100
-		b.text = ("SUPERFÍCIE" if m == 0 else "%d m" % m) + "\ncomb. %d%%" % fuel
-		b.custom_minimum_size = Vector2(150, 84)
-		b.add_theme_font_size_override("font_size", UiTheme.font_size(22, 500))
-		UiTheme.style_button(b, &"green" if m == start_m else &"steel")
-		b.pressed.connect(func() -> void: select_start(m))
-		flow.add_child(b)
-	if depths.is_empty():
-		var hint := UiTheme.label("Ao alcançar uma camada nova, um elevador é instalado no topo dela.", 22, UiTheme.TEXT_DIM, 500)
-		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		hint.custom_minimum_size = Vector2(240, 0)
-		box.add_child(hint)
+## Mundo persistente: os túneis ficam; descer por eles (caindo) não gasta combustível.
+func _tunnels_panel(r: RegionDef) -> void:
+	var box := _panel("SEUS TÚNEIS")
+	box.name = "TunnelsPanel"
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	box.add_child(row)
+	row.add_child(UiTheme.icon_rect(&"fuel", 40))
+	var txt: String = "Tudo o que você escava fica salvo. Cair pelos túneis antigos não gasta combustível: cave um poço e chegue mais fundo a cada expedição."
+	if GameState.region_depth(r.id) > 0:
+		txt += " Recorde: %d m." % GameState.region_depth(r.id)
+	var l := UiTheme.label(txt, 24, UiTheme.TEXT, 500)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	l.custom_minimum_size = Vector2(240, 0)
+	row.add_child(l)
 
 
 func _safe_top() -> float:

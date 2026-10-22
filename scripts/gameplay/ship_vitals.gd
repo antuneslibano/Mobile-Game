@@ -38,13 +38,6 @@ func is_destroyed() -> bool:
 	return hull <= 0.0
 
 
-## Combustível com que a nave chega a uma profundidade de elevador (fração do tanque).
-static func elevator_fuel_ratio(depth_m: int) -> float:
-	if depth_m <= 0:
-		return 1.0
-	return clampf(1.0 - Balance.FUEL_ELEVATOR_COST_PER_100M * depth_m / 100.0, 0.2, 1.0)
-
-
 ## Consumo por segundo de atividade (já com eficiência e Sobrecarga).
 static func use_per_sec(s: DrillStats, boosting: bool) -> float:
 	return Balance.FUEL_USE_PER_SEC * s.fuel_use * (Balance.FUEL_BOOST_MULT if boosting else 1.0)

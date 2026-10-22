@@ -9,6 +9,13 @@ extends Camera2D
 ## e os detalhes "piscam". Andando em passos inteiros, cada pixel mantém sua largura.
 
 var target: Node2D
+## Abertura da expedição: enquadra o céu e a base com a nave na parte de baixo da tela
+## (abaixo do HUD). end_intro() devolve a câmera ao acompanhamento normal, devagar.
+var intro: bool = false
+## Limite inferior (px do mundo) que a câmera pode mostrar: o fundo da região, para a
+## câmara final ficar enquadrada em vez de mostrar rocha-mãe. INF = sem limite.
+var bottom_limit: float = INF
+var _ease_t: float = 0.0
 var _trauma: float = 0.0
 var _pos: Vector2 = Vector2.ZERO
 var _shake: Vector2 = Vector2.ZERO
@@ -21,6 +28,16 @@ func snap_to_target() -> void:
 	reset_smoothing()
 
 
+func end_intro() -> void:
+	if intro:
+		intro = false
+		_ease_t = INTRO_EASE_SEC
+
+
+const INTRO_EASE_SEC: float = 1.4
+const INTRO_SURFACE_SCREEN_Y: float = 0.64  ## Altura da superfície na tela durante a abertura.
+
+
 func add_shake(amount: float) -> void:
 	_trauma = clampf(_trauma + amount, 0.0, 1.0)
 
@@ -28,7 +45,12 @@ func add_shake(amount: float) -> void:
 func _process(delta: float) -> void:
 	if target == null:
 		return
-	var k: float = 1.0 - exp(-Balance.CAMERA_FOLLOW_SPEED * delta)
+	var speed: float = Balance.CAMERA_FOLLOW_SPEED
+	if _ease_t > 0.0:
+		# Saída da abertura: desce suave antes de voltar ao acompanhamento normal.
+		_ease_t = maxf(0.0, _ease_t - delta)
+		speed = lerpf(Balance.CAMERA_FOLLOW_SPEED, 1.6, _ease_t / INTRO_EASE_SEC)
+	var k: float = 1.0 - exp(-speed * delta)
 	_pos = _pos.lerp(_desired(), k)
 	_shake = Vector2.ZERO
 	if _trauma > 0.0:
@@ -56,10 +78,14 @@ static func step_for_scale(sc: float) -> float:
 func _desired() -> Vector2:
 	var view: Vector2 = get_viewport_rect().size / zoom
 	var p: Vector2 = target.global_position + Vector2(0.0, view.y * Balance.CAMERA_LOOK_AHEAD_RATIO)
+	if intro:
+		p.y = -view.y * (INTRO_SURFACE_SCREEN_Y - 0.5)
 	var world_w: float = float(Balance.WORLD_WIDTH * Balance.BLOCK_PX)
 	if view.x >= world_w:
 		p.x = world_w * 0.5
 	else:
 		p.x = clampf(p.x, view.x * 0.5, world_w - view.x * 0.5)
-	p.y = maxf(p.y, -Balance.SKY_ROWS_VISIBLE * Balance.BLOCK_PX + view.y * 0.5)
+	if not intro:
+		p.y = minf(p.y, bottom_limit - view.y * 0.5)
+		p.y = maxf(p.y, -Balance.SKY_ROWS_VISIBLE * Balance.BLOCK_PX + view.y * 0.5)
 	return p

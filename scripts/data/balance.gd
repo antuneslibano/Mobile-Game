@@ -113,10 +113,22 @@ const FUEL_USE_PER_SEC: float = 1.0          ## Gasto por segundo movendo ou cav
 const FUEL_BOOST_MULT: float = 1.5           ## Sobrecarga gasta mais.
 const FUEL_LOW_RATIO: float = 0.25           ## Alerta de combustível baixo…
 const FUEL_CRITICAL_RATIO: float = 0.10      ## …e crítico.
-const FUEL_ELEVATOR_COST_PER_100M: float = 0.10  ## Fração do tanque para descer 100 m de elevador.
 const HULL_BASE: float = 100.0
 const HEAT_SAFE_LEVEL: float = 1.0           ## Até este nível de calor o casco aguenta.
 const HEAT_HULL_DPS: float = 3.0             ## Dano/s por nível de calor acima do seguro.
 const RESCUE_KEEP_RATIO: float = 0.5         ## Resgate de emergência: fração da carga mantida.
-const FINAL_CHAMBER_ROWS: int = 8            ## Altura (blocos) da câmara final no fundo da região.
-const FINAL_CHAMBER_HALF_WIDTH: int = 7      ## Meia-largura (blocos) da câmara final.
+const FINAL_CHAMBER_ROWS: int = 10           ## Altura (blocos) da câmara final no fundo da região.
+const FINAL_CHAMBER_HALF_WIDTH: int = 8      ## Meia-largura (blocos) da câmara final.
+
+# --- Guardião da câmara final ---------------------------------------------------------
+## Núcleo sólido no piso da câmara: a broca o desgasta por contato (dano/s da broca) e ele
+## responde com pulsos que ferem o casco de quem estiver perto.
+const GUARDIAN_RADIUS_BLOCKS: float = 1.6
+const GUARDIAN_HP: float = 4000.0            ## Vida no Vale (dificuldade 1)…
+const GUARDIAN_HP_PER_DIFFICULTY: float = 0.9  ## …+90% por nível de dificuldade acima de 1.
+const GUARDIAN_PULSE_INTERVAL: float = 2.4   ## Segundos entre pulsos (com aviso antes).
+const GUARDIAN_PULSE_WARN: float = 0.7       ## Brilho de aviso antes do pulso.
+const GUARDIAN_PULSE_RANGE_BLOCKS: float = 4.5
+const GUARDIAN_PULSE_DAMAGE: float = 8.0     ## Dano no casco por pulso no Vale…
+const GUARDIAN_PULSE_DAMAGE_PER_DIFFICULTY: float = 4.0  ## …+4 por nível de dificuldade.
+const GUARDIAN_REWARD_CRYSTALS: int = 8      ## Cristais (× dificuldade) + 1 Artefato ao vencê-lo.

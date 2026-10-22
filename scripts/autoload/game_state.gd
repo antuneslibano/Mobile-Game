@@ -24,8 +24,6 @@ var profile_seed: int = 0
 ## Regiões liberadas e regiões com a câmara final concluída: { id: true }.
 var unlocked: Dictionary = {}
 var done: Dictionary = {}
-## Elevadores instalados: { id: [profundidades em m] } (a superfície é sempre possível).
-var elevators: Dictionary = {}
 ## Objetivos concluídos: { id: { objetivo: true } }.
 var objectives_done: Dictionary = {}
 ## Estatísticas por região: { id: { "res": { recurso: n }, "clean": n } }.
@@ -34,7 +32,6 @@ var region_stats: Dictionary = {}
 var world_mods: Dictionary = {}
 ## Expedição em andamento.
 var expedition_active: bool = false
-var expedition_start_m: int = 0
 var expedition_start_cargo: Dictionary = {}
 var expedition_events: PackedStringArray = []
 var expedition_reached_final: bool = false
@@ -52,7 +49,6 @@ func reset_profile() -> void:
 	profile_seed = rng.randi() & 0x7FFFFFFF
 	unlocked = {RegionRegistry.VALE: true}
 	done = {}
-	elevators = {}
 	objectives_done = {}
 	region_stats = {}
 	world_mods = {}
@@ -111,14 +107,6 @@ func region_seed(id: StringName) -> int:
 	return (hash([profile_seed, String(id)]) & 0x7FFFFFFF)
 
 
-func elevator_depths(id: StringName) -> Array[int]:
-	var out: Array[int] = []
-	for d: Variant in elevators.get(id, []):
-		out.append(int(d))
-	out.sort()
-	return out
-
-
 func is_objective_done(id: StringName, obj_id: StringName) -> bool:
 	return (objectives_done.get(id, {}) as Dictionary).has(obj_id)
 
@@ -173,27 +161,35 @@ func complete_objective(id: StringName, obj_id: StringName) -> void:
 
 # --- Expedição ------------------------------------------------------------------
 
-func begin_expedition(start_m: int) -> void:
+func begin_expedition() -> void:
 	expedition_active = true
-	expedition_start_m = start_m
 	expedition_start_cargo = economy.cargo.duplicate()
 	expedition_events = PackedStringArray()
 	expedition_reached_final = false
-	EventBus.expedition_started.emit(region_id, start_m)
+	EventBus.expedition_started.emit(region_id)
 
 
-## Nave chegou (blocos x, profundidade) — conclui a câmara final se estiver dentro dela.
+## Nave em (blocos x, profundidade): avisa uma vez por expedição ao entrar na câmara final.
 func check_final_chamber(block_x: int, depth: int) -> void:
 	var r: RegionDef = region()
-	if depth < RegionRegistry.chamber_top(r) + 1:
+	if expedition_reached_final or depth < RegionRegistry.chamber_top(r) + 1:
 		return
 	if absi(block_x - RegionRegistry.chamber_center_x()) > Balance.FINAL_CHAMBER_HALF_WIDTH:
 		return
 	expedition_reached_final = true
+	EventBus.final_chamber_reached.emit(r.id, not done.has(r.id))
+
+
+## Guardião da câmara final vencido: conclui a região e libera a próxima.
+## hull_ratio = casco restante (estrela "guardian" com mais da metade).
+func complete_region(hull_ratio: float) -> void:
+	var r: RegionDef = region()
 	if done.has(r.id):
 		return
 	done[r.id] = true
 	complete_objective(r.id, &"final")
+	if hull_ratio >= 0.5:
+		complete_objective(r.id, &"guardian")
 	EventBus.region_completed.emit(r.id)
 	for nr in RegionRegistry.all():
 		if nr.unlock_region == r.id and not unlocked.has(nr.id):
@@ -232,8 +228,6 @@ func end_expedition(rescued: bool, reason: StringName = &"extract", mods: Dictio
 			var haul: Dictionary = RegionRegistry.objective(r, &"haul")
 			if value_kept >= int(haul.get("target", 1 << 30)):
 				complete_objective(r.id, &"haul")
-		if expedition_reached_final and expedition_start_m == 0:
-			complete_objective(r.id, &"one_trip")
 	if not mods.is_empty():
 		world_mods[region_id] = encode_mods(mods)
 	var report: Dictionary = {
@@ -303,9 +297,6 @@ func to_profile() -> Dictionary:
 	var stats_out: Dictionary = {}
 	for k: StringName in region_stats:
 		stats_out[String(k)] = region_stats[k]
-	var elev: Dictionary = {}
-	for k: StringName in elevators:
-		elev[String(k)] = elevators[k]
 	var exp: Dictionary = {}
 	if expedition_active:
 		var sc: Dictionary = {}
@@ -321,7 +312,6 @@ func to_profile() -> Dictionary:
 		"seed": profile_seed,
 		"unlocked": _keys(unlocked),
 		"done": _keys(done),
-		"elevators": elev,
 		"objectives": objs,
 		"rstats": stats_out,
 		"worlds": _string_keys(world_mods),
@@ -368,15 +358,6 @@ func apply_profile(d: Dictionary) -> void:
 		for r in RegionRegistry.all():
 			if RegionRegistry.was_unlocked_by_depth(r, region_progress):
 				unlocked[r.id] = true
-	elevators = {}
-	var ev: Variant = d.get("elevators", {})
-	if ev is Dictionary:
-		for k: Variant in ev:
-			if _valid_region(k):
-				var list: Array = []
-				for m: Variant in _arr(ev[k]):
-					list.append(clampi(int(m), 0, Balance.MAX_DEPTH_ROWS))
-				elevators[StringName(str(k))] = list
 	objectives_done = {}
 	var ob: Variant = d.get("objectives", {})
 	if ob is Dictionary:
@@ -443,15 +424,6 @@ func update_depth(d: int) -> void:
 		# Avisa a cada 10 m de recorde (salvamento) e quando desbloqueia uma região.
 		if d / 10 != before / 10:
 			EventBus.region_progress_changed.emit(region_id, d)
-	# Elevador no topo de cada camada alcançada (a superfície não precisa).
-	for b in RegionRegistry.reachable_layers(region()):
-		if b.start_row > 0 and d >= b.start_row:
-			var list: Array = elevators.get(region_id, [])
-			if not list.has(b.start_row):
-				list.append(b.start_row)
-				elevators[region_id] = list
-				expedition_events.append("Elevador instalado em %d m (%s)" % [b.start_row, b.display_name])
-				EventBus.elevator_unlocked.emit(region_id, b.start_row)
 	var b: int = BiomeRegistry.id_for_row(d)
 	if b != biome_id:
 		biome_id = b

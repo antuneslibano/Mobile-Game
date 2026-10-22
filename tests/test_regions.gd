@@ -53,8 +53,8 @@ func test_unlock_rules_and_objectives() -> void:
 		check(not reach.is_empty() and reach[-1].start_row < r.target_depth_m, "%s: camadas até o fundo" % r.id)
 
 
-## Fundo da região: rocha-mãe a partir do target_depth_m, com a câmara final (salão e
-## relíquia no piso) no centro, logo acima.
+## Fundo da região: rocha-mãe a partir do target_depth_m, com a câmara final (salão e o
+## núcleo sólido do guardião no piso) no centro, logo acima.
 func test_region_bottom_and_final_chamber() -> void:
 	for r in RegionRegistry.all():
 		var g := WorldGenerator.new(31, r)
@@ -63,7 +63,14 @@ func test_region_bottom_and_final_chamber() -> void:
 			check_eq(g.generate_block(x, r.target_depth_m), BlockRegistry.BEDROCK, "%s: fundo é rocha-mãe" % r.id)
 		var mid: int = RegionRegistry.chamber_top(r) + Balance.FINAL_CHAMBER_ROWS / 2
 		check_eq(g.generate_block(cx, mid), BlockRegistry.AIR, "%s: câmara final aberta" % r.id)
-		check_eq(g.generate_block(cx, r.target_depth_m - 1), BlockRegistry.ARTIFACT, "%s: relíquia no piso da câmara" % r.id)
+		var core: Vector2i = WorldModel.world_to_cell(RegionRegistry.guardian_center(r))
+		check_eq(g.generate_cell(core.x, core.y), BlockRegistry.BEDROCK, "%s: núcleo do guardião é sólido" % r.id)
+		var above := Vector2i(core.x, core.y - roundi(Balance.GUARDIAN_RADIUS_BLOCKS * Balance.CELL_SUB) - 3)
+		check_eq(g.generate_cell(above.x, above.y), BlockRegistry.AIR, "%s: ar acima do guardião" % r.id)
+		g.guardian_alive = false
+		check_eq(g.generate_cell(core.x, core.y), BlockRegistry.AIR, "%s: guardião vencido abre o núcleo" % r.id)
+		check(r.target_depth_m >= 600 and r.target_depth_m <= Balance.MAX_DEPTH_ROWS, "%s: região funda (%d m)" % [r.id, r.target_depth_m])
+		check(not r.guardian_name.is_empty(), "%s tem guardião" % r.id)
 
 
 func test_terrain_is_not_collectible() -> void:

@@ -1,9 +1,10 @@
 extends RefCounted
 ## Simulação de balanceamento (sem cena): perfuradora real, mundo real, economia real, com
-## expedições (0.9): cada expedição começa no elevador mais fundo da região (pagando o
-## combustível da descida), termina extraindo com 10% de combustível (toda a carga) ou em
-## resgate de emergência (metade da carga da expedição). Entre expedições: vende tudo e
-## compra o upgrade mais barato. O mundo persiste entre expedições.
+## expedições: cada uma parte da superfície (o mundo persiste: cai pelos túneis antigos sem
+## gastar combustível), termina extraindo com 10% de combustível (toda a carga) ou em
+## resgate de emergência (metade da carga da expedição). Na câmara final, enfrenta o
+## guardião (mesmas regras do jogo). Entre expedições: vende tudo e compra o upgrade mais
+## barato.
 ## Estratégias:
 ##   &"reto"      – cava para baixo (desvia na diagonal quando fica presa);
 ##   &"minerios"  – vai até o minério visível mais próximo (nunca para cima); com menos de
@@ -23,7 +24,10 @@ static func run(strategy: StringName, minutes: float, world_seed: int = 2024, re
 	var e := Economy.new()
 	var d := Drill.new()
 	var stats: Dictionary = {"overdrives": 0, "first_full": -1.0, "ore_cells": 0, "terrain_cells": 0,
-			"expeditions": 0, "rescues": 0, "final_at": -1.0, "refuel": 0.0}
+			"expeditions": 0, "rescues": 0, "final_at": -1.0, "refuel": 0.0, "guardian_at": -1.0,
+			"fuel_outs": 0, "first_trip_depth": 0}
+	var guardian := FinalGuardian.new()
+	guardian.setup(region, true)
 	var clock: Array[float] = [0.0]   # lambdas capturam por valor: tempo compartilhado via array
 	d.dug.connect(func(counts: Dictionary, _at: Vector2) -> void:
 		for id: int in counts:
@@ -43,20 +47,14 @@ static func run(strategy: StringName, minutes: float, world_seed: int = 2024, re
 	var t: float = 0.0
 	var marks: Dictionary = {}
 	var bought: int = 0
-	var elevators: Array[int] = []
 	var max_depth: int = 0
 	var limit: float = minutes * 60.0
 	while t < limit:
-		# --- Nova expedição ---
-		var start: int = elevators.max() if not elevators.is_empty() else 0
-		var spawn: Vector2 = Drill.surface_spawn()
-		if start > 0:
-			spawn.y = (start + 0.5) * Balance.BLOCK_PX
-			w.fill_circle(spawn, Balance.BIT_RADIUS_PX + 6.0, BlockRegistry.AIR)
+		# --- Nova expedição (sempre da superfície) ---
 		d.stats = Progression.build_stats(e.upgrade_levels)
-		d.setup(w, spawn, world_seed + int(stats.expeditions))
+		d.setup(w, Drill.surface_spawn(), world_seed + int(stats.expeditions))
 		d.modules.set_equipped(e.equipped_modules)
-		d.vitals.reset(d.stats, ShipVitals.elevator_fuel_ratio(start) if start > 0 else 1.0)
+		d.vitals.reset(d.stats)
 		var start_cargo: Dictionary = e.cargo.duplicate()
 		stats.expeditions += 1
 		var stuck_t: float = 0.0
@@ -66,7 +64,11 @@ static func run(strategy: StringName, minutes: float, world_seed: int = 2024, re
 		var next_scan: float = 0.0
 		while t < limit:
 			var aim := Vector2.DOWN
-			if strategy == &"minerios":
+			var in_chamber: bool = float(stats.final_at) >= 0.0 and guardian.alive and guardian.in_arena(d.position)
+			if in_chamber:
+				var tg: Vector2 = guardian.center - d.position
+				aim = Vector2(signf(tg.x), 1.0).normalized() if absf(tg.x) > guardian.radius else Vector2.DOWN
+			elif strategy == &"minerios":
 				var want_fuel: bool = d.vitals.fuel_ratio() < 0.5
 				var here: Vector2i = WorldModel.world_to_cell(d.position)
 				if t >= next_scan or not _is_target(w.peek_cell(target), want_fuel):
@@ -89,9 +91,17 @@ static func run(strategy: StringName, minutes: float, world_seed: int = 2024, re
 			clock[0] = t
 			var depth: int = d.depth_m()
 			max_depth = maxi(max_depth, depth)
-			for b in RegionRegistry.reachable_layers(region):
-				if b.start_row > 0 and depth >= b.start_row and not elevators.has(b.start_row):
-					elevators.append(b.start_row)
+			if int(stats.expeditions) == 1:
+				stats.first_trip_depth = maxi(int(stats.first_trip_depth), depth)
+			if guardian.alive and not d.disabled:
+				var hit: float = guardian.step(dt, d.position)
+				if hit > 0.0:
+					d.apply_hull_damage(hit)
+				if guardian.touches(d.bit_center(), d.bit_radius()):
+					var s: DrillStats = d.stats
+					if guardian.take_damage(s.damage * s.hits_per_second * d.speed_mult * (1.0 + s.crit_chance * (s.crit_mult - 1.0)) * dt):
+						stats.guardian_at = t
+						w.fill_circle(guardian.center, guardian.radius + 2.0, BlockRegistry.AIR)
 			if float(stats.final_at) < 0.0 and depth >= RegionRegistry.chamber_top(region) + 1 \
 					and absi(floori(d.position.x / Balance.BLOCK_PX) - RegionRegistry.chamber_center_x()) <= Balance.FINAL_CHAMBER_HALF_WIDTH:
 				stats.final_at = t
@@ -101,15 +111,17 @@ static func run(strategy: StringName, minutes: float, world_seed: int = 2024, re
 				stuck_t = 0.0
 			else:
 				stuck_t += dt
-			for m: int in [25, 50, 100, 150, 200, 250, 300]:
+			for m: int in [25, 50, 100, 200, 300, 400, 500, 600]:
 				if depth >= m and not marks.has(m):
 					marks[m] = t
 			if w.loaded_chunk_indices().size() > 8:
 				var ci: int = WorldModel.chunk_index_for_row(floori(d.position.y / Balance.CELL_PX))
 				w.unload_outside(ci - 2, ci + 3)
-			if d.disabled or d.vitals.fuel_ratio() <= EXTRACT_AT:
+			if d.disabled or d.vitals.fuel_ratio() <= EXTRACT_AT or float(stats.guardian_at) == t:
 				break
 		# --- Fim da expedição ---
+		if d.vitals.fuel_ratio() <= EXTRACT_AT or d.vitals.is_out_of_fuel():
+			stats.fuel_outs += 1
 		if d.disabled:
 			stats.rescues += 1
 			for k: StringName in e.cargo.keys():
@@ -137,9 +149,11 @@ static func run(strategy: StringName, minutes: float, world_seed: int = 2024, re
 		"overdrives": stats.overdrives, "first_full": stats.first_full,
 		"ore_cells": stats.ore_cells, "terrain_cells": stats.terrain_cells,
 		"expeditions": stats.expeditions, "rescues": stats.rescues, "final_at": stats.final_at,
-		"refuel": stats.refuel, "elevators": elevators.duplicate(),
+		"refuel": stats.refuel, "guardian_at": stats.guardian_at, "fuel_outs": stats.fuel_outs,
+		"first_trip_depth": stats.first_trip_depth, "guardian_hp": guardian.hp_ratio(),
 	}
 	d.free()
+	guardian.free()
 	return out
 
 
@@ -174,7 +188,8 @@ static func summary(r: Dictionary) -> String:
 	var parts: PackedStringArray = []
 	for m: int in r.marks:
 		parts.append("%dm@%.0fs" % [m, float(r.marks[m])])
-	return "%d m, ganhou %d créditos, %d upgrades, %d expedições (%d resgates), câmara final %s, elevadores %s, combustível de carvão %.0f, Sobrecargas %d (1ª %.0fs), marcos %s" % [
-		r.depth, r.earned, r.bought, r.expeditions, r.rescues,
-		("%.0fs" % float(r.final_at)) if float(r.final_at) >= 0.0 else "não", str(r.elevators), float(r.refuel),
-		r.overdrives, r.first_full, ", ".join(parts)]
+	return "%d m, ganhou %d créditos, %d upgrades, %d expedições (%d resgates, %d no limite do combustível), 1ª expedição até %d m, câmara final %s, guardião %s, combustível de carvão %.0f, Sobrecargas %d (1ª %.0fs), marcos %s" % [
+		r.depth, r.earned, r.bought, r.expeditions, r.rescues, r.fuel_outs, r.first_trip_depth,
+		("%.0fs" % float(r.final_at)) if float(r.final_at) >= 0.0 else "não",
+		("vencido %.0fs" % float(r.guardian_at)) if float(r.guardian_at) >= 0.0 else ("vida %.0f%%" % (float(r.guardian_hp) * 100.0)),
+		float(r.refuel), r.overdrives, r.first_full, ", ".join(parts)]

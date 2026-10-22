@@ -89,7 +89,8 @@ shaders/terrain.gdshader   terreno orgânico (campo contínuo sobre a grade)
   ui/region_art.gd         RegionArt – ilustração procedural (ilha flutuante) por região
   ui/touch_scroll.gd       TouchScroll – rolagem por arrasto com inércia (cancela o toque no botão)
   ui/expedition_report.gd  ExpeditionReport – resultado da expedição (extração/resgate)
-  game/elevator_rig.gd     ElevatorRig – cabo do elevador e da cápsula de extração (visual)
+  game/elevator_rig.gd     ElevatorRig – cabo da cápsula de extração (visual)
+  game/final_guardian.gd   FinalGuardian – guardião da câmara final (regras dos pulsos/vida e arte)
   gameplay/ship_art.gd     ShipArt – sprite procedural da nave (quadros da broca)
 assets/fonts/              Press Start 2P e Jersey 10 (OFL 1.1, licenças incluídas)
 assets/environment/        terrain/ ores/ vegetation/ decorations/ – PNGs (importados como Image)
@@ -296,9 +297,10 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
 
 ## 13. Expedições (0.9)
 
-- **Fluxo** (`Main`): base = `WorldMap` (GARAGEM, EXPLORAR, ponto de partida) →
+- **Fluxo** (`Main`): base = `WorldMap` (GARAGEM, EXPLORAR) →
   `_start_expedition` (`GameState.start_dive` com a seed fixa da região, `Game.start_run`
-  com a escavação salva e o combustível descontado do elevador, `GameState.begin_expedition`)
+  com a escavação salva, sempre da superfície, `GameState.begin_expedition`). A câmera abre
+  enquadrando o céu e a base (`DepthCamera.intro`) e desce quando a nave começa a se mover.
   → EXTRAIR (`Game.play_extraction`, cabo do `ElevatorRig`) ou `Drill.stranded` (resgate após
   1,2 s) → `GameState.end_expedition` (perdas, estrelas, escavação codificada) →
   `ExpeditionReport` → base.
@@ -306,8 +308,15 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
   carvão abastece (`BlockDef.fuel`), calor acima de `HEAT_SAFE_LEVEL` fere o casco. Zerar
   qualquer um desliga a nave (`disabled`) e emite `stranded`.
 - **Fundo da região**: `WorldGenerator._cell` devolve rocha-mãe a partir de
-  `target_depth_m` e escava a câmara final (elipse com ruído, relíquia no piso, no centro).
-  `GameState.check_final_chamber` conclui o objetivo principal e libera a próxima região.
+  `target_depth_m` e escava a câmara final (elipse com ruído, no centro).
+  `GameState.check_final_chamber` só avisa a chegada (`final_chamber_reached`).
+- **Guardião** (`FinalGuardian`, filho de `Game`): núcleo de rocha-mãe gerado em
+  `WorldGenerator._forced_cell` enquanto `generator.guardian_alive` (falso quando a região já
+  foi concluída). `Game._guardian_step` aplica os pulsos no casco (`Drill.apply_hull_damage`)
+  e o dano/s da broca encostada; ao vencê-lo, abre o núcleo (`fill_circle`, salvo na
+  escavação), dá a recompensa e emite `guardian_defeated` → `GameState.complete_region`
+  (objetivo principal, estrela, próxima região) → painel do HUD (voltar à base/continuar).
+  A câmera não desce abaixo do fundo da região (`DepthCamera.bottom_limit`).
 - **Persistência**: `profile_seed` → `region_seed(id)`; escavação por região codificada
-  (índice local u16 + material u8, base64 por chunk); elevadores, objetivos, estatísticas por
+  (índice local u16 + material u8, base64 por chunk); objetivos, estatísticas por
   região e a expedição em andamento (fechar o app no meio = resgate) vão no perfil.

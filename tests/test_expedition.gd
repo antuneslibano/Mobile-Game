@@ -33,8 +33,39 @@ func test_vitals_rules() -> void:
 	for i in 400:
 		ended = v.step(1.0, s, true, false, 0.0) or ended
 	check(ended and v.is_out_of_fuel(), "sem combustível encerra a expedição")
-	check_eq(ShipVitals.elevator_fuel_ratio(0), 1.0, "superfície: tanque cheio")
-	check(absf(ShipVitals.elevator_fuel_ratio(150) - (1.0 - Balance.FUEL_ELEVATOR_COST_PER_100M * 1.5)) < 0.001, "elevador desconta combustível pela profundidade")
+
+
+## Guardião da câmara final: pulsos só na arena e no alcance; a broca o vence.
+func test_guardian_rules() -> void:
+	var vale: RegionDef = RegionRegistry.get_def(RegionRegistry.VALE)
+	var g := FinalGuardian.new()
+	g.setup(vale, true)
+	check(g.alive and is_equal_approx(g.hp, RegionRegistry.guardian_hp(vale)), "guardião começa com vida cheia")
+	check(g.center.y < vale.target_depth_m * Balance.BLOCK_PX and g.center.y > RegionRegistry.chamber_top(vale) * Balance.BLOCK_PX, "guardião no piso da câmara final")
+	var far: Vector2 = g.center + Vector2(0, -40 * Balance.BLOCK_PX)
+	var total: float = 0.0
+	for i in 600:
+		total += g.step(1.0 / 60.0, far)
+	check_eq(total, 0.0, "longe da arena não há pulsos")
+	var near: Vector2 = g.center + Vector2(Balance.BLOCK_PX * 2.5, 0)
+	total = 0.0
+	for i in 60 * 10:
+		total += g.step(1.0 / 60.0, near)
+	var pulses: int = int(10.0 / Balance.GUARDIAN_PULSE_INTERVAL)
+	check(is_equal_approx(total, pulses * RegionRegistry.guardian_pulse_damage(vale)), "pulsos ferem quem está perto (%.0f em 10 s)" % total)
+	var edge: Vector2 = g.center + Vector2(Balance.BLOCK_PX * (Balance.GUARDIAN_PULSE_RANGE_BLOCKS + 1.0), 0)
+	total = 0.0
+	for i in 60 * 10:
+		total += g.step(1.0 / 60.0, edge)
+	check_eq(total, 0.0, "fora do alcance do pulso não há dano (dá para se proteger)")
+	check(g.touches(g.center + Vector2(g.radius + 10.0, 0), Balance.BIT_RADIUS_PX), "broca encostada no coração")
+	check(not g.take_damage(g.max_hp * 0.5) and g.alive, "meia vida: ainda vivo")
+	check(g.take_damage(g.max_hp) and not g.alive, "vida zerada: guardião vencido")
+	check(not g.take_damage(10.0), "vencido não morre de novo")
+	var abismo: RegionDef = RegionRegistry.get_def(RegionRegistry.ABISMO)
+	check(RegionRegistry.guardian_hp(abismo) > RegionRegistry.guardian_hp(vale) and RegionRegistry.guardian_pulse_damage(abismo) > RegionRegistry.guardian_pulse_damage(vale),
+			"guardiões mais fortes nas regiões difíceis")
+	g.free()
 
 
 func test_fuel_upgrades() -> void:

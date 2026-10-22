@@ -33,8 +33,11 @@ signal map_opened
 signal map_closed
 
 # Expedições (0.9)
-signal expedition_started(region_id: StringName, start_m: int)
+signal expedition_started(region_id: StringName)
 signal expedition_ended(report: Dictionary)
-signal elevator_unlocked(region_id: StringName, depth_m: int)
+## A nave entrou na câmara final (uma vez por expedição); guardian_alive = o guardião ainda vive.
+signal final_chamber_reached(region_id: StringName, guardian_alive: bool)
+## Pulso do guardião acertou a nave (dano no casco).
+signal guardian_pulse(damage: float)
 signal objective_completed(region_id: StringName, objective_id: StringName, text: String)
 signal region_completed(region_id: StringName)
