@@ -3,6 +3,25 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.16.0] — Configurações de áudio e minério que sempre rende
+
+### Adicionado
+- **Configurações** (engrenagem na base, ao lado das moedas, e no jogo, abaixo do painel):
+  volume da Música, dos Efeitos e da Máquina (broca e motor), de 0 a 100% em passos de
+  5%, com som de amostra ao soltar e botão PADRÃO. Salvo à parte do perfil.
+
+### Corrigido
+- **Minério que não dropava**: cada célula de minério valia 1/16 de bloco, então raspar
+  só a quina fazia o desenho sumir sem render item. Agora, ao quebrar um pedaço, o pedaço
+  conectado do veio (até um bloco) rende de uma vez; pedaço de meio bloco ou mais conta
+  como bloco inteiro. O resto do veio vira a rocha em volta (continua para cavar).
+
+### Alterado (balanceamento)
+- Como o minério agora rende tudo o que se vê (cerca de 2× mais do que antes), os
+  upgrades custam mais créditos (×2,5 em vez de ×1,5), as receitas pedem um pouco mais de
+  material e o carvão dá 4 de combustível por bloco (antes 6). Na simulação, a câmara
+  final do Vale fica em ~13 min.
+
 ## [0.15.1] — Porta só no Laboratório e compatibilidade
 
 ### Alterado

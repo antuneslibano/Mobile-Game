@@ -84,6 +84,18 @@ func _run() -> void:
 	_check(not Transitions.shutter_busy() and main.get_node("Garage").call("is_open"), "Bancada abre direto, sem porta")
 	main.get_node("Garage").call("close")
 	await _frames(2)
+	# Configurações: engrenagem da base abre; o controle muda o volume do canal.
+	var settings: SettingsScreen = main.get("settings")
+	(base.find_child("SettingsButton", true, false) as Button).pressed.emit()
+	await _frames(2)
+	_check(settings.is_open() and get_tree().paused, "engrenagem abre as configurações")
+	var music_slider: HSlider = settings.find_child("Volume_music", true, false)
+	music_slider.value = 40.0
+	_check(is_equal_approx(Sfx.get_volume(&"music"), 0.4) and AudioServer.get_bus_volume_db(AudioServer.get_bus_index("Musica")) < -7.0, "volume da música muda no canal Musica")
+	music_slider.value = 100.0
+	(settings.find_child("SettingsClose", true, false) as Button).pressed.emit()
+	await _frames(2)
+	_check(not settings.is_open() and base.is_open(), "PRONTO fecha as configurações")
 	# O resto do teste troca de tela muitas vezes: sem porta, a troca é imediata.
 	Transitions.shutter_enabled = false
 	(base.find_child("Station_map", true, false) as Button).pressed.emit()
@@ -193,6 +205,7 @@ func _run() -> void:
 	await _frames(3)
 	_check(base.is_open() and not world_map.is_open() and get_tree().paused, "volta para a base")
 	var garage: Garage = main.get("garage")
+	GameState.collect_drops(Vector2.ZERO, {&"copper": 60.0})  # bem mais que a reserva da Bancada
 	_check(base.has_badge(&"market"), "mercado avisa que há carga para vender")
 	(base.find_child("Station_market", true, false) as Button).pressed.emit()
 	await _frames(2)

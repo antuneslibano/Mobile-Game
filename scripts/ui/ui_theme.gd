@@ -182,3 +182,17 @@ static func short_number(n: int) -> String:
 		out = "." + s.substr(s.length() - 3) + out
 		s = s.substr(0, s.length() - 3)
 	return s + out
+
+
+## Botão quadrado de engrenagem (abre as Configurações).
+static func gear_button() -> Button:
+	var b := Button.new()
+	b.name = "SettingsButton"
+	b.icon = PixelArt.icon(&"gear")
+	b.expand_icon = true
+	b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	b.custom_minimum_size = Vector2(72, 72)
+	b.add_theme_constant_override("icon_max_width", 44)
+	b.focus_mode = Control.FOCUS_NONE
+	style_button(b, &"steel")
+	return b

@@ -9,6 +9,7 @@ extends CanvasLayer
 ## EXPEDIÇÃO abre a mesa de mapas. Pausa o jogo enquanto aberta. Só lê o estado; quem
 ## escuta station_requested (Main) abre as telas.
 
+signal settings_requested
 signal station_requested(kind: StringName)
 
 const ART: float = 4.0
@@ -161,6 +162,11 @@ func _build() -> void:
 	(kbox[0] as Control).custom_minimum_size = Vector2(110, 0)
 	header.add_child(kbox[0])
 	_crystals = kbox[1]
+	var gear: Button = UiTheme.gear_button()
+	gear.pressed.connect(func() -> void:
+		Sfx.play(&"click")
+		settings_requested.emit())
+	header.add_child(gear)
 
 	_notice = UiTheme.label("", 22, UiTheme.TEXT, 500)
 	_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

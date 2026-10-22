@@ -279,7 +279,7 @@ func _on_dug(res: WorldModel.DigResult, at: Vector2) -> void:
 		chest_opened.emit(blk)
 	if res.counts.is_empty():
 		return
-	dug.emit(res.counts, at)
+	dug.emit(res.drop_counts(), at)
 	var fuel: float = fuel_for(res.counts)
 	if fuel > 0.0:
 		vitals.refuel(fuel)

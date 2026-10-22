@@ -200,6 +200,34 @@ func test_sounds() -> void:
 	s.free()
 
 
+## 0.16: quebrar qualquer pedaço de minério rende pelo menos um item.
+func test_ore_drops_whole() -> void:
+	var w := WorldModel.new(77, RegionRegistry.get_def(RegionRegistry.VALE))
+	var tested: int = 0
+	var bad: int = 0
+	for cy in range(Balance.CHUNK_CELLS_Y, Balance.CHUNK_CELLS_Y * 8):
+		if tested >= 25:
+			break
+		for cx in range(2, Balance.WORLD_CELLS_X - 2, 3):
+			var c := Vector2i(cx, cy)
+			var def: BlockDef = BlockRegistry.get_def(w.peek_cell(c))
+			if not WorldModel._whole_block(def) or def.drops.is_empty():
+				continue
+			var cells: Array[Vector2i] = [c]
+			var r: WorldModel.DigResult = w.dig_cells(cells, 99999.0)
+			var drops: Dictionary = Drill.drops_for(r.drop_counts())
+			var best: float = 0.0
+			for k: StringName in drops:
+				best = maxf(best, float(drops[k]))
+			tested += 1
+			if best < 1.0 and r.removed() >= Balance.CELLS_PER_BLOCK / 2:
+				bad += 1
+			if tested >= 25:
+				break
+	check(tested >= 10, "achou minérios para testar (%d)" % tested)
+	check(bad == 0, "golpe em minério rende item inteiro (%d sem drop)" % bad)
+
+
 ## 0.15: plantas bioluminescentes nas cavernas do Vale (e só no Vale), espaçadas.
 func test_bio_plants() -> void:
 	var total: int = 0

@@ -87,6 +87,7 @@ Executa, em modo headless:
 | `--extract-at=T` | com `--autotest`, chama a extração em T segundos |
 | `--guardian-hp=F` | vida inicial do guardião da câmara final (fração; só builds de depuração) |
 | `--sonar-at=T` | com `--autotest`, usa o sonar em T segundos |
+| `--settings-at=T` | com `--autotest`, abre as Configurações em T segundos |
 | `--splash` | com `--autotest`, mostra a tela de abertura |
 | `--ask-new-area` | abre o mapa com o aviso de "nova área" (só builds de depuração) |
 | `--creatures` | caverna com uma criatura de cada espécie à frente da nave (só builds de depuração) |
@@ -191,6 +192,7 @@ Instalar: `adb install -r build/deepforge.apk`, ou copie o APK para o celular e 
 | 0.13 | Névoa com luz da nave, sonar, broca forçada esquenta, onda de choque em anéis, correções de interface | ✅ |
 | 0.14 | Catálogo com fichas no Laboratório, trilha sonora e sons das criaturas, tela de abertura, transições, baú coletável, receitas graduais, desempenho | ✅ |
 | 0.15 | Porta de metal nas trocas de tela, plantas bioluminescentes no Vale, volume da trilha e da máquina | ✅ |
+| 0.16 | Configurações de volume (música, efeitos, máquina), minério sempre rende item | ✅ |
 | 0.10–0.11 | Base com construção, criaturas — ver [ROADMAP_EXPEDICOES.md](ROADMAP_EXPEDICOES.md) | planejado |
 | 5 | Arte, efeitos, áudio, otimização, exportação Android | pendente |
 

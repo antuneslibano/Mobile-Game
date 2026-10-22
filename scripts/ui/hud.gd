@@ -7,6 +7,7 @@ extends CanvasLayer
 ## guardião e, ao vencê-lo, o painel de região concluída (voltar à base ou continuar).
 
 signal extract_requested
+signal settings_requested
 
 const TOP_HEIGHT: float = 262.0
 const SIDE_MARGIN: float = 20.0
@@ -41,6 +42,7 @@ var _banner: Label
 var _banner_t: float = 0.0
 var _hint: Label
 var _fps_label: Label
+var _gear: Button
 var _pads: Array[PadButton] = []
 var _safe_top: float = 0.0
 var _safe_bottom: float = 0.0
@@ -333,6 +335,11 @@ func _build() -> void:
 	_fps_label.visible = OS.is_debug_build()
 	_root.add_child(_fps_label)
 
+	# Configurações (0.16): engrenagem logo abaixo do painel, à direita.
+	_gear = UiTheme.gear_button()
+	_gear.pressed.connect(func() -> void: settings_requested.emit())
+	_root.add_child(_gear)
+
 
 func _label(text: String, size: int, color: Color) -> Label:
 	var l := Label.new()
@@ -374,6 +381,8 @@ func _apply_layout() -> void:
 	_banner.size = Vector2(vp.x - 40.0, 120)
 	_banner.position.x = 20.0
 	_fps_label.position = Vector2(SIDE_MARGIN, _top.position.y + _top.size.y + 6.0)
+	_gear.size = _gear.custom_minimum_size
+	_gear.position = Vector2(vp.x - SIDE_MARGIN - _gear.size.x, _top.position.y + _top.size.y + 8.0)
 	_warn.position = Vector2(0, _top.position.y + _top.size.y + 14.0)
 	_warn.size = Vector2(vp.x, 44)
 	_boss.position = Vector2(SIDE_MARGIN * 2.0, _warn.position.y + 52.0)

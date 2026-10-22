@@ -133,7 +133,7 @@ func test_balance_simulation_greedy_player() -> void:
 	note("20 min buscando minérios: " + Sim.summary(r))
 	var marks: Dictionary = r.marks
 	# Faixas-alvo (GAME_DESIGN.md §7.2.1).
-	check(marks.has(50) and float(marks[50]) > 20.0 and float(marks[50]) < 300.0, "50 m entre 20 s e 5 min")
+	check(marks.has(50) and float(marks[50]) > 15.0 and float(marks[50]) < 300.0, "50 m entre 15 s e 5 min")
 	check(float(r.final_at) > 360.0 and float(r.final_at) < 1020.0, "câmara final do Vale entre 6 e 17 min (%.0f s)" % float(r.final_at))
 	check(float(r.guardian_at) > float(r.final_at) + 5.0, "o guardião resiste a mais de 5 s de broca (%.0f s)" % (float(r.guardian_at) - float(r.final_at)))
 	check(int(r.expeditions) >= 3, "o combustível divide o jogo em expedições (%d)" % int(r.expeditions))

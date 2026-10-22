@@ -354,6 +354,16 @@ static func _icon_img(id: StringName) -> Image:
 			rect(img, 3, 8, 12, 9, RED)
 			rect(img, 3, 8, 12, 2, RED_HI)
 			rect(img, 8, 11, 2, 3, Color("2a0a08"))
+		&"gear":
+			# Engrenagem: dentes em cruz e na diagonal, miolo vazado.
+			var gc := Color("c3cad6")
+			for d: Vector2i in [Vector2i(7, 0), Vector2i(7, 14), Vector2i(0, 7), Vector2i(14, 7)]:
+				rect(img, d.x, d.y, 4, 4, gc)
+			for d: Vector2i in [Vector2i(2, 2), Vector2i(12, 2), Vector2i(2, 12), Vector2i(12, 12)]:
+				rect(img, d.x, d.y, 4, 4, gc)
+			circle(img, 9, 9, 6.0, gc)
+			circle(img, 8.5, 8.5, 5.0, Color("e4e9f0"))
+			circle(img, 9, 9, 2.6, Color("2a3038"))
 		&"star":
 			_star(img, GOLD, GOLD_HI)
 		&"star_empty":

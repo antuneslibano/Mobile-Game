@@ -415,3 +415,15 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
   `FogLayer` pelo registro estático `CaveDecor.live`. A névoa aceita até 12 luzes.
 - **Volume**: `Sfx.DRILL_DB`/`ENGINE_DB`; `music_db = DRILL_DB + linear_to_db(0.25)` com a
   trilha normalizada.
+
+## 20. 0.16: configurações e coleta de minério
+
+- **Áudio por canal**: `Sfx` cria os buses `Musica`, `Efeitos` e `Maquina`; `set_volume`,
+  `get_volume`, `save_settings`/`load_settings` (`user://deepforge_settings.json`, fora do
+  perfil). `SettingsScreen` (CanvasLayer 35) abre pela engrenagem (`UiTheme.gear_button`)
+  da base e do HUD (`settings_requested`).
+- **Minério**: em `WorldModel.dig_cells`, quando uma célula de bloco que rende
+  (`_whole_block`) quebra, `_vein_piece` pega o pedaço conectado (até 1 bloco; sobras
+  pequenas vão junto), que vira `generator.host_terrain`. `DigResult.drop_bonus` completa
+  pedaços de meio bloco para um bloco só nos itens (`drop_counts()`); combustível e energia
+  usam `counts`.

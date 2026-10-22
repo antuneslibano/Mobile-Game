@@ -31,18 +31,30 @@ const ENGINE_DB: float = -22.0
 const MUSIC_REL: float = 0.25
 var music_db: float = DRILL_DB + linear_to_db(MUSIC_REL)
 
+## Configurações (0.16): volume por canal de áudio, 0..1, salvo à parte do perfil.
+const SETTINGS_PATH: String = "user://deepforge_settings.json"
+const CHANNELS: Array[StringName] = [&"music", &"sfx", &"machine"]
+const BUS_NAMES: Dictionary = {&"music": "Musica", &"sfx": "Efeitos", &"machine": "Maquina"}
+var volumes: Dictionary = {&"music": 1.0, &"sfx": 1.0, &"machine": 1.0}
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_make_buses()
+	load_settings()
 	_build_all()
 	for i in VOICES:
 		var p := AudioStreamPlayer.new()
+		p.bus = BUS_NAMES[&"sfx"]
 		add_child(p)
 		_voices.append(p)
 	_drill = _loop_player(&"drill")
 	_engine = _loop_player(&"engine")
+	_drill.bus = BUS_NAMES[&"machine"]
+	_engine.bus = BUS_NAMES[&"machine"]
 	_music = AudioStreamPlayer.new()
 	_music.volume_db = -80.0
+	_music.bus = BUS_NAMES[&"music"]
 	add_child(_music)
 	_music_task = WorkerThreadPool.add_task(_build_music_thread)
 
@@ -96,6 +108,75 @@ func _build_music_thread() -> void:
 	w.loop_begin = 0
 	w.loop_end = n
 	_music_wav = w
+
+
+# --- Volume por canal ------------------------------------------------------------------
+
+func _make_buses() -> void:
+	for ch in CHANNELS:
+		var name: String = BUS_NAMES[ch]
+		if AudioServer.get_bus_index(name) >= 0:
+			continue
+		AudioServer.add_bus()
+		var i: int = AudioServer.bus_count - 1
+		AudioServer.set_bus_name(i, name)
+		AudioServer.set_bus_send(i, "Master")
+
+
+## Muda o volume de um canal (0..1). Não salva sozinho (veja save_settings).
+func set_volume(channel: StringName, v: float) -> void:
+	if not volumes.has(channel):
+		return
+	volumes[channel] = clampf(v, 0.0, 1.0)
+	_apply_volume(channel)
+
+
+func get_volume(channel: StringName) -> float:
+	return float(volumes.get(channel, 1.0))
+
+
+func _apply_volume(channel: StringName) -> void:
+	var i: int = AudioServer.get_bus_index(BUS_NAMES[channel])
+	if i < 0:
+		return
+	var v: float = float(volumes[channel])
+	AudioServer.set_bus_mute(i, v <= 0.001)
+	AudioServer.set_bus_volume_db(i, linear_to_db(maxf(v, 0.001)))
+
+
+## Toca um som uma vez num canal específico (amostra na tela de Configurações).
+func play_on_bus(name: StringName, channel: StringName, seconds: float = 0.6) -> void:
+	if not _streams.has(name):
+		return
+	var p := AudioStreamPlayer.new()
+	p.stream = _streams[name]
+	p.bus = BUS_NAMES.get(channel, "Master")
+	p.volume_db = ENGINE_DB + 8.0 if channel == &"machine" else 0.0
+	add_child(p)
+	p.play()
+	get_tree().create_timer(seconds, true).timeout.connect(p.queue_free)
+
+
+func load_settings() -> void:
+	if FileAccess.file_exists(SETTINGS_PATH):
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(SETTINGS_PATH))
+		if parsed is Dictionary:
+			var vol: Variant = (parsed as Dictionary).get("volume", {})
+			if vol is Dictionary:
+				for ch in CHANNELS:
+					if (vol as Dictionary).has(String(ch)):
+						volumes[ch] = clampf(float(vol[String(ch)]), 0.0, 1.0)
+	for ch in CHANNELS:
+		_apply_volume(ch)
+
+
+func save_settings() -> void:
+	var vol: Dictionary = {}
+	for ch in CHANNELS:
+		vol[String(ch)] = snappedf(float(volumes[ch]), 0.01)
+	var f := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
+	if f != null:
+		f.store_string(JSON.stringify({"volume": vol}))
 
 
 func _exit_tree() -> void:

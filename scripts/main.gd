@@ -16,6 +16,7 @@ extends Node
 ##   --extract-at=T      (com --autotest) chama a extração em T segundos
 ##   --guardian-hp=F     (debug) vida inicial do guardião da câmara final (fração)
 ##   --grant-ores=N      (debug) N de cada minério comum no armazém
+##   --settings-at=T     (com --autotest) abre as Configurações em T segundos
 ##   --splash            (com --autotest) mostra a tela de abertura
 ##   --creatures         (debug) caverna com uma criatura de cada espécie à frente da nave
 ##   --sonar-at=T        (com --autotest) usa o sonar em T segundos
@@ -28,6 +29,7 @@ var garage: Garage
 var world_map: WorldMap
 var base: BaseScreen
 var report: ExpeditionReport
+var settings: SettingsScreen
 var _rescue: bool = false
 var _rescue_reason: StringName = &""
 var _debug_seed: int = -1
@@ -67,6 +69,11 @@ func _ready() -> void:
 	base.station_requested.connect(_on_station)
 	garage.closed.connect(func() -> void: base._refresh())
 	world_map.closed.connect(func() -> void: base._refresh())
+	settings = SettingsScreen.new()
+	settings.name = "Settings"
+	add_child(settings)
+	base.settings_requested.connect(settings.open)
+	hud.settings_requested.connect(settings.open)
 	report = ExpeditionReport.new()
 	report.name = "ExpeditionReport"
 	add_child(report)
@@ -90,6 +97,8 @@ func _ready() -> void:
 			get_tree().create_timer(1.5).timeout.connect(func() -> void:
 				world_map.open()
 				world_map.ask_new_area(world_map.current_region()))
+		if args.has("settings-at"):
+			get_tree().create_timer(float(args["settings-at"])).timeout.connect(settings.open)
 		if args.has("sonar-at"):
 			get_tree().create_timer(float(args["sonar-at"])).timeout.connect(func() -> void: game.sonar.ping())
 		if args.has("base-at"):
@@ -154,7 +163,9 @@ func _notification(what: int) -> void:
 	# "Voltar" no Android: fecha a tela de cima (estação ou mapa); na base, encerra.
 	if what != NOTIFICATION_WM_GO_BACK_REQUEST:
 		return
-	if garage != null and garage.is_open():
+	if settings != null and settings.is_open():
+		settings.close()
+	elif garage != null and garage.is_open():
 		garage.close_animated()
 	elif world_map != null and world_map.is_open():
 		world_map.close_animated()

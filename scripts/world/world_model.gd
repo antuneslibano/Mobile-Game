@@ -18,6 +18,17 @@ class DigResult:
 	var unbreakable: bool = false    ## tocou rocha-mãe
 	var too_hard: int = -1           ## minério acima do nível da broca (id), se tocou
 	var chest_blocks: Array[Vector2i] = []  ## blocos de baú com células removidas agora
+	## Células a mais só para os itens: pedaço de minério de meio bloco rende o bloco (0.16).
+	var drop_bonus: Dictionary = {}
+
+	## Células que contam para os itens (removidas + bônus).
+	func drop_counts() -> Dictionary:
+		if drop_bonus.is_empty():
+			return counts
+		var out: Dictionary = counts.duplicate()
+		for id: int in drop_bonus:
+			out[id] = int(out.get(id, 0)) + int(drop_bonus[id])
+		return out
 
 	func removed() -> int:
 		var n: int = 0
@@ -388,7 +399,25 @@ func dig_cells(cells: Array[Vector2i], raw_damage: float, min_y: float = -INF, d
 		if frac >= 1.0:
 			_set_raw(c, BlockRegistry.AIR)
 			res.counts[id] = int(res.counts.get(id, 0)) + 1
-
+			if _whole_block(def):
+				# Minério rende em blocos inteiros (0.16): quebrou uma célula, o pedaço
+				# conectado do veio (até 1 bloco = CELLS_PER_BLOCK células) vira item.
+				# Antes, pegar só a quina rendia uma fração que não aparecia como item.
+				# Sobras pequenas (< meio bloco) vão junto; um pedaço de pelo menos meio
+				# bloco conta como bloco inteiro, para todo minério quebrado render um item.
+				var full: int = Balance.CELLS_PER_BLOCK
+				var piece: Array[Vector2i] = _vein_piece(c, id, full + full / 2, seen)
+				if piece.size() + 1 > full + full / 2 - 1:
+					piece = piece.slice(0, full - 1)
+				for cc in piece:
+					# O resto do pedaço já rendeu: vira a rocha em volta (continua para cavar).
+					_set_raw(cc, generator.host_terrain(cc.x, cc.y))
+					changed.append(cc)
+					seen[cc] = true
+				var n: int = piece.size() + 1
+				res.counts[id] = int(res.counts.get(id, 0)) + piece.size()
+				if n >= full / 2 and n < full:
+					res.drop_bonus[id] = int(res.drop_bonus.get(id, 0)) + full - n
 		else:
 			ch.dmg[local] = mini(254, ceili(frac * 255.0))
 		changed.append(c)
@@ -400,6 +429,36 @@ func dig_cells(cells: Array[Vector2i], raw_damage: float, min_y: float = -INF, d
 	if not changed.is_empty():
 		cells_changed.emit(changed)
 	return res
+
+
+## Blocos que saem inteiros ao quebrar (minérios, carvão, especiais): os que rendem algo
+## e não são terreno comum.
+static func _whole_block(def: BlockDef) -> bool:
+	return not def.is_terrain() and (not def.drops.is_empty() or def.fuel > 0.0)
+
+
+## Até `limit` células do mesmo material conectadas a `start` (busca em largura, sem a
+## própria `start` e sem as já vistas neste golpe).
+func _vein_piece(start: Vector2i, id: int, limit: int, seen: Dictionary) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var visited: Dictionary = {start: true}
+	var queue: Array[Vector2i] = [start]
+	var head: int = 0
+	while head < queue.size() and out.size() < limit:
+		var p: Vector2i = queue[head]
+		head += 1
+		for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+			var n: Vector2i = p + d
+			if visited.has(n) or not _in_x(n) or n.y < 0:
+				continue
+			visited[n] = true
+			if seen.has(n) or get_cell(n) != id:
+				continue
+			out.append(n)
+			queue.append(n)
+			if out.size() >= limit:
+				break
+	return out
 
 
 # --- Persistência (consumida pelo SaveService na Fase 4) -------------------------

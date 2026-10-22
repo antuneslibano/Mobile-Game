@@ -209,6 +209,16 @@ func _cell(x: int, y: int, biome_id: int) -> int:
 	return biome.secondary_block if m < ratio else biome.primary_block
 
 
+## Terreno comum de uma micro-célula (o material base da camada, sem minério): usado
+## quando um pedaço de minério é coletado e o resto do veio vira rocha (0.16).
+func host_terrain(cx: int, cy: int) -> int:
+	var bx: int = clampi(floori(float(cx) / Balance.CELL_SUB), 0, Balance.WORLD_WIDTH - 1)
+	var by: int = maxi(0, floori(float(cy) / Balance.CELL_SUB))
+	var biome: BiomeDef = _layers[clampi(biome_at(bx, by), 0, _layers.size() - 1)]
+	var m: float = (_mix.get_noise_2d(float(bx), float(by)) + 1.0) * 0.5
+	return biome.secondary_block if m < biome.secondary_ratio else biome.primary_block
+
+
 static func _is_special(id: int) -> bool:
 	return id == BlockRegistry.CHEST or id == BlockRegistry.ARTIFACT or id == BlockRegistry.FOSSIL
 
