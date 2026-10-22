@@ -340,14 +340,15 @@ Referência visual definida pelo autor (nave e tela de upgrades em pixel art ind
   código (`EnvArt`, `tools/gen_env_assets.gd`) e aplicados pelo shader sem mudar a geometria:
   - *Texturas de terreno* (64×64 pixels de arte, repetíveis): terra clara/escura, argila, solo
     compacto/úmido/com raízes/com musgo/rachado, pedra clara/cinza/escura, rocha compacta/
-    profunda, terra avermelhada, solo arenoso e solo misto. Amostradas por coordenada de
+    profunda, terra avermelhada, solo arenoso e solo misto — torrões em "bolhas" com pontinho
+    de brilho e vãos escuros, como a referência. Amostradas por coordenada de
     mundo; cada material alterna até 4 texturas por ruído de baixa frequência (sem repetição
     evidente) e o terreno é levemente escurecido/dessaturado para os minérios se destacarem.
-  - *Progressão por camada no Vale*: superfície = terra clara, solo compacto, raízes e musgo;
-    areia instável = solo arenoso/misto e terra escura/úmida; argila = argila, terra
+  - *Progressão por camada no Vale*: superfície = terra clara e solo compacto (raízes como
+    decoração); areia instável = solo arenoso/misto e terra escura/úmida com raízes e musgo; argila = argila, terra
     avermelhada e solo rachado; cavernas fossilizadas = pedra cinza/escura e rocha
     compacta; zona abissal = rocha profunda.
-  - *Depósitos* (12×12, 3 variações, espelhados): cubos metálicos (ferro, cobre, prata,
+  - *Depósitos* (16×16 = um bloco, 3 variações, espelhados; halo translúcido nos luminosos): cubos metálicos (ferro, cobre, prata,
     titânio), pepitas lisas (ouro), gemas lapidadas (diamante), lascas alongadas (cristal
     azul), cristais altos translúcidos (cristal verde/esmeralda), drusa compacta (ametista),
     cristais grandes com brilho (cristal roxo = cristal raro), cristal vermelho (rubi),

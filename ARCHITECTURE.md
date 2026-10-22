@@ -260,14 +260,14 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
   `tools/gen_env_assets.gd` grava os PNGs em `assets/environment/{terrain,ores,vegetation,
   decorations}`. Os PNGs usam `importer="image"` (pixels exatos, também no APK) e podem ser
   retocados à mão; o jogo nunca os regenera.
-- **Atlas**: `TerrainTextures` monta três atlas (texturas 64×64, depósitos 12×12 × 3
-  variações, decorações 24×24) e duas tabelas da região ativa: `skin_tex` (bloco × camada →
+- **Atlas**: `TerrainTextures` monta três atlas (texturas 64×64, depósitos 16×16 × 3
+  variações, decorações 32×32) e duas tabelas da região ativa: `skin_tex` (bloco × camada →
   até 4 texturas) e `decor_tex` (camada → decoração embutida por faixa de sorteio +
   densidade). `GameState.apply_region` chama `TerrainTextures.apply_region`.
 - **Shader** (mesma geometria, mesmas bordas): `surface_col` amostra a textura do material
   por pixel de arte (`texelFetch`, sem filtro); sem pele usa o procedural antigo. Depósitos
-  são um sprite por sítio de 14 pixels de arte, decidido pela célula do centro. Decorações
-  embutidas: um sítio de 28 pixels de arte, só sobre terreno. Fósseis: sprite por bloco.
+  são um sprite por sítio de 18 pixels de arte, decidido pela célula do centro (alfa < 1 =
+  halo de brilho). Decorações embutidas: um sítio de 36 pixels de arte, só sobre terreno. Fósseis: sprite por bloco.
 - **Cavernas**: `CaveDecor` (filho do `ChunkRenderer`) planeja, ao montar o chunk, plantas no
   chão e raízes no teto de cavernas naturais (`WorldModel.is_modified` exclui túneis) e as
   remove quando a célula de apoio é escavada. Sem colisão; desenho em um único CanvasItem.

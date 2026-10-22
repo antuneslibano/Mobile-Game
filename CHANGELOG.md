@@ -3,6 +3,20 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.7.1] — Vale das Raízes mais fiel à referência
+
+### Alterado
+- Texturas de terreno refeitas em "bolhas" (torrões pequenos com pontinho de brilho e vãos
+  escuros), sem linhas de calçamento; rocha compacta e solo rachado mantêm as frestas.
+- Depósitos com 16×16 pixels de arte (um bloco): cristais facetados com faixa de brilho e
+  halo translúcido (cristal azul, cristal roxo, diamante, urânio), cubos metálicos, pepitas
+  de ouro com reflexo, ametista em drusa, topázio prismático.
+- Raízes com sombreamento cilíndrico (faixa de brilho, lado escuro) e ramificações; moitas
+  de folhas, palmeirinha, cogumelos com pintas, pedras granuladas, rochas pontudas
+  avermelhadas, crânio, amonite e costelas redesenhados. Decorações em células de 32.
+- Superfície do Vale mais limpa: solo com raízes e com musgo passam para a camada de terra
+  escura, onde o tom combina.
+
 ## [0.7.0] — Visual do Vale das Raízes
 
 ### Adicionado

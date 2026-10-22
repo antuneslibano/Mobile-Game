@@ -15,7 +15,7 @@ const TILES: Array[String] = [
 	"rocha_compacta", "rocha_profunda", "terra_avermelhada", "solo_arenoso", "solo_misto",
 ]
 
-## Sprites de depósito (12×12, 3 variações cada). Índice = linha no atlas de minérios.
+## Sprites de depósito (16×16, 3 variações cada). Índice = linha no atlas de minérios.
 const ORES: Array[String] = [
 	"cobre", "ferro", "prata", "ouro", "carvao", "titanio", "uranio", "quartzo", "cristal_azul",
 	"ametista", "cristal_verde", "diamante", "cristal_vermelho", "cristal_roxo", "topazio",
@@ -43,7 +43,7 @@ static func ore_sprite_for(block_id: int) -> String:
 	return ""
 
 
-## Decorações (célula de 24×24 no atlas). kind: embed = dentro do solo (cortada pelos
+## Decorações (célula de 32×32 no atlas). kind: embed = dentro do solo (cortada pelos
 ## túneis), floor = no chão de cavernas naturais, ceil = pendurada no teto, fossil = bloco Fóssil.
 const DECOR: Array = [
 	["vegetation", "raiz_fina_a", &"embed"], ["vegetation", "raiz_fina_b", &"embed"],
@@ -60,7 +60,7 @@ const DECOR: Array = [
 	["decorations", "fossil_osso", &"fossil"], ["decorations", "fossil_cranio", &"fossil"],
 	["decorations", "fossil_amonite", &"fossil"], ["decorations", "fossil_costelas", &"fossil"],
 ]
-const DECOR_CELL: int = 24
+const DECOR_CELL: int = 32
 const DECOR_COLS: int = 8
 
 
@@ -104,10 +104,10 @@ static func _region_skins(region_id: StringName) -> Array:
 	match region_id:
 		RegionRegistry.VALE:
 			return [
-				{B.DIRT: ["terra_clara", "solo_compacto", "solo_com_raizes", "solo_com_musgo"],
+				{B.DIRT: ["terra_clara", "solo_compacto"],
 					B.STONE: ["pedra_clara", "pedra_cinza"]},
 				{B.SAND: ["solo_arenoso", "solo_misto"],
-					B.DIRT: ["terra_escura", "solo_umido", "solo_com_raizes"]},
+					B.DIRT: ["terra_escura", "solo_umido", "solo_com_raizes", "solo_com_musgo"]},
 				{B.CLAY: ["argila", "terra_avermelhada", "solo_rachado"],
 					B.STONE: ["pedra_cinza", "pedra_clara"]},
 				{B.STONE: ["pedra_cinza", "pedra_escura"], B.HARD_ROCK: ["rocha_compacta", "pedra_escura"]},

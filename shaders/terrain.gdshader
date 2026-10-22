@@ -27,8 +27,8 @@ uniform float domain_warp = 0.55;
 uniform float material_warp = 0.7;
 uniform int biome_row = 33;
 uniform sampler2D terrain_atlas : filter_nearest;  // texturas 64×64, 8 por linha
-uniform sampler2D ore_atlas : filter_nearest;      // depósitos 12×12: linha = minério, coluna = variação
-uniform sampler2D decor_atlas : filter_nearest;    // decorações 24×24, 8 por linha
+uniform sampler2D ore_atlas : filter_nearest;      // depósitos 16×16: linha = minério, coluna = variação
+uniform sampler2D decor_atlas : filter_nearest;    // decorações 32×32, 8 por linha
 uniform sampler2D skin_tex : filter_nearest;       // (bloco, camada) → até 4 índices de textura
 uniform sampler2D decor_tex : filter_nearest;      // (sorteio 0..15 | densidade, camada) → decoração
 uniform int fossil_first = 21;
@@ -36,10 +36,10 @@ uniform float terrain_value = 0.84;                // brilho do terreno texturiz
 uniform float terrain_saturation = 0.85;                     // primeira das 4 entradas de fóssil no atlas
 
 const int TILE = 64;
-const int ORE_PX = 12;
-const int ORE_SITE = 14;
-const int DECOR_CELL = 24;
-const int EMBED_SITE = 28;
+const int ORE_PX = 16;
+const int ORE_SITE = 18;
+const int DECOR_CELL = 32;
+const int EMBED_SITE = 36;
 
 varying vec2 world_pos;
 varying vec2 local_pos;
@@ -283,7 +283,7 @@ void fragment() {
 				ivec2 eorg = es * EMBED_SITE + ivec2(er.yz * 4.99);
 				ivec2 lp = ap - eorg;
 				if (lp.x >= 0 && lp.y >= 0 && lp.x < DECOR_CELL && lp.y < DECOR_CELL) {
-					vec4 ec = CELL(ivec2(floor(((vec2(eorg) + 12.0) * art_px - origin) / cell_px)));
+					vec4 ec = CELL(ivec2(floor(((vec2(eorg) + 16.0) * art_px - origin) / cell_px)));
 					int di = idx_of(texelFetch(decor_tex, ivec2(int(er.w * 15.99), lay), 0).r);
 					if (di != 255 && ec.a > 0.5 && is_terrain_art(art_of(idx_of(ec.r)))) {
 						if (fract(er.w * 13.0) > 0.5) { lp.x = DECOR_CELL - 1 - lp.x; }
@@ -294,7 +294,7 @@ void fragment() {
 			}
 		}
 
-		// Depósitos: no máximo um sprite por sítio de 14 pixels de arte. O sprite pertence à
+		// Depósitos: no máximo um sprite por sítio de 18 pixels de arte. O sprite pertence à
 		// célula do seu centro: inteiro (não é recortado pela borda ondulada do material),
 		// só os túneis o cortam. Variação e espelhamento por sítio.
 		ivec2 os = ivec2(floor(vec2(ap) / float(ORE_SITE)));
@@ -303,15 +303,15 @@ void fragment() {
 			ivec2 oorg = os * ORE_SITE + ivec2(orr.yz * 2.99);
 			ivec2 lp = ap - oorg;
 			if (lp.x >= 0 && lp.y >= 0 && lp.x < ORE_PX && lp.y < ORE_PX) {
-				vec4 oc = CELL(ivec2(floor(((vec2(oorg) + 6.0) * art_px - origin) / cell_px)));
+				vec4 oc = CELL(ivec2(floor(((vec2(oorg) + 8.0) * art_px - origin) / cell_px)));
 				int oid = idx_of(oc.r);
 				int row = idx_of(pal(8, oid).r);
 				if (oc.a > 0.5 && row != 255) {
 					if (fract(orr.w * 7.0) > 0.5) { lp.x = ORE_PX - 1 - lp.x; }
 					vec4 op = texelFetch(ore_atlas, ivec2(int(orr.w * 2.99) * ORE_PX + lp.x, row * ORE_PX + lp.y), 0);
-					if (op.a > 0.5) {
-						col = op.rgb;
-					} else if (pal(7, oid).r > 0.5 && length(vec2(lp) - 5.5) < 7.5) {
+					if (op.a > 0.02) {
+						col = mix(col, op.rgb, op.a);  // alfa < 1 = halo de brilho
+					} else if (pal(7, oid).r > 0.5 && length(vec2(lp) - 7.5) < 9.0) {
 						col = mix(col, pal(3, oid), 0.22);  // brilho próprio (urânio, cristal roxo)
 					}
 				}
@@ -342,7 +342,7 @@ void fragment() {
 			int fi = fossil_first + int(fr.x * 3.99);
 			ivec2 bp = ivec2(floor(lc * 16.0));
 			if (fr.y > 0.5) { bp.x = 15 - bp.x; }
-			vec4 fp = texelFetch(decor_atlas, ivec2((fi % 8) * DECOR_CELL + 4 + bp.x, (fi / 8) * DECOR_CELL + 4 + bp.y), 0);
+			vec4 fp = texelFetch(decor_atlas, ivec2((fi % 8) * DECOR_CELL + 8 + bp.x, (fi / 8) * DECOR_CELL + 8 + bp.y), 0);
 			if (fp.a > 0.5) { col = fp.rgb; }
 		}
 
