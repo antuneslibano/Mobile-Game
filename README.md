@@ -37,6 +37,11 @@ godot --path . -- --seed=42          # mundo fixo
 | Garagem (vender, upgrades, módulos) | botão **GARAGEM** no topo | clique; `Esc` fecha |
 | Mapa mundial (escolher região) | botão de mapa ao lado da garagem; deslize para os lados | arraste/setas na tela; `Esc` fecha |
 
+**Expedições (0.9):** o mapa é a base. Escolha a região e o ponto de partida (superfície ou
+um elevador), toque em EXPLORAR e cave até onde o combustível deixar; **EXTRAIR** traz toda a
+carga, e ficar sem combustível ou casco chama o resgate (metade da carga da expedição). A
+garagem abre só na base. Cada região tem um fundo com a câmara final e objetivos.
+
 Ao abrir, o jogo mostra o **mapa mundial**: deslize para escolher entre seis regiões
 (uma por página) e toque em **EXPLORAR**. Regiões bloqueadas mostram o requisito (profundidade
 na região anterior). O progresso (economia, upgrades, módulos, carga, profundidade máxima por
@@ -77,6 +82,8 @@ Executa, em modo headless:
 | `--unlock-all` | libera todas as regiões (só builds de depuração; desliga o salvamento nessa sessão) |
 | `--no-map` | não abre o mapa ao iniciar |
 | `--map-at=T`, `--map-page=N` | com `--autotest`, abre o mapa em T segundos na página N |
+| `--fuel=F` | combustível inicial (fração do tanque; só builds de depuração) |
+| `--extract-at=T` | com `--autotest`, chama a extração em T segundos |
 
 Captura de telas sem monitor (Linux):
 
@@ -167,7 +174,8 @@ Instalar: `adb install -r build/deepforge.apk`, ou copie o APK para o celular e 
 | 3 | Escavação livre, terreno orgânico, joystick, módulos, energia/Sobrecarga, calor, sinergias | ✅ concluída |
 | — | Mapa mundial com 6 regiões, terrenos × depósitos, salvamento do perfil | ✅ |
 | — | Minérios raros/valiosos com brilho, nave 1,5× | ✅ |
-| 0.9–0.11 | Expedições (combustível, extração, elevadores, fundo e objetivos por região), base com construção, criaturas — ver [ROADMAP_EXPEDICOES.md](ROADMAP_EXPEDICOES.md) | planejado |
+| 0.9 | Expedições: combustível, casco, extração/resgate, elevadores, fundo e objetivos por região | ✅ |
+| 0.10–0.11 | Base com construção, criaturas — ver [ROADMAP_EXPEDICOES.md](ROADMAP_EXPEDICOES.md) | planejado |
 | 5 | Arte, efeitos, áudio, otimização, exportação Android | pendente |
 
 ## Limitações conhecidas

@@ -61,7 +61,7 @@ func test_biome_content_and_caves() -> void:
 	# Cada camada de cada região gera o seu material principal, os minérios da tabela e cavernas.
 	for r in RegionRegistry.all():
 		var g := WorldGenerator.new(2024, r)
-		for biome in r.layers:
+		for biome in RegionRegistry.reachable_layers(r):
 			if biome.end_row - biome.start_row < 30:
 				continue
 			var counts: Dictionary = {}

@@ -111,8 +111,11 @@ static func _build() -> void:
 	# --- Depósitos coletáveis (base = rocha hospedeira; destaque = cor do minério) ---
 	list[SILVER] = BlockDef.make(SILVER, &"silver", "Prata", 70.0, 4.0, {&"silver": 1}, BlockDef.Art.ORE,
 			Color("6f6a68"), Color("4c4745"), Color("d9e2ee"))
-	list[COAL] = BlockDef.make(COAL, &"coal", "Carvão", 30.0, 1.0, {&"coal": 1}, BlockDef.Art.ORE,
+	# Carvão vira combustível (abastece o tanque; não vai para a carga).
+	var coal := BlockDef.make(COAL, &"coal", "Carvão", 30.0, 1.0, {}, BlockDef.Art.ORE,
 			Color("6f6a68"), Color("4c4745"), Color("3a3946"))
+	coal.fuel = 12.0
+	list[COAL] = coal
 	list[EMERALD] = BlockDef.make(EMERALD, &"emerald", "Esmeralda", 180.0, 10.0, {&"emerald": 1, &"crystal": 1}, BlockDef.Art.CRYSTAL,
 			Color("3b3d52"), Color("26273a"), Color("2fd46a"))
 	list[DIAMOND] = BlockDef.make(DIAMOND, &"diamond", "Diamante", 600.0, 26.0, {&"diamond": 1, &"crystal": 2}, BlockDef.Art.CRYSTAL,

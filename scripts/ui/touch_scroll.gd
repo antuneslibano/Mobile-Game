@@ -18,12 +18,35 @@ var _scroll_f: float = 0.0
 var _vel: float = 0.0
 var _last_y: float = 0.0
 var _last_t: float = 0.0
+## Todas as listas: um toque só é da lista mais alta (camada) que o contém, ex.: a garagem
+## aberta por cima do mapa não deixa a lista do mapa roubar o arrasto.
+static var _all: Array[TouchScroll] = []
 
 
 func _init() -> void:
 	horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	# Desliga o arrasto nativo (evita rolagem dobrada quando o toque começa em área vazia).
 	scroll_deadzone = 1000000
+
+
+func _enter_tree() -> void:
+	_all.append(self)
+
+
+func _exit_tree() -> void:
+	_all.erase(self)
+
+
+func _layer() -> int:
+	var cl: CanvasLayer = get_canvas_layer_node()
+	return cl.layer if cl != null else 0
+
+
+func _is_topmost_at(p: Vector2) -> bool:
+	for other in _all:
+		if other != self and other.is_visible_in_tree() and other._layer() > _layer() and other.get_global_rect().has_point(p):
+			return false
+	return true
 
 
 func is_dragging() -> bool:
@@ -42,7 +65,7 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		var t := event as InputEventScreenTouch
 		if t.pressed:
-			if not _tracking and get_global_rect().has_point(t.position):
+			if not _tracking and get_global_rect().has_point(t.position) and _is_topmost_at(t.position):
 				_tracking = true
 				_dragging = false
 				_index = t.index

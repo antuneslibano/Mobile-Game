@@ -70,7 +70,7 @@ func _run() -> void:
 		for id: int in counts:
 			destroyed[0] += int(counts[id])
 			var def: BlockDef = BlockRegistry.get_def(id)
-			if def.drops.is_empty() and id != BlockRegistry.AIR and not def.is_terrain():
+			if def.drops.is_empty() and id != BlockRegistry.AIR and not def.is_terrain() and def.fuel <= 0.0:
 				drops_ok[0] = false)
 
 
@@ -143,12 +143,28 @@ func _run() -> void:
 	# --- Garagem / economia (Fase 2) ---
 	var econ: Economy = GameState.economy
 	_check(econ.cargo_count() > 0, "carga coletada ao quebrar blocos (%d itens)" % econ.cargo_count())
+	var last_report: Array[Dictionary] = [{}]
+	EventBus.expedition_ended.connect(func(r: Dictionary) -> void: last_report[0] = r)
+
+	# --- Extração (0.9): a cápsula leva a nave e TODA a carga; relatório; base ---
+	var cargo_before: int = econ.cargo_count()
+	var extract_b: Button = hud.find_child("ExtractButton", true, false)
+	_check(extract_b != null and hud.find_child("GarageButton", true, false) == null, "HUD tem EXTRAIR (garagem só na base)")
+	extract_b.pressed.emit()
+	await _frames(140)
+	var rep: ExpeditionReport = main.get("report")
+	_check(rep.is_open() and get_tree().paused, "extração termina no relatório da expedição")
+	var title: Label = rep.find_child("Title", true, false)
+	_check(title != null and title.text.contains("EXTRA"), "relatório: extração concluída")
+	_check(econ.cargo_count() == cargo_before and not bool(last_report[0].get("rescued", true)), "extração mantém toda a carga")
+	_check(not GameState.expedition_active, "expedição encerrada")
+	(rep.find_child("BaseButton", true, false) as Button).pressed.emit()
+	await _frames(3)
+	_check(world_map.is_open() and get_tree().paused, "volta para a base (mapa)")
 	var garage: Garage = main.get("garage")
-	var gbutton: Button = hud.find_child("GarageButton", true, false)
-	_check(gbutton != null and gbutton.text.begins_with("GARAGEM  +"), "botão da garagem mostra valor da carga (%s)" % gbutton.text)
-	gbutton.pressed.emit()
+	(world_map.find_child("GarageButton", true, false) as Button).pressed.emit()
 	await _frames(2)
-	_check(garage.is_open() and get_tree().paused, "garagem abre e pausa o jogo")
+	_check(garage.is_open() and get_tree().paused, "garagem abre pela base e pausa o jogo")
 	var value: int = econ.cargo_value()
 	var sell: Button = garage.find_child("SellButton", true, false)
 	sell.pressed.emit()
@@ -201,14 +217,9 @@ func _run() -> void:
 	var close_b: Button = garage.find_child("CloseButton", true, false)
 	close_b.pressed.emit()
 	await _frames(2)
-	_check(not garage.is_open() and not get_tree().paused, "garagem fecha e retoma o jogo")
+	_check(not garage.is_open() and world_map.is_open() and get_tree().paused, "garagem fecha e volta à base")
 
 	# --- Mapa mundial: carrossel, bloqueio, desbloqueio e troca de região ---
-	var map_b: Button = hud.find_child("MapButton", true, false)
-	_check(map_b != null, "botão do mapa no HUD")
-	map_b.pressed.emit()
-	await _frames(2)
-	_check(world_map.is_open() and get_tree().paused, "mapa abre pelo HUD e pausa o jogo")
 	var carousel: RegionCarousel = world_map.find_child("Carousel", true, false)
 	var rect: Rect2 = carousel.get_global_rect()
 	var c: Vector2 = rect.get_center()
@@ -240,9 +251,10 @@ func _run() -> void:
 	await _frames(30)
 	_check(carousel.target == 1, "seta avança a página")
 
-	GameState.region_progress[RegionRegistry.VALE] = dunas.unlock_depth_m
+	_check(not GameState.is_region_unlocked(RegionRegistry.DUNAS), "Dunas pedem a câmara final do Vale")
+	GameState.done[RegionRegistry.VALE] = true
 	world_map.go_to_page(1)
-	_check(not explore_b.disabled, "requisito cumprido: Dunas liberadas")
+	_check(not explore_b.disabled, "câmara final do Vale concluída: Dunas liberadas")
 	var vale_progress: int = GameState.region_depth(RegionRegistry.VALE)
 	_check(world_map.explore(), "explorar Dunas")
 	await _frames(6)
@@ -257,6 +269,67 @@ func _run() -> void:
 	await _frames(150)
 	_touch(0, jc + Vector2(0, 90), false)
 	_check(game.drill.position.y > start_y + 12.0, "mineração funciona na nova região")
+
+	# --- Combustível: alerta e resgate de emergência (metade da carga desta expedição) ---
+	GameState.collect_drops(game.drill.position, {&"gold": 4.0})
+	var gold_before: int = int(GameState.economy.cargo.get(&"gold", 0))
+	game.drill.vitals.fuel = game.drill.vitals.fuel_max * 0.2
+	await _frames(3)
+	var warn: Label = hud.find_child("Warning", true, false)
+	_check(warn.visible and warn.text.contains("COMBUST"), "alerta visual de combustível baixo (%s)" % warn.text)
+	var vig: ColorRect = hud.find_child("AlertVignette", true, false)
+	_check(float((vig.material as ShaderMaterial).get_shader_parameter("strength")) > 0.05, "vinheta de alerta acesa")
+	game.drill.vitals.fuel = 0.05
+	_touch(0, jc, true)
+	_drag(0, jc + Vector2(0, 90))
+	await _frames(20)
+	_touch(0, jc + Vector2(0, 90), false)
+	_check(game.drill.disabled, "sem combustível: a nave para")
+	await _frames(220)
+	_check(rep.is_open(), "resgate termina no relatório")
+	var title2: Label = rep.find_child("Title", true, false)
+	_check(title2.text.contains("RESGATE"), "relatório: resgate de emergência")
+	var lost_gold: int = int((last_report[0].get("lost", {}) as Dictionary).get(&"gold", 0))
+	_check(bool(last_report[0].get("rescued", false)) and lost_gold >= 2 and int(GameState.economy.cargo.get(&"gold", 0)) == gold_before - lost_gold,
+			"resgate perde metade da carga desta expedição (−%d ouro)" % lost_gold)
+	(rep.find_child("BaseButton", true, false) as Button).pressed.emit()
+	await _frames(3)
+	_check(world_map.is_open(), "depois do resgate, volta à base")
+	var prof_before_rules: Dictionary = GameState.to_profile()
+
+	# --- Regras de expedição no GameState ---
+	var vale_def: RegionDef = RegionRegistry.get_def(RegionRegistry.VALE)
+	GameState.done.erase(RegionRegistry.VALE)
+	GameState.unlocked.erase(RegionRegistry.DUNAS)
+	GameState.start_dive(RegionRegistry.VALE)
+	GameState.begin_expedition(0)
+	GameState.check_final_chamber(RegionRegistry.chamber_center_x() + 20, vale_def.target_depth_m - 1)
+	_check(not GameState.done.has(RegionRegistry.VALE), "fora da câmara (lateral) não conclui")
+	GameState.check_final_chamber(RegionRegistry.chamber_center_x(), vale_def.target_depth_m - 1)
+	_check(GameState.done.has(RegionRegistry.VALE) and GameState.is_region_unlocked(RegionRegistry.DUNAS), "câmara final conclui o Vale e libera as Dunas")
+	_check(GameState.is_objective_done(RegionRegistry.VALE, &"final"), "objetivo principal concluído")
+	var copper_obj: Dictionary = RegionRegistry.objective(vale_def, &"res_copper")
+	GameState.collect_drops(Vector2.ZERO, {&"copper": float(copper_obj.target) + 1.0})
+	_check(GameState.is_objective_done(RegionRegistry.VALE, &"res_copper"), "pesquisa: coletar cobre conclui o objetivo")
+	GameState.collect_drops(Vector2.ZERO, {&"diamond": 3.0})
+	var rep2: Dictionary = GameState.end_expedition(false)
+	_check(GameState.is_objective_done(RegionRegistry.VALE, &"one_trip"), "estrela: câmara final numa só expedição da superfície")
+	_check(GameState.is_objective_done(RegionRegistry.VALE, &"haul") == (int(rep2.value_kept) >= 1500), "estrela: carga grande")
+	_check(GameState.stars(RegionRegistry.VALE) >= 1 and GameState.region_completion(RegionRegistry.VALE) > 0.3, "estrelas e conclusão da região")
+	var mods := {"3": {"17": 0, "4000": 9}}
+	var round_trip: Dictionary = GameState.decode_mods(GameState.encode_mods(mods))
+	_check(int(round_trip["3"]["17"]) == 0 and int(round_trip["3"]["4000"]) == 9, "escavação salva codifica e decodifica")
+	# Migração de salvamento anterior à 0.9 (sem "unlocked"): regra antiga por profundidade.
+	var old_prof: Dictionary = {"schema": SaveFile.SCHEMA_VERSION, "economy": Economy.new().to_dict(), "region": "dunas", "regions": {"vale": 120}}
+	GameState.apply_profile(old_prof)
+	_check(GameState.is_region_unlocked(RegionRegistry.DUNAS) and GameState.region_id == RegionRegistry.DUNAS, "salvamento antigo mantém regiões liberadas")
+	# App fechado no meio da expedição: conta como resgate.
+	var mid: Dictionary = {"schema": SaveFile.SCHEMA_VERSION, "economy": {"cargo": {"gold": 10}}, "region": "vale", "regions": {},
+			"unlocked": ["vale"], "expedition": {"active": true, "region": "vale", "start_cargo": {"gold": 4}}}
+	GameState.apply_profile(mid)
+	_check(int(GameState.economy.cargo.get(&"gold", 0)) == 7 and not GameState.expedition_active and GameState.pending_notice != "",
+			"expedição interrompida: resgate (perde metade do ganho)")
+	GameState.apply_profile(JSON.parse_string(JSON.stringify(prof_before_rules)))
 
 	# Perfil salvo e restaurado (progresso por região e região atual).
 	var prof: Dictionary = JSON.parse_string(JSON.stringify(GameState.to_profile()))

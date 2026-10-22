@@ -19,6 +19,8 @@ enum Art { NONE, DIRT, STONE, ORE, CRYSTAL, BEDROCK, CHEST, ARTIFACT, MAGMA, SAN
 @export var drops: Dictionary = {}
 ## Evento especial opcional (ex.: &"treasure"). Vazio = nenhum.
 @export var special: StringName = &""
+## Combustível que um bloco inteiro abastece ao ser escavado (carvão).
+@export var fuel: float = 0.0
 @export var art: Art = Art.STONE
 @export var color_base: Color = Color.GRAY
 @export var color_dark: Color = Color.DIM_GRAY

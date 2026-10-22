@@ -1,12 +1,13 @@
 class_name Hud
 extends CanvasLayer
-## HUD: barra superior (profundidade, moedas, energia, calor, garagem), joystick flutuante e
-## botão de impulso. Apenas exibe estado e expõe áreas de toque; não altera regras de jogo.
+## HUD: barra superior (profundidade, moedas, energia, combustível, casco, calor, extrair),
+## joystick flutuante e botão de impulso. Alertas visuais: vinheta pulsante nas bordas e
+## aviso piscando para calor/dano no casco e combustível baixo/crítico. Apenas exibe estado
+## e expõe áreas de toque; não altera regras de jogo.
 
-signal garage_requested
-signal map_requested
+signal extract_requested
 
-const TOP_HEIGHT: float = 200.0
+const TOP_HEIGHT: float = 262.0
 const SIDE_MARGIN: float = 20.0
 const BOOST_SIZE: float = 150.0
 const BANNER_TIME: float = 2.8
@@ -19,7 +20,15 @@ var _biome_label: Label
 var _credits_label: Label
 var _crystals_label: Label
 var _energy_bar: SegmentedBar
-var _garage_button: Button
+var _extract_button: Button
+var _fuel_bar: SegmentedBar
+var _fuel_label: Label
+var _hull_bar: SegmentedBar
+var _heat_value: Label
+var _heat_icon: TextureRect
+var _vignette: ColorRect
+var _warn: Label
+var _t: float = 0.0
 var _heat_label: Label
 var _heat_tint: ColorRect
 var _boost: PadButton
@@ -42,6 +51,9 @@ func _ready() -> void:
 	EventBus.biome_changed.connect(_on_biome_changed)
 	EventBus.material_dug.connect(func(_a: Vector2, _c: Dictionary) -> void: _dismiss_hint())
 	EventBus.overdrive_ready.connect(func() -> void: _show_banner("SOBRECARGA PRONTA", UiTheme.BLUE))
+	EventBus.elevator_unlocked.connect(func(_r: StringName, m: int) -> void: _show_banner("ELEVADOR INSTALADO  %d M" % m, UiTheme.GREEN))
+	EventBus.objective_completed.connect(func(_r: StringName, _o: StringName, _t: String) -> void: _show_banner("OBJETIVO CONCLUÍDO!", PixelArt.GOLD))
+	EventBus.region_completed.connect(func(_r: StringName) -> void: _show_banner("CÂMARA FINAL ALCANÇADA!", PixelArt.GOLD))
 	EventBus.wallet_changed.connect(set_currencies)
 	EventBus.cargo_changed.connect(_on_cargo_changed)
 	get_viewport().size_changed.connect(_apply_layout)
@@ -104,6 +116,15 @@ func _build() -> void:
 	_heat_tint.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.add_child(_heat_tint)
 
+	_vignette = ColorRect.new()
+	_vignette.name = "AlertVignette"
+	_vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var vm := ShaderMaterial.new()
+	vm.shader = load("res://shaders/vignette.gdshader") as Shader
+	_vignette.material = vm
+	_root.add_child(_vignette)
+
 	_joystick = VirtualJoystick.new()
 	_joystick.name = "Joystick"
 	_root.add_child(_joystick)
@@ -159,23 +180,43 @@ func _build() -> void:
 	_energy_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_energy_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	energy_row.add_child(_energy_bar)
-	_garage_button = Button.new()
-	_garage_button.name = "GarageButton"
-	_garage_button.text = "GARAGEM"
-	_garage_button.custom_minimum_size = Vector2(220, 60)
-	_garage_button.add_theme_font_size_override("font_size", UiTheme.font_size(UiTheme.FONT_SMALL, 700))
-	UiTheme.style_button(_garage_button, &"gold")
-	_garage_button.pressed.connect(func() -> void: garage_requested.emit())
-	energy_row.add_child(_garage_button)
-	var map_button := Button.new()
-	map_button.name = "MapButton"
-	map_button.icon = PixelArt.icon(&"map")
-	map_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	map_button.custom_minimum_size = Vector2(64, 60)
-	map_button.add_theme_constant_override("icon_max_width", 40)
-	UiTheme.style_button(map_button, &"steel")
-	map_button.pressed.connect(func() -> void: map_requested.emit())
-	energy_row.add_child(map_button)
+	_extract_button = Button.new()
+	_extract_button.name = "ExtractButton"
+	_extract_button.text = UiTheme.display_text("EXTRAIR")
+	_extract_button.icon = PixelArt.icon(&"extract")
+	_extract_button.add_theme_constant_override("icon_max_width", 34)
+	_extract_button.custom_minimum_size = Vector2(230, 60)
+	_extract_button.add_theme_font_size_override("font_size", UiTheme.font_size(UiTheme.FONT_SMALL, 700))
+	UiTheme.style_button(_extract_button, &"gold")
+	_extract_button.pressed.connect(func() -> void: extract_requested.emit())
+	energy_row.add_child(_extract_button)
+
+	# Combustível, casco e calor.
+	var vit := HBoxContainer.new()
+	vit.add_theme_constant_override("separation", 8)
+	top_v.add_child(vit)
+	vit.add_child(UiTheme.icon_rect(&"fuel", 34))
+	_fuel_bar = SegmentedBar.new(10, Color("ffb347"), 26.0)
+	_fuel_bar.name = "FuelBar"
+	_fuel_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_fuel_bar.size_flags_stretch_ratio = 1.4
+	_fuel_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	vit.add_child(_fuel_bar)
+	_fuel_label = _label("100%", UiTheme.FONT_SMALL, Color("ffb347"))
+	_fuel_label.custom_minimum_size = Vector2(62, 0)
+	vit.add_child(_fuel_label)
+	vit.add_child(UiTheme.icon_rect(&"hull", 34))
+	_hull_bar = SegmentedBar.new(6, UiTheme.GREEN, 26.0)
+	_hull_bar.name = "HullBar"
+	_hull_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_hull_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	vit.add_child(_hull_bar)
+	_heat_icon = UiTheme.icon_rect(&"heat", 34)
+	vit.add_child(_heat_icon)
+	_heat_value = _label("0.0", UiTheme.FONT_SMALL, UiTheme.TEXT_DIM)
+	_heat_value.name = "HeatValue"
+	_heat_value.custom_minimum_size = Vector2(46, 0)
+	vit.add_child(_heat_value)
 
 	# Botão de impulso (canto inferior direito). O restante da tela é área do joystick.
 	_boost = PadButton.new(&"boost", &"boost", "0%", &"blue")
@@ -193,6 +234,14 @@ func _build() -> void:
 	_banner.add_theme_constant_override("outline_size", 10)
 	_banner.modulate.a = 0.0
 	_root.add_child(_banner)
+
+	_warn = UiTheme.label("", 34, UiTheme.RED, 700)
+	_warn.name = "Warning"
+	_warn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_warn.add_theme_constant_override("outline_size", 8)
+	_warn.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	_warn.visible = false
+	_root.add_child(_warn)
 
 	_fps_label = _label("", 18, UiTheme.TEXT_DIM)
 	_fps_label.visible = OS.is_debug_build()
@@ -236,6 +285,8 @@ func _apply_layout() -> void:
 	_banner.position = Vector2(0, vp.y * 0.36)
 	_banner.size = Vector2(vp.x, 70)
 	_fps_label.position = Vector2(SIDE_MARGIN, _top.position.y + _top.size.y + 6.0)
+	_warn.position = Vector2(0, _top.position.y + _top.size.y + 14.0)
+	_warn.size = Vector2(vp.x, 44)
 
 
 func _compute_safe_area(vp: Vector2) -> void:
@@ -270,6 +321,7 @@ func _process(delta: float) -> void:
 		else:
 			_boost.text = "%d%%" % int(e.fill_ratio() * 100.0)
 		_set_heat(drill.depth_m(), drill.heat_penalty)
+		_update_vitals(delta)
 	if _banner_t > 0.0:
 		_banner_t -= delta
 		var k: float = _banner_t / BANNER_TIME
@@ -300,6 +352,11 @@ func _on_biome_changed(biome_id: int) -> void:
 		_show_banner(_biome_label.text.to_upper(), BiomeRegistry.get_def(biome_id).ui_color)
 
 
+## Aviso grande no centro (resgate, objetivo, elevador...).
+func show_alert(text: String, color: Color) -> void:
+	_show_banner(text, color)
+
+
 func _show_banner(text: String, color: Color) -> void:
 	_banner.text = text
 	_banner.add_theme_color_override("font_color", color)
@@ -321,8 +378,60 @@ func _set_heat(depth_m: int, penalty: float) -> void:
 	_heat_tint.color.a = penalty * 0.45
 
 
-func _on_cargo_changed(count: int, value: int) -> void:
-	_garage_button.text = "GARAGEM" if count == 0 else "GARAGEM  +%d" % value
+func _on_cargo_changed(_count: int, _value: int) -> void:
+	pass
+
+
+## Barras de combustível/casco/calor e alertas (vinheta + aviso piscando).
+## Prioridade: dano no casco > combustível crítico > calor > combustível baixo.
+func _update_vitals(delta: float) -> void:
+	_t += delta
+	var v: ShipVitals = drill.vitals
+	var fr: float = v.fuel_ratio()
+	_fuel_bar.value = fr
+	_fuel_label.text = "%d%%" % ceili(fr * 100.0)
+	_hull_bar.value = v.hull_ratio()
+	_hull_bar.color = UiTheme.GREEN if v.hull_ratio() > 0.5 else (Color("ffb347") if v.hull_ratio() > 0.25 else UiTheme.RED)
+	var heat: float = HeatRules.heat_at(drill.depth_m())
+	_heat_value.text = "%.1f" % heat
+	var heat_col: Color = UiTheme.TEXT_DIM if heat <= 0.0 else (Color("ffb347") if heat <= Balance.HEAT_SAFE_LEVEL else UiTheme.RED)
+	_heat_value.add_theme_color_override("font_color", heat_col)
+	_heat_icon.modulate = Color.WHITE if heat > 0.0 else Color(1, 1, 1, 0.45)
+	var tint := Color.BLACK
+	var strength: float = 0.0
+	var text: String = ""
+	var color: Color = UiTheme.RED
+	var blink: float = 0.5 + 0.5 * sin(_t * 9.0)
+	if v.hull_dps > 0.0:
+		tint = Color(1.0, 0.12, 0.05)
+		strength = 0.35 + 0.25 * blink
+		text = "SUPERAQUECIMENTO  ·  CASCO −%.0f/s" % v.hull_dps
+	elif fr <= Balance.FUEL_CRITICAL_RATIO:
+		tint = Color(1.0, 0.12, 0.04)
+		strength = 0.45 + 0.35 * blink
+		text = "COMBUSTÍVEL CRÍTICO!"
+		color = Color("ff8a3a")
+	elif heat > 0.0:
+		tint = Color(1.0, 0.45, 0.1)
+		strength = 0.08 + 0.06 * heat + 0.05 * sin(_t * 2.0)
+		text = "CALOR %.1f" % heat if heat > Balance.HEAT_SAFE_LEVEL * 0.7 else ""
+		color = Color("ffb347")
+	elif fr <= Balance.FUEL_LOW_RATIO:
+		tint = Color(1.0, 0.65, 0.1)
+		strength = 0.22 + 0.16 * (0.5 + 0.5 * sin(_t * 4.0))
+		text = "COMBUSTÍVEL BAIXO"
+		color = Color("ffc24a")
+	var mat := _vignette.material as ShaderMaterial
+	mat.set_shader_parameter("tint", tint)
+	mat.set_shader_parameter("strength", strength)
+	_warn.visible = text != ""
+	if _warn.visible:
+		_warn.text = UiTheme.display_text(text)
+		_warn.add_theme_color_override("font_color", color)
+		_warn.modulate.a = 0.55 + 0.45 * blink if strength > 0.3 else 1.0
+	# A barra de combustível pisca quando está baixa; o botão EXTRAIR chama atenção.
+	_fuel_bar.modulate = Color(1, 1, 1, 0.45 + 0.55 * blink) if fr <= Balance.FUEL_LOW_RATIO else Color.WHITE
+	_extract_button.modulate = Color(1.0 + 0.3 * blink, 1.0 + 0.3 * blink, 1.0 + 0.3 * blink) if fr <= Balance.FUEL_LOW_RATIO else Color.WHITE
 
 
 func set_currencies(credits: int, crystals: int) -> void:

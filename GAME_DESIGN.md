@@ -262,25 +262,35 @@ Toda compra mostra **antes → depois** do atributo efetivo. A compra é atômic
 e sobe o nível, ou não muda nada.
 
 ### 7.2.1 Ritmo-alvo (validado por simulação)
-`tests/balance_sim.gd` simula a perfuradora real no mundo real (seed 2024) com duas
-estratégias; ambas usam a Sobrecarga quando a barra enche e, a cada 15 s, vendem tudo e
-compram o upgrade mais barato:
-- **minérios** – vai até o minério visível mais próximo (nunca para cima); sem nenhum à vista,
-  cava para baixo;
-- **reto** – só cava para baixo (desvia na diagonal quando presa).
+`tests/balance_sim.gd` simula a perfuradora real no mundo real do Vale (seed 2024) em
+**expedições** (0.9): cada uma começa no elevador mais fundo (descontando o combustível),
+extrai com 10% de combustível e, na base, vende tudo e compra o upgrade mais barato.
+- **minérios** – vai até o minério visível mais próximo (nunca para cima); com menos de meio
+  tanque também busca carvão; sem nada à vista, cava para baixo;
+- **reto** – só cava para baixo.
 
-| 10 min (Vale, nave 1,5×, custos ×3) | Buscando minérios | Cavando reto |
+| Vale das Raízes | Buscando minérios | Cavando reto |
 |---|---|---|
-| Profundidade | ~283 m | ~249 m (10 min) |
-| Créditos ganhos | ~10 400 | ~60 |
-| Upgrades | ~32 | 1 |
-| Marcos | 50 m@35 s, 100 m@70 s, 200 m@130 s | 50 m@22 s, 200 m@322 s |
-| Sobrecargas | 8 (1ª aos 31 s) | 1 |
+| Câmara final (250 m) | ~5 min | ~11,5 min |
+| Créditos em 12–15 min | ~11 000 | ~60 |
+| Upgrades | ~40 | 0–1 |
+| Expedições (15 min) | 7, sem resgate | 9 |
+| Elevadores | 30, 80 e 150 m | 30, 80 e 150 m |
 
-Testes: `test_balance_simulation_greedy_player` (buscando minérios: 50 m entre 20 s e 5 min;
-120–450 m em 10 min; ≥10 upgrades; ≥1 módulo; 1ª Sobrecarga após 30 s; 2–25 Sobrecargas) e
-`test_seeking_ores_beats_digging_straight` (buscar minérios rende ≥ 4× cavar reto).
-Na zona abissal do Vale (~260 m) a renda cai muito — é o empurrão para a próxima região.
+Testes: `test_balance_simulation_greedy_player` (câmara final entre 2 e 12 min; ≥3
+expedições; ≥2 elevadores; ≥10 upgrades; ≥1 módulo; 1ª Sobrecarga após 20 s; 2–30
+Sobrecargas; carvão abastece) e `test_seeking_ores_beats_digging_straight` (≥ 4×).
+
+### 7.2.2 Expedições (0.9)
+| Parâmetro `[T]` | Valor |
+|---|---|
+| Tanque | 120 (≈ 2 min de atividade); Tanque +15%/nível |
+| Consumo | 1/s movendo ou cavando; ×1,5 na Sobrecarga; Eficiência −5%/nível |
+| Carvão | +12 de combustível por bloco |
+| Elevador | desce gastando 10% do tanque a cada 100 m |
+| Casco | 100; Blindagem +20/nível; calor acima de 1,0 tira 3/s por nível (−refrigeração) |
+| Resgate | mantém 50% da carga ganha na expedição |
+| Câmara final | 8 blocos de altura no fundo, centro do mapa, relíquia no piso |
 
 ### 7.3 Módulos (Fase 3 — implementado)
 **2 slots** `[T] MODULE_SLOTS` (um 3º slot é candidato a melhoria permanente de prestígio).

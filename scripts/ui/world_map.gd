@@ -1,12 +1,13 @@
 class_name WorldMap
 extends CanvasLayer
-## Mapa mundial: carrossel com uma região grande por vez (deslizar na horizontal) e painel
-## com descrição, dificuldade, progresso, camadas, recursos, riscos, equipamentos
-## recomendados e desbloqueio. EXPLORAR inicia (ou continua) a exploração na região.
-## Pausa o jogo enquanto aberto. Só lê GameState/registros; a troca de região é feita
-## por quem escuta explore_requested (Main).
+## Mapa mundial = base entre expedições (0.9): carrossel com uma região por vez e painel
+## com descrição, dificuldade, objetivos (principal, pesquisa, estrelas), ponto de partida
+## (superfície ou elevadores), camadas até o fundo, recursos, riscos e equipamentos.
+## EXPLORAR começa uma expedição; GARAGEM abre a garagem (só na base). Pausa o jogo enquanto
+## aberto. Só lê GameState/registros; quem escuta explore_requested (Main) inicia a expedição.
 
-signal explore_requested(region_id: StringName)
+signal explore_requested(region_id: StringName, start_m: int)
+signal garage_requested
 signal closed
 
 var _root: Control
@@ -17,6 +18,10 @@ var _explore: Button
 var _close: Button
 var _credits: Label
 var _crystals: Label
+var _garage: Button
+## Ponto de partida escolhido (0 = superfície) e a região a que ele se refere.
+var start_m: int = 0
+var _start_region: StringName = &""
 
 
 func _ready() -> void:
@@ -68,18 +73,26 @@ func explore() -> bool:
 	var r: RegionDef = current_region()
 	if not GameState.is_region_unlocked(r.id):
 		return false
-	explore_requested.emit(r.id)
+	var m: int = start_m if _start_region == r.id and GameState.elevator_depths(r.id).has(start_m) else 0
+	explore_requested.emit(r.id, m)
 	return true
 
 
+## Escolhe o ponto de partida (0 = superfície ou a profundidade de um elevador).
+func select_start(depth_m: int) -> void:
+	start_m = depth_m
+	_start_region = current_region().id
+	_refresh()
+
+
 func _unhandled_input(event: InputEvent) -> void:
-	if visible and event.is_action_pressed("ui_cancel") and GameState.dive_active:
+	if visible and event.is_action_pressed("ui_cancel") and GameState.expedition_active:
 		close()
 		get_viewport().set_input_as_handled()
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_GO_BACK_REQUEST and visible and GameState.dive_active:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST and visible and GameState.expedition_active:
 		close()
 
 
@@ -167,7 +180,19 @@ func _build() -> void:
 	_explore.add_theme_constant_override("icon_max_width", 44)
 	_explore.add_theme_font_size_override("font_size", UiTheme.font_size(40, 700))
 	_explore.pressed.connect(func() -> void: explore())
-	v.add_child(_explore)
+	_explore.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var bottom := HBoxContainer.new()
+	bottom.add_theme_constant_override("separation", 10)
+	v.add_child(bottom)
+	_garage = Button.new()
+	_garage.name = "GarageButton"
+	_garage.text = UiTheme.display_text("GARAGEM")
+	_garage.custom_minimum_size = Vector2(230, 88)
+	_garage.add_theme_font_size_override("font_size", UiTheme.font_size(30, 700))
+	UiTheme.style_button(_garage, &"gold")
+	_garage.pressed.connect(func() -> void: garage_requested.emit())
+	bottom.add_child(_garage)
+	bottom.add_child(_explore)
 
 
 func _panel(title: String) -> VBoxContainer:
@@ -221,7 +246,7 @@ func _refresh() -> void:
 	var status: String = "BLOQUEADO"
 	var status_col: Color = UiTheme.RED
 	if unlocked:
-		status = "ATIVA" if r.id == GameState.region_id and GameState.dive_active else "LIBERADA"
+		status = "CONCLUÍDA" if GameState.done.has(r.id) else "LIBERADA"
 		status_col = UiTheme.GREEN
 	var badge := PanelContainer.new()
 	badge.add_theme_stylebox_override("panel", PixelArt.style(&"slot"))
@@ -239,15 +264,19 @@ func _refresh() -> void:
 	desc.custom_minimum_size = Vector2(300, 0)
 	head.add_child(desc)
 
-	# Progresso / desbloqueio.
-	var prog := _panel("PROGRESSO" if unlocked else "DESBLOQUEIO")
+	if GameState.pending_notice != "":
+		var np := _panel("")
+		var nl := UiTheme.label(GameState.pending_notice, 25, UiTheme.RED, 500)
+		nl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		nl.custom_minimum_size = Vector2(300, 0)
+		np.add_child(nl)
+		GameState.pending_notice = ""
+
 	if unlocked:
-		var bar := SegmentedBar.new(10, PixelArt.GOLD, 32.0)
-		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		bar.value = RegionRegistry.progress_ratio(r, depth)
-		prog.add_child(bar)
-		prog.add_child(UiTheme.label("%d%% explorado · recorde %d m de %d m" % [int(bar.value * 100.0), depth, r.target_depth_m], 25, UiTheme.TEXT_DIM, 500))
+		_objectives_panel(r)
+		_start_panel(r)
 	else:
+		var prog := _panel("DESBLOQUEIO")
 		var lr := HBoxContainer.new()
 		lr.add_theme_constant_override("separation", 10)
 		prog.add_child(lr)
@@ -256,16 +285,11 @@ func _refresh() -> void:
 		req.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		req.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		lr.add_child(req)
-		var have: int = GameState.region_depth(r.unlock_region)
-		var bar := SegmentedBar.new(10, UiTheme.RED, 28.0)
-		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		bar.value = float(have) / float(maxi(1, r.unlock_depth_m))
-		prog.add_child(bar)
-		prog.add_child(UiTheme.label("Atual: %d / %d m em %s" % [have, r.unlock_depth_m, RegionRegistry.get_def(r.unlock_region).display_name], 24, UiTheme.TEXT_DIM, 500))
+		_objectives_panel(r)
 
 	# Camadas de profundidade.
 	var layers := _panel("CAMADAS DE PROFUNDIDADE")
-	for b in r.layers:
+	for b in RegionRegistry.reachable_layers(r):
 		var lr := HBoxContainer.new()
 		lr.add_theme_constant_override("separation", 10)
 		layers.add_child(lr)
@@ -274,7 +298,7 @@ func _refresh() -> void:
 		sw.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		sw.custom_minimum_size = Vector2(96, 44)
 		lr.add_child(sw)
-		var range_txt: String = "%d - %d m" % [b.start_row, b.end_row] if b.end_row < Balance.MAX_DEPTH_ROWS else "%d m +" % b.start_row
+		var range_txt: String = "%d - %d m" % [b.start_row, mini(b.end_row, r.target_depth_m)]
 		var rl := UiTheme.label(range_txt, 25, UiTheme.TEXT, 600)
 		rl.custom_minimum_size = Vector2(160, 0)
 		lr.add_child(rl)
@@ -282,6 +306,15 @@ func _refresh() -> void:
 		dl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		dl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		lr.add_child(dl)
+
+	var fl := HBoxContainer.new()
+	fl.add_theme_constant_override("separation", 10)
+	layers.add_child(fl)
+	fl.add_child(UiTheme.icon_rect(&"star", 40))
+	var fdesc := UiTheme.label("%d m  ·  fundo: %s (câmara final)" % [r.target_depth_m, r.final_name], 25, UiTheme.ORANGE, 600)
+	fdesc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	fdesc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fl.add_child(fdesc)
 
 	# Recursos principais.
 	var res := _panel("PRINCIPAIS RECURSOS")
@@ -321,12 +354,76 @@ func _refresh() -> void:
 		_explore.disabled = true
 		UiTheme.style_button(_explore, &"steel")
 	else:
-		var cont: bool = r.id == GameState.region_id and GameState.dive_active
-		_explore.text = UiTheme.display_text("CONTINUAR  >" if cont else "EXPLORAR  >")
+		_explore.text = UiTheme.display_text("EXPLORAR  >")
 		_explore.disabled = false
 		UiTheme.style_button(_explore, &"green")
-	_close.visible = GameState.dive_active
+	_close.visible = GameState.expedition_active
 	_scroll.scroll_vertical = 0
+
+
+## Objetivos: principal, pesquisa (com barra) e desafios (estrelas).
+func _objectives_panel(r: RegionDef) -> void:
+	var box := _panel("OBJETIVOS  ·  ★ %d/3" % GameState.stars(r.id))
+	box.name = "Objectives"
+	for o: Dictionary in r.objectives:
+		var done: bool = GameState.is_objective_done(r.id, o.id)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		box.add_child(row)
+		var icon: StringName = &"star" if done else (&"star_empty" if o.group == &"star" else (&"elevator" if o.group == &"main" else &"pick"))
+		var ir := UiTheme.icon_rect(icon, 34)
+		ir.modulate = Color.WHITE if done or o.group != &"research" else Color(1, 1, 1, 0.7)
+		row.add_child(ir)
+		var col := VBoxContainer.new()
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(col)
+		var color: Color = UiTheme.GREEN if done else (UiTheme.ORANGE if o.group == &"main" else UiTheme.TEXT)
+		var l := UiTheme.label(String(o.text), 24, color, 600 if o.group == &"main" else 500)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.custom_minimum_size = Vector2(240, 0)
+		col.add_child(l)
+		if not done and o.kind in [&"collect", &"clean"]:
+			var p: Vector2 = GameState.objective_progress(r.id, o)
+			var pr := HBoxContainer.new()
+			pr.add_theme_constant_override("separation", 8)
+			col.add_child(pr)
+			var bar := SegmentedBar.new(10, UiTheme.ORANGE, 18.0)
+			bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			bar.value = p.x / maxf(1.0, p.y)
+			pr.add_child(bar)
+			pr.add_child(UiTheme.label("%d/%d" % [int(p.x), int(p.y)], 22, UiTheme.TEXT_DIM, 600))
+	box.add_child(UiTheme.label("Recorde: %d m de %d m" % [GameState.region_depth(r.id), r.target_depth_m], 23, UiTheme.TEXT_DIM, 500))
+
+
+## Ponto de partida: superfície ou um elevador (desce gastando combustível).
+func _start_panel(r: RegionDef) -> void:
+	var depths: Array[int] = GameState.elevator_depths(r.id)
+	if _start_region != r.id:
+		_start_region = r.id
+		start_m = depths[-1] if not depths.is_empty() else 0
+	var box := _panel("PONTO DE PARTIDA")
+	box.name = "StartPanel"
+	var flow := HFlowContainer.new()
+	flow.add_theme_constant_override("h_separation", 8)
+	flow.add_theme_constant_override("v_separation", 8)
+	box.add_child(flow)
+	var options: Array[int] = [0]
+	options.append_array(depths)
+	for m in options:
+		var b := Button.new()
+		b.name = "Start_%d" % m
+		var fuel: int = roundi(ShipVitals.elevator_fuel_ratio(m) * 100.0) if m > 0 else 100
+		b.text = ("SUPERFÍCIE" if m == 0 else "%d m" % m) + "\ncomb. %d%%" % fuel
+		b.custom_minimum_size = Vector2(150, 84)
+		b.add_theme_font_size_override("font_size", UiTheme.font_size(22, 500))
+		UiTheme.style_button(b, &"green" if m == start_m else &"steel")
+		b.pressed.connect(func() -> void: select_start(m))
+		flow.add_child(b)
+	if depths.is_empty():
+		var hint := UiTheme.label("Ao alcançar uma camada nova, um elevador é instalado no topo dela.", 22, UiTheme.TEXT_DIM, 500)
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		hint.custom_minimum_size = Vector2(240, 0)
+		box.add_child(hint)
 
 
 func _safe_top() -> float:

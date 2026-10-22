@@ -12,12 +12,18 @@ extends Node
 ##   --no-map            não abre o mapa mundial ao iniciar
 ##   --map-at=T / --map-page=N  (com --autotest) abre o mapa em T s, na página N
 ##   --unlock-all        (debug) libera todas as regiões
+##   --fuel=F            (debug) combustível inicial (fração do tanque)
+##   --extract-at=T      (com --autotest) chama a extração em T segundos
 ## Em --autotest o salvamento fica desligado (não toca no perfil real).
 
 @onready var game: Game = $Game
 @onready var hud: Hud = $Hud
 var garage: Garage
 var world_map: WorldMap
+var report: ExpeditionReport
+var _rescue: bool = false
+var _rescue_reason: StringName = &""
+var _debug_seed: int = -1
 
 
 func _ready() -> void:
@@ -30,7 +36,7 @@ func _ready() -> void:
 	if OS.is_debug_build() and args.has("unlock-all"):
 		SaveService.enabled = false  # progresso artificial nunca vai para o perfil do jogador
 		for r in RegionRegistry.all():
-			GameState.region_progress[r.id] = maxi(GameState.region_depth(r.id), 300)
+			GameState.unlocked[r.id] = true
 	var region_arg := StringName(String(args.get("region", "")))
 	if region_arg != &"" and RegionRegistry.get_def(region_arg).id == region_arg:
 		GameState.region_id = region_arg
@@ -40,13 +46,29 @@ func _ready() -> void:
 	garage = Garage.new()
 	garage.name = "Garage"
 	add_child(garage)
-	hud.garage_requested.connect(garage.open)
 	world_map = WorldMap.new()
 	world_map.name = "WorldMap"
 	add_child(world_map)
 	world_map.explore_requested.connect(_on_explore)
-	hud.map_requested.connect(world_map.open)
-	game.start_run(GameState.world_seed, int(args.get("start-row", "-1")))
+	world_map.garage_requested.connect(garage.open)
+	report = ExpeditionReport.new()
+	report.name = "ExpeditionReport"
+	add_child(report)
+	report.closed.connect(_back_to_base)
+	hud.extract_requested.connect(extract)
+	game.drill.stranded.connect(_on_stranded)
+	game.extraction_finished.connect(_on_extraction_finished)
+	_debug_seed = world_seed
+	var start_row: int = int(args.get("start-row", "-1"))
+	if testing or args.has("no-map"):
+		# Testes: começa direto numa expedição (sem passar pela base).
+		_start_expedition(GameState.region_id, maxi(0, start_row))
+		if OS.is_debug_build() and args.has("fuel"):
+			game.drill.vitals.fuel = game.drill.vitals.fuel_max * clampf(float(args["fuel"]), 0.0, 1.0)
+		if args.has("extract-at"):
+			get_tree().create_timer(float(args["extract-at"])).timeout.connect(extract)
+	else:
+		game.start_run(GameState.world_seed, -1, GameState.region_mods(GameState.region_id))
 	if OS.is_debug_build() and (args.has("grant-credits") or args.has("grant-crystals")):
 		GameState.economy.credits += int(args.get("grant-credits", "0"))
 		GameState.economy.crystals += int(args.get("grant-crystals", "0"))
@@ -89,13 +111,49 @@ static func _parse_args(raw: PackedStringArray) -> Dictionary:
 
 func _notification(what: int) -> void:
 	# "Voltar" no Android: fecha a garagem se aberta (tratado nela); senão encerra.
-	if what == NOTIFICATION_WM_GO_BACK_REQUEST and (garage == null or not garage.is_open()):
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST and (garage == null or not garage.is_open()) \
+			and (world_map == null or world_map.is_open()):
 		get_tree().quit()
 
 
-## EXPLORAR no mapa: continua a exploração atual ou começa uma nova na região escolhida.
-func _on_explore(region_id: StringName) -> void:
-	if region_id != GameState.region_id or not GameState.dive_active:
-		GameState.start_dive(region_id)
-		game.start_run(GameState.world_seed)
+## EXPLORAR no mapa: começa uma expedição na região, na superfície ou num elevador.
+func _on_explore(region_id: StringName, start_m: int = 0) -> void:
+	_start_expedition(region_id, start_m)
 	world_map.close()
+
+
+func _start_expedition(region_id: StringName, start_m: int) -> void:
+	GameState.start_dive(region_id, _debug_seed)
+	var fuel: float = ShipVitals.elevator_fuel_ratio(start_m) if start_m > 0 else 1.0
+	game.start_run(GameState.world_seed, start_m, GameState.region_mods(region_id), fuel)
+	GameState.begin_expedition(start_m)
+	_rescue = false
+	SaveService.mark_dirty()
+
+
+## EXTRAIR (HUD): a cápsula leva a nave e toda a carga.
+func extract() -> void:
+	if not GameState.expedition_active or game.extracting:
+		return
+	_rescue = false
+	game.play_extraction()
+
+
+## Combustível ou casco zerou: resgate de emergência (metade da carga desta expedição).
+func _on_stranded(reason: StringName) -> void:
+	if not GameState.expedition_active or game.extracting:
+		return
+	_rescue = true
+	_rescue_reason = reason
+	hud.show_alert("RESGATE DE EMERGÊNCIA", UiTheme.RED)
+	get_tree().create_timer(1.2).timeout.connect(func() -> void: game.play_extraction())
+
+
+func _on_extraction_finished() -> void:
+	var r: Dictionary = GameState.end_expedition(_rescue, _rescue_reason if _rescue else &"extract", game.world.export_modifications())
+	SaveService.save_now()
+	report.show_report(r)
+
+
+func _back_to_base() -> void:
+	world_map.open()

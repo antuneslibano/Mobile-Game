@@ -35,13 +35,16 @@ var _synergy_label: Label
 
 
 func _ready() -> void:
-	layer = 20
+	layer = 27  # acima do mapa (a garagem abre a partir da base)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build()
 	visible = false
 	EventBus.wallet_changed.connect(func(_c: int, _k: int) -> void: _refresh())
 	EventBus.cargo_changed.connect(func(_n: int, _v: int) -> void: _refresh())
 	EventBus.modules_changed.connect(func(_e: Array[StringName]) -> void: _refresh())
+
+
+var _was_paused: bool = false
 
 
 func is_open() -> bool:
@@ -52,6 +55,7 @@ func open() -> void:
 	if visible:
 		return
 	visible = true
+	_was_paused = get_tree().paused
 	get_tree().paused = true
 	_show_tab(true)
 	_refresh()
@@ -62,7 +66,7 @@ func close() -> void:
 	if not visible:
 		return
 	visible = false
-	get_tree().paused = false
+	get_tree().paused = _was_paused
 	EventBus.garage_closed.emit()
 	closed.emit()
 

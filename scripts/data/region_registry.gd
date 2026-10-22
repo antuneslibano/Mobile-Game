@@ -48,21 +48,68 @@ static func index_of(id: StringName) -> int:
 	return 0
 
 
-## progress: { region_id: profundidade máxima (m) }.
-static func is_unlocked(r: RegionDef, progress: Dictionary) -> bool:
+## done: { region_id: true } das regiões com a câmara final concluída.
+static func is_unlocked(r: RegionDef, done: Dictionary) -> bool:
 	if r.unlock_region == &"":
 		return true
-	return int(progress.get(r.unlock_region, 0)) >= r.unlock_depth_m
+	return done.has(r.unlock_region)
+
+
+## Regra antiga (antes da 0.9): profundidade na região anterior. Só para migração.
+static func was_unlocked_by_depth(r: RegionDef, progress: Dictionary) -> bool:
+	return r.unlock_region == &"" or int(progress.get(r.unlock_region, 0)) >= r.unlock_depth_m
 
 
 static func requirement_text(r: RegionDef) -> String:
 	if r.unlock_region == &"":
 		return "Disponível desde o início."
-	return "Alcance %d m em %s." % [r.unlock_depth_m, get_def(r.unlock_region).display_name]
+	var prev: RegionDef = get_def(r.unlock_region)
+	return "Alcance a câmara final de %s (%s, %d m)." % [prev.display_name, prev.final_name, prev.target_depth_m]
 
 
-static func progress_ratio(r: RegionDef, max_depth_m: int) -> float:
-	return clampf(float(max_depth_m) / float(r.target_depth_m), 0.0, 1.0)
+## Camadas alcançáveis (as que começam acima do fundo).
+static func reachable_layers(r: RegionDef) -> Array[BiomeDef]:
+	var out: Array[BiomeDef] = []
+	for b in r.layers:
+		if b.start_row < r.target_depth_m:
+			out.append(b)
+	return out
+
+
+## Primeira linha (blocos) da câmara final e coluna central.
+static func chamber_top(r: RegionDef) -> int:
+	return r.target_depth_m - Balance.FINAL_CHAMBER_ROWS
+
+
+static func chamber_center_x() -> int:
+	return Balance.WORLD_WIDTH / 2
+
+
+static func objective(r: RegionDef, obj_id: StringName) -> Dictionary:
+	for o: Dictionary in r.objectives:
+		if o.id == obj_id:
+			return o
+	return {}
+
+
+## Objetivos: 1 principal (câmara final), 3 de pesquisa e 3 desafios (estrelas).
+## Pesquisa: kind &"collect" (recurso, quantidade acumulada na região).
+## Estrelas: &"one_trip" (câmara final numa expedição saindo da superfície),
+## &"haul" (extrair com carga ≥ valor), &"clean" (extrações sem resgate).
+static func _objectives(r: RegionDef, research: Array, haul: int) -> Array[Dictionary]:
+	var out: Array[Dictionary] = [{"id": &"final", "group": &"main", "kind": &"final", "key": &"", "target": 1,
+			"text": "Alcançar a câmara final: %s (%d m)" % [r.final_name, r.target_depth_m]}]
+	for e: Array in research:
+		var rd: ResourceDef = ResourceRegistry.get_def(e[0])
+		out.append({"id": StringName("res_" + String(e[0])), "group": &"research", "kind": &"collect", "key": e[0],
+				"target": e[1], "text": "Coletar %d de %s" % [e[1], rd.display_name if rd != null else String(e[0])]})
+	out.append({"id": &"one_trip", "group": &"star", "kind": &"one_trip", "key": &"", "target": 1,
+			"text": "Chegar à câmara final numa só expedição, saindo da superfície"})
+	out.append({"id": &"haul", "group": &"star", "kind": &"haul", "key": &"", "target": haul,
+			"text": "Extrair com carga de pelo menos %d créditos" % haul})
+	out.append({"id": &"clean", "group": &"star", "kind": &"clean", "key": &"", "target": 5,
+			"text": "Fazer 5 extrações sem resgate de emergência"})
+	return out
 
 
 # --- Construção ------------------------------------------------------------------
@@ -207,6 +254,18 @@ static func _build() -> void:
 			[&"ice", &"hard_rock", &"unstable"], [&"damage", &"crit", &"side_drill", &"energy"],
 			[Color("120a24"), Color("4a2a7a"), Color("2a1a4a"), Color("1a1030"), Color("c08cff")]),
 	]
+	var finals: Dictionary = {
+		VALE: ["Raiz-Mãe", [[&"copper", 20], [&"crystal", 10], [&"fossil", 3]], 1500],
+		DUNAS: ["Templo soterrado", [[&"gold", 10], [&"quartz", 15], [&"fossil", 4]], 4000],
+		CORDILHEIRA: ["Veio-mãe de titânio", [[&"iron", 25], [&"silver", 12], [&"titanium", 5]], 8000],
+		PANTANO: ["Ninho no lodo", [[&"emerald", 8], [&"uranium", 5], [&"fossil", 4]], 10000],
+		ABISMO: ["Câmara de magma", [[&"obsidian", 10], [&"ruby", 8], [&"meteorite", 1]], 20000],
+		VAZIO: ["O Núcleo", [[&"diamond", 5], [&"rare_crystal", 2], [&"voidite", 10]], 40000],
+	}
+	for r in _list:
+		var f: Array = finals[r.id]
+		r.final_name = f[0]
+		r.objectives = _objectives(r, f[1], f[2])
 	_by_id.clear()
 	for r in _list:
 		_by_id[r.id] = r

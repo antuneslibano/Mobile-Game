@@ -14,6 +14,9 @@ const PATHS: Array[String] = [
 	"res://data/upgrades/drone.tres",
 	"res://data/upgrades/seismic.tres",
 	"res://data/upgrades/cooling.tres",
+	"res://data/upgrades/fuel_tank.tres",
+	"res://data/upgrades/fuel_eff.tres",
+	"res://data/upgrades/hull.tres",
 ]
 
 ## Fase atual do jogo: upgrades com available_from_phase maior aparecem bloqueados.

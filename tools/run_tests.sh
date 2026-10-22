@@ -13,15 +13,15 @@ step "Importação / cache de classes"
 "$GODOT" --headless --path . --import >/dev/null 2>&1 || { echo "falha na importação"; fail=1; }
 
 step "Testes unitários"
-"$GODOT" --headless --path . -s res://tests/run_tests.gd 2>&1 | tee /tmp/deepforge_unit.log
+timeout 900 "$GODOT" --headless --path . -s res://tests/run_tests.gd 2>&1 | tee /tmp/deepforge_unit.log
 [ "${PIPESTATUS[0]}" -eq 0 ] || fail=1
 
 step "Teste de integração (cena + toque)"
-"$GODOT" --headless --path . --fixed-fps 60 res://tests/scene_test.tscn 2>&1 | tee /tmp/deepforge_scene.log
+timeout 300 "$GODOT" --headless --path . --fixed-fps 60 res://tests/scene_test.tscn 2>&1 | tee /tmp/deepforge_scene.log
 [ "${PIPESTATUS[0]}" -eq 0 ] || fail=1
 
 step "Sessão automática (30 s simulados)"
-"$GODOT" --headless --path . --fixed-fps 60 -- --seed=42 --autotest=30 2>&1 | tee /tmp/deepforge_auto.log
+timeout 300 "$GODOT" --headless --path . --fixed-fps 60 -- --seed=42 --autotest=30 2>&1 | tee /tmp/deepforge_auto.log
 [ "${PIPESTATUS[0]}" -eq 0 ] || fail=1
 
 step "Erros de script no log"

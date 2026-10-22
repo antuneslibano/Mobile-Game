@@ -18,12 +18,46 @@ var region_progress: Dictionary = {}
 ## Verdadeiro depois que uma exploração começou nesta sessão.
 var dive_active: bool = false
 
+# --- Expedições (0.9) ---
+## Seed do perfil: cada região tem mapa fixo derivado dela (mundo persistente).
+var profile_seed: int = 0
+## Regiões liberadas e regiões com a câmara final concluída: { id: true }.
+var unlocked: Dictionary = {}
+var done: Dictionary = {}
+## Elevadores instalados: { id: [profundidades em m] } (a superfície é sempre possível).
+var elevators: Dictionary = {}
+## Objetivos concluídos: { id: { objetivo: true } }.
+var objectives_done: Dictionary = {}
+## Estatísticas por região: { id: { "res": { recurso: n }, "clean": n } }.
+var region_stats: Dictionary = {}
+## Escavação salva por região (codificada): { id: { chunk: base64 } }.
+var world_mods: Dictionary = {}
+## Expedição em andamento.
+var expedition_active: bool = false
+var expedition_start_m: int = 0
+var expedition_start_cargo: Dictionary = {}
+var expedition_events: PackedStringArray = []
+var expedition_reached_final: bool = false
+## Aviso para mostrar na base ao carregar (ex.: expedição interrompida).
+var pending_notice: String = ""
+
 
 ## Perfil novo (sem salvamento): economia zerada, apenas a primeira região liberada.
 func reset_profile() -> void:
 	economy = Economy.new()
 	region_progress = {}
 	region_id = RegionRegistry.VALE
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	profile_seed = rng.randi() & 0x7FFFFFFF
+	unlocked = {RegionRegistry.VALE: true}
+	done = {}
+	elevators = {}
+	objectives_done = {}
+	region_stats = {}
+	world_mods = {}
+	expedition_active = false
+	pending_notice = ""
 	_refresh_stats()
 
 
@@ -34,11 +68,9 @@ func new_run(p_seed: int = -1) -> void:
 
 
 func start_dive(id: StringName, p_seed: int = -1) -> void:
-	if p_seed < 0:
-		var rng := RandomNumberGenerator.new()
-		rng.randomize()
-		p_seed = rng.randi() & 0x7FFFFFFF
 	region_id = RegionRegistry.get_def(id).id
+	if p_seed < 0:
+		p_seed = region_seed(region_id)
 	apply_region()
 	world_seed = p_seed
 	depth_m = 0
@@ -71,7 +103,182 @@ func region_depth(id: StringName) -> int:
 
 
 func is_region_unlocked(id: StringName) -> bool:
-	return RegionRegistry.is_unlocked(RegionRegistry.get_def(id), region_progress)
+	return unlocked.has(id) or RegionRegistry.is_unlocked(RegionRegistry.get_def(id), done)
+
+
+## Mapa fixo de cada região, derivado da seed do perfil (mundo persistente).
+func region_seed(id: StringName) -> int:
+	return (hash([profile_seed, String(id)]) & 0x7FFFFFFF)
+
+
+func elevator_depths(id: StringName) -> Array[int]:
+	var out: Array[int] = []
+	for d: Variant in elevators.get(id, []):
+		out.append(int(d))
+	out.sort()
+	return out
+
+
+func is_objective_done(id: StringName, obj_id: StringName) -> bool:
+	return (objectives_done.get(id, {}) as Dictionary).has(obj_id)
+
+
+## Progresso de um objetivo: x = atual, y = alvo.
+func objective_progress(id: StringName, o: Dictionary) -> Vector2:
+	var target: float = float(o.target)
+	if is_objective_done(id, o.id):
+		return Vector2(target, target)
+	match o.kind:
+		&"collect":
+			return Vector2(minf(target, float(_rstats(id).res.get(String(o.key), 0))), target)
+		&"clean":
+			return Vector2(minf(target, float(_rstats(id).clean)), target)
+	return Vector2(0.0, target)
+
+
+## Fração dos objetivos concluídos na região (barra do mapa).
+func region_completion(id: StringName) -> float:
+	var r: RegionDef = RegionRegistry.get_def(id)
+	if r.objectives.is_empty():
+		return 0.0
+	return float((objectives_done.get(id, {}) as Dictionary).size()) / r.objectives.size()
+
+
+func stars(id: StringName) -> int:
+	var n: int = 0
+	for o: Dictionary in RegionRegistry.get_def(id).objectives:
+		if o.group == &"star" and is_objective_done(id, o.id):
+			n += 1
+	return n
+
+
+func _rstats(id: StringName) -> Dictionary:
+	if not region_stats.has(id):
+		region_stats[id] = {"res": {}, "clean": 0}
+	return region_stats[id]
+
+
+func complete_objective(id: StringName, obj_id: StringName) -> void:
+	if is_objective_done(id, obj_id):
+		return
+	var o: Dictionary = RegionRegistry.objective(RegionRegistry.get_def(id), obj_id)
+	if o.is_empty():
+		return
+	if not objectives_done.has(id):
+		objectives_done[id] = {}
+	objectives_done[id][obj_id] = true
+	expedition_events.append(String(o.text))
+	EventBus.objective_completed.emit(id, obj_id, String(o.text))
+
+
+# --- Expedição ------------------------------------------------------------------
+
+func begin_expedition(start_m: int) -> void:
+	expedition_active = true
+	expedition_start_m = start_m
+	expedition_start_cargo = economy.cargo.duplicate()
+	expedition_events = PackedStringArray()
+	expedition_reached_final = false
+	EventBus.expedition_started.emit(region_id, start_m)
+
+
+## Nave chegou (blocos x, profundidade) — conclui a câmara final se estiver dentro dela.
+func check_final_chamber(block_x: int, depth: int) -> void:
+	var r: RegionDef = region()
+	if depth < RegionRegistry.chamber_top(r) + 1:
+		return
+	if absi(block_x - RegionRegistry.chamber_center_x()) > Balance.FINAL_CHAMBER_HALF_WIDTH:
+		return
+	expedition_reached_final = true
+	if done.has(r.id):
+		return
+	done[r.id] = true
+	complete_objective(r.id, &"final")
+	EventBus.region_completed.emit(r.id)
+	for nr in RegionRegistry.all():
+		if nr.unlock_region == r.id and not unlocked.has(nr.id):
+			unlocked[nr.id] = true
+			EventBus.region_unlocked.emit(nr.id)
+
+
+## Fecha a expedição. rescued = resgate de emergência (perde parte da carga desta
+## expedição). mods = escavação do mundo (salva por região). Retorna o relatório.
+func end_expedition(rescued: bool, reason: StringName = &"extract", mods: Dictionary = {}) -> Dictionary:
+	var kept: Dictionary = {}
+	var lost: Dictionary = {}
+	var value_kept: int = 0
+	var value_lost: int = 0
+	for k: StringName in economy.cargo.keys():
+		var gained: int = int(economy.cargo[k]) - int(expedition_start_cargo.get(k, 0))
+		if gained <= 0:
+			continue
+		var loss: int = floori(gained * (1.0 - Balance.RESCUE_KEEP_RATIO)) if rescued else 0
+		var price: int = ResourceRegistry.get_def(k).sell_value
+		if loss > 0:
+			economy.cargo[k] = int(economy.cargo[k]) - loss
+			if int(economy.cargo[k]) <= 0:
+				economy.cargo.erase(k)
+			lost[k] = loss
+			value_lost += loss * price
+		kept[k] = gained - loss
+		value_kept += (gained - loss) * price
+	if expedition_active:
+		var r: RegionDef = region()
+		if not rescued:
+			_rstats(r.id).clean = int(_rstats(r.id).clean) + 1
+			var clean: Dictionary = RegionRegistry.objective(r, &"clean")
+			if int(_rstats(r.id).clean) >= int(clean.get("target", 5)):
+				complete_objective(r.id, &"clean")
+			var haul: Dictionary = RegionRegistry.objective(r, &"haul")
+			if value_kept >= int(haul.get("target", 1 << 30)):
+				complete_objective(r.id, &"haul")
+		if expedition_reached_final and expedition_start_m == 0:
+			complete_objective(r.id, &"one_trip")
+	if not mods.is_empty():
+		world_mods[region_id] = encode_mods(mods)
+	var report: Dictionary = {
+		"region": region_id, "rescued": rescued, "reason": reason, "kept": kept, "lost": lost,
+		"value_kept": value_kept, "value_lost": value_lost, "depth": max_depth_m,
+		"events": expedition_events.duplicate(),
+	}
+	expedition_active = false
+	expedition_start_cargo = {}
+	_emit_economy()
+	EventBus.expedition_ended.emit(report)
+	return report
+
+
+## Escavação → texto compacto: por chunk, base64 de (índice local u16, material u8).
+static func encode_mods(mods: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	for chunk: Variant in mods:
+		var m: Dictionary = mods[chunk]
+		var bytes := PackedByteArray()
+		bytes.resize(m.size() * 3)
+		var i: int = 0
+		for local: Variant in m:
+			var l: int = int(str(local))
+			bytes[i] = l & 0xFF
+			bytes[i + 1] = (l >> 8) & 0xFF
+			bytes[i + 2] = int(m[local]) & 0xFF
+			i += 3
+		out[str(chunk)] = Marshalls.raw_to_base64(bytes)
+	return out
+
+
+static func decode_mods(enc: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	for chunk: Variant in enc:
+		var bytes: PackedByteArray = Marshalls.base64_to_raw(str(enc[chunk]))
+		var m: Dictionary = {}
+		for i in range(0, bytes.size() - 2, 3):
+			m[str(bytes[i] | (bytes[i + 1] << 8))] = int(bytes[i + 2])
+		out[str(chunk)] = m
+	return out
+
+
+func region_mods(id: StringName) -> Dictionary:
+	return decode_mods(world_mods.get(id, {}))
 
 
 func _refresh_stats() -> void:
@@ -87,13 +294,53 @@ func to_profile() -> Dictionary:
 	var prog: Dictionary = {}
 	for k: StringName in region_progress:
 		prog[String(k)] = int(region_progress[k])
+	var objs: Dictionary = {}
+	for k: StringName in objectives_done:
+		var list: Array = []
+		for o: Variant in objectives_done[k]:
+			list.append(String(o))
+		objs[String(k)] = list
+	var stats_out: Dictionary = {}
+	for k: StringName in region_stats:
+		stats_out[String(k)] = region_stats[k]
+	var elev: Dictionary = {}
+	for k: StringName in elevators:
+		elev[String(k)] = elevators[k]
+	var exp: Dictionary = {}
+	if expedition_active:
+		var sc: Dictionary = {}
+		for k: StringName in expedition_start_cargo:
+			sc[String(k)] = int(expedition_start_cargo[k])
+		exp = {"active": true, "region": String(region_id), "start_cargo": sc}
 	return {
 		"schema": SaveFile.SCHEMA_VERSION,
 		"saved_at": int(Time.get_unix_time_from_system()),
 		"economy": economy.to_dict(),
 		"region": String(region_id),
 		"regions": prog,
+		"seed": profile_seed,
+		"unlocked": _keys(unlocked),
+		"done": _keys(done),
+		"elevators": elev,
+		"objectives": objs,
+		"rstats": stats_out,
+		"worlds": _string_keys(world_mods),
+		"expedition": exp,
 	}
+
+
+static func _keys(d: Dictionary) -> Array:
+	var out: Array = []
+	for k: Variant in d:
+		out.append(String(k))
+	return out
+
+
+static func _string_keys(d: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	for k: Variant in d:
+		out[String(k)] = d[k]
+	return out
 
 
 ## Aplica um perfil já validado por SaveFile (valores desconhecidos são descartados).
@@ -106,9 +353,82 @@ func apply_profile(d: Dictionary) -> void:
 			var id := StringName(str(k))
 			if RegionRegistry.get_def(id).id == id:
 				region_progress[id] = clampi(int(prog[k]), 0, Balance.MAX_DEPTH_ROWS)
+	profile_seed = int(d.get("seed", 0)) if d.has("seed") else (hash(JSON.stringify(d.get("economy", {}))) & 0x7FFFFFFF)
+	done = {}
+	for k: Variant in _arr(d.get("done")):
+		if _valid_region(k):
+			done[StringName(str(k))] = true
+	unlocked = {RegionRegistry.VALE: true}
+	if d.has("unlocked"):
+		for k: Variant in _arr(d.get("unlocked")):
+			if _valid_region(k):
+				unlocked[StringName(str(k))] = true
+	else:
+		# Salvamento anterior à 0.9: mantém liberadas as regiões da regra antiga.
+		for r in RegionRegistry.all():
+			if RegionRegistry.was_unlocked_by_depth(r, region_progress):
+				unlocked[r.id] = true
+	elevators = {}
+	var ev: Variant = d.get("elevators", {})
+	if ev is Dictionary:
+		for k: Variant in ev:
+			if _valid_region(k):
+				var list: Array = []
+				for m: Variant in _arr(ev[k]):
+					list.append(clampi(int(m), 0, Balance.MAX_DEPTH_ROWS))
+				elevators[StringName(str(k))] = list
+	objectives_done = {}
+	var ob: Variant = d.get("objectives", {})
+	if ob is Dictionary:
+		for k: Variant in ob:
+			if _valid_region(k):
+				var set_: Dictionary = {}
+				for o: Variant in _arr(ob[k]):
+					set_[StringName(str(o))] = true
+				objectives_done[StringName(str(k))] = set_
+	region_stats = {}
+	var rs: Variant = d.get("rstats", {})
+	if rs is Dictionary:
+		for k: Variant in rs:
+			if _valid_region(k) and rs[k] is Dictionary:
+				var res: Dictionary = {}
+				var src: Variant = (rs[k] as Dictionary).get("res", {})
+				if src is Dictionary:
+					for rk: Variant in src:
+						res[str(rk)] = maxi(0, int(src[rk]))
+				region_stats[StringName(str(k))] = {"res": res, "clean": maxi(0, int((rs[k] as Dictionary).get("clean", 0)))}
+	world_mods = {}
+	var wm: Variant = d.get("worlds", {})
+	if wm is Dictionary:
+		for k: Variant in wm:
+			if _valid_region(k) and wm[k] is Dictionary:
+				world_mods[StringName(str(k))] = wm[k]
 	var rid := StringName(str(d.get("region", "")))
 	region_id = rid if RegionRegistry.get_def(rid).id == rid and is_region_unlocked(rid) else RegionRegistry.VALE
+	# Expedição interrompida (app fechado no meio): conta como resgate de emergência.
+	expedition_active = false
+	pending_notice = ""
+	var exp: Variant = d.get("expedition", {})
+	if exp is Dictionary and bool((exp as Dictionary).get("active", false)):
+		expedition_active = true
+		expedition_start_cargo = {}
+		var sc: Variant = (exp as Dictionary).get("start_cargo", {})
+		if sc is Dictionary:
+			for k: Variant in sc:
+				expedition_start_cargo[StringName(str(k))] = maxi(0, int(sc[k]))
+		var report: Dictionary = end_expedition(true, &"interrupted")
+		if int(report.value_lost) > 0:
+			pending_notice = "Expedição interrompida: resgate de emergência (−%d créditos em carga)." % int(report.value_lost)
 	_refresh_stats()
+
+
+static func _arr(v: Variant) -> Array:
+	return v if v is Array else []
+
+
+static func _valid_region(k: Variant) -> bool:
+	var id := StringName(str(k))
+	return RegionRegistry.get_def(id).id == id
 
 
 func update_depth(d: int) -> void:
@@ -123,9 +443,15 @@ func update_depth(d: int) -> void:
 		# Avisa a cada 10 m de recorde (salvamento) e quando desbloqueia uma região.
 		if d / 10 != before / 10:
 			EventBus.region_progress_changed.emit(region_id, d)
-		for r in RegionRegistry.all():
-			if r.unlock_region == region_id and before < r.unlock_depth_m and d >= r.unlock_depth_m:
-				EventBus.region_unlocked.emit(r.id)
+	# Elevador no topo de cada camada alcançada (a superfície não precisa).
+	for b in RegionRegistry.reachable_layers(region()):
+		if b.start_row > 0 and d >= b.start_row:
+			var list: Array = elevators.get(region_id, [])
+			if not list.has(b.start_row):
+				list.append(b.start_row)
+				elevators[region_id] = list
+				expedition_events.append("Elevador instalado em %d m (%s)" % [b.start_row, b.display_name])
+				EventBus.elevator_unlocked.emit(region_id, b.start_row)
 	var b: int = BiomeRegistry.id_for_row(d)
 	if b != biome_id:
 		biome_id = b
@@ -143,9 +469,20 @@ func register_cells_dug(n: int) -> void:
 func collect_drops(at: Vector2, drops: Dictionary) -> Dictionary:
 	var gained: Dictionary = economy.collect(drops, stats.collect_mult)
 	if not gained.is_empty():
+		_count_research(gained)
 		EventBus.resources_collected.emit(at, gained)
 		_emit_economy()
 	return gained
+
+
+## Objetivos de pesquisa: recursos acumulados na região (inclusive Cristais).
+func _count_research(gained: Dictionary) -> void:
+	var res: Dictionary = _rstats(region_id).res
+	for k: Variant in gained:
+		res[str(k)] = int(res.get(str(k), 0)) + int(gained[k])
+	for o: Dictionary in region().objectives:
+		if o.kind == &"collect" and not is_objective_done(region_id, o.id) and int(res.get(String(o.key), 0)) >= int(o.target):
+			complete_objective(region_id, o.id)
 
 
 func sell_cargo() -> int:

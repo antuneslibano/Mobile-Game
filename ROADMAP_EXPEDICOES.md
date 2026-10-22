@@ -25,12 +25,12 @@ Ciclo: **Base → Expedição → Extração → Pesquisa/Construção → Base*
 
 ---
 
-## 0.9 — Expedições
+## 0.9 — Expedições ✅ (implementada)
 
 ### Combustível
-- Tanque base `100` `[T]`. Gasta `1/s` em atividade (movendo ou cavando) e `×1,5` na Sobrecarga;
+- Tanque base `120` `[T]` (implementado). Gasta `1/s` em atividade (movendo ou cavando) e `×1,5` na Sobrecarga;
   parado não gasta.
-- **Carvão vira combustível**: cada bloco de carvão abastece `+8` direto no tanque (o minério
+- **Carvão vira combustível**: cada bloco de carvão abastece `+12` direto no tanque (o minério
   mais barato ganha papel).
 - Upgrades novos: **Tanque** (capacidade) e **Eficiência** (consumo).
 - HUD: barra de combustível ao lado da energia; aviso em 25% e 10%.

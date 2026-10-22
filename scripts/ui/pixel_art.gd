@@ -281,6 +281,43 @@ static func _icon_img(id: StringName) -> Image:
 					var p: Vector2 = Vector2(9, 9) + d * t
 					rect(img, int(p.x), int(p.y), 2, 2, Color("8fe4ff"))
 			circle(img, 9.5, 9.5, 2.0, Color.WHITE)
+		&"fuel_tank", &"fuel":
+			# Galão de combustível.
+			rect(img, 4, 4, 10, 12, Color("c0392b"))
+			rect(img, 4, 4, 10, 2, Color("e8604c"))
+			rect(img, 5, 7, 2, 8, Color("e8604c"))
+			rect(img, 10, 1, 4, 3, Color("8a93a3"))
+			rect(img, 7, 9, 5, 4, Color("7a1e14"))
+		&"fuel_eff":
+			# Gota com engrenagem (consumo).
+			poly(img, PackedVector2Array([Vector2(9, 1), Vector2(15, 10), Vector2(13, 15), Vector2(5, 15), Vector2(3, 10)]), GOLD)
+			poly(img, PackedVector2Array([Vector2(9, 3), Vector2(12, 9), Vector2(9, 9)]), GOLD_HI)
+			circle(img, 9, 11, 3.0, Color("3fc45a"))
+			circle(img, 9, 11, 1.2, Color("1a3a12"))
+		&"hull":
+			# Escudo do casco.
+			poly(img, PackedVector2Array([Vector2(2, 3), Vector2(9, 1), Vector2(16, 3), Vector2(15, 11), Vector2(9, 17), Vector2(3, 11)]), Color("8a93a3"))
+			poly(img, PackedVector2Array([Vector2(4, 4), Vector2(9, 3), Vector2(9, 15), Vector2(5, 11)]), Color("c3cad6"))
+			rect(img, 8, 5, 2, 8, Color("3fd0ff"))
+		&"heat":
+			# Termômetro.
+			rect(img, 7, 1, 4, 11, Color("e6e9ee"))
+			circle(img, 9, 14, 3.5, Color("e6e9ee"))
+			rect(img, 8, 5, 2, 8, Color("ff5a3a"))
+			circle(img, 9, 14, 2.4, Color("ff5a3a"))
+		&"extract":
+			# Cápsula subindo (seta + cabo).
+			rect(img, 8, 1, 2, 6, Color("c3cad6"))
+			poly(img, PackedVector2Array([Vector2(9, 0), Vector2(14, 5), Vector2(4, 5)]), Color.WHITE)
+			rect(img, 4, 8, 10, 7, GOLD)
+			rect(img, 4, 8, 10, 2, GOLD_HI)
+			rect(img, 7, 11, 4, 3, Color("3fd0ff"))
+		&"elevator":
+			rect(img, 3, 1, 2, 16, Color("8a93a3"))
+			rect(img, 13, 1, 2, 16, Color("8a93a3"))
+			rect(img, 5, 7, 8, 6, GOLD)
+			rect(img, 5, 7, 8, 1, GOLD_HI)
+			rect(img, 8, 0, 2, 7, Color("c3cad6"))
 		&"arrow_up":
 			poly(img, PackedVector2Array([Vector2(9, 2), Vector2(16, 9), Vector2(12, 9), Vector2(12, 16), Vector2(6, 16), Vector2(6, 9), Vector2(2, 9)]), Color.WHITE)
 		&"close":

@@ -67,6 +67,12 @@ static func apply_upgrade(s: DrillStats, def: UpgradeDef, lvl: int) -> void:
 			s.cooling = minf(MAX_COOLING, bonus / 100.0)
 		&"boost":
 			s.boost_level = lvl
+		&"fuel_tank":
+			s.fuel_max = Balance.FUEL_BASE * (1.0 + bonus / 100.0)
+		&"fuel_eff":
+			s.fuel_use = maxf(0.4, 1.0 - bonus / 100.0)
+		&"hull":
+			s.hull_max = Balance.HULL_BASE + bonus
 		_:
 			s.module_levels[def.stat] = lvl
 
@@ -88,6 +94,12 @@ static func stat_text(s: DrillStats, stat: StringName) -> String:
 			return "−%.0f%% calor" % (s.cooling * 100.0)
 		&"boost":
 			return "%.1fs ×%.1f" % [EnergySystem.boost_duration(s), EnergySystem.boost_mult(s)]
+		&"fuel_tank":
+			return "%.0f de combustível" % s.fuel_max
+		&"fuel_eff":
+			return "%.2f/s de consumo" % (Balance.FUEL_USE_PER_SEC * s.fuel_use)
+		&"hull":
+			return "%.0f de casco" % s.hull_max
 		&"side_drill":
 			return "+%.0f px de túnel" % ModuleSystem.side_drill_bonus(s) if ModuleSystem.level(s, ModuleSystem.SIDE_DRILL) > 0 else "não adquirido"
 		&"drone":

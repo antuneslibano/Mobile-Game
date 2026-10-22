@@ -16,6 +16,15 @@ func _ready() -> void:
 	set_process(false)
 
 
+## Texto livre (ex.: "+12 combustível").
+func show_text(origin: Vector2, text: String, color: Color) -> void:
+	_items.append({"key": &"_text", "amount": 0, "pos": origin, "t": 0.0, "text": text, "color": color})
+	while _items.size() > Balance.PICKUP_TEXT_MAX:
+		_items.pop_front()
+	set_process(true)
+	queue_redraw()
+
+
 func show_gain(origin: Vector2, gained: Dictionary) -> void:
 	for key: StringName in gained:
 		var def: ResourceDef = ResourceRegistry.get_def(key)

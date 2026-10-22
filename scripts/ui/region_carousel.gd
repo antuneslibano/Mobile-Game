@@ -220,7 +220,7 @@ func _draw_page(i: int, card: Rect2) -> void:
 	var badge := Rect2(inner.get_center().x - 110.0, plate.end.y + 4.0, 220.0, 34.0)
 	draw_style_box(PixelArt.style(&"slot"), badge)
 	if unlocked:
-		var ratio: float = RegionRegistry.progress_ratio(r, GameState.region_depth(r.id))
+		var ratio: float = GameState.region_completion(r.id)
 		var bar := Rect2(badge.position + Vector2(12, 11), Vector2(120, 12))
 		draw_rect(bar, Color("262c3a"))
 		draw_rect(Rect2(bar.position, Vector2(bar.size.x * ratio, bar.size.y)), PixelArt.GOLD)
@@ -231,7 +231,7 @@ func _draw_page(i: int, card: Rect2) -> void:
 		var lock_sz: float = 22.0 * k * 0.3 + 40.0
 		draw_texture_rect(PixelArt.icon(&"lock"), Rect2(Vector2(inner.get_center().x - lock_sz * 0.5, p.y + sz.y * 0.32), Vector2(lock_sz, lock_sz)), false)
 	# Destaque da região em que o jogador está explorando.
-	if r.id == GameState.region_id and GameState.dive_active:
+	if r.id == GameState.region_id and GameState.expedition_active:
 		var pin := Vector2(p.x + sz.x * 0.22, p.y + 4.0)
 		draw_circle(pin, 12.0, PixelArt.OUTLINE)
 		draw_circle(pin, 9.0, PixelArt.GOLD)

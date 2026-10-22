@@ -10,8 +10,12 @@ extends Resource
 @export var theme: StringName = &""
 @export_multiline var description: String = ""
 @export_range(1, 5) var difficulty: int = 1
-## Profundidade que conta como 100% explorado.
+## Fundo da região (0.9): rocha-mãe a partir daqui, com a câmara final logo acima.
 @export var target_depth_m: int = 250
+## Nome da câmara final (objetivo principal).
+@export var final_name: String = ""
+## Objetivos: [{id, group (&"main"/&"research"/&"star"), kind, key, target, text}].
+@export var objectives: Array[Dictionary] = []
 ## Profundidade a partir da qual o calor aparece (vulcânico: desde a superfície).
 @export var heat_start_m: int = 300
 @export var layers: Array[BiomeDef] = []
@@ -21,7 +25,8 @@ extends Resource
 @export var hazards: Array[StringName] = []
 ## Upgrades recomendados (ids do UpgradeRegistry).
 @export var recommended: Array[StringName] = []
-## Requisito: alcançar unlock_depth_m em unlock_region (vazio = livre).
+## Requisito (0.9): concluir a câmara final de unlock_region (vazio = livre).
+## unlock_depth_m é a regra antiga (só para migrar salvamentos anteriores à 0.9).
 @export var unlock_region: StringName = &""
 @export var unlock_depth_m: int = 0
 @export var sky_top: Color = Color("1b1530")

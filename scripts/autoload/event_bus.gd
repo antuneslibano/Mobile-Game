@@ -31,3 +31,10 @@ signal region_progress_changed(region_id: StringName, max_depth_m: int)
 signal region_unlocked(region_id: StringName)
 signal map_opened
 signal map_closed
+
+# Expedições (0.9)
+signal expedition_started(region_id: StringName, start_m: int)
+signal expedition_ended(report: Dictionary)
+signal elevator_unlocked(region_id: StringName, depth_m: int)
+signal objective_completed(region_id: StringName, objective_id: StringName, text: String)
+signal region_completed(region_id: StringName)

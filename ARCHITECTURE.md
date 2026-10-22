@@ -65,6 +65,7 @@ scripts/
     module_system.gd       ModuleSystem – broca lateral, drone, pulso (puro, sinais p/ visuais)
     synergy_rules.gd       SynergyRules – sinergias declarativas
     drill_stats.gd         DrillStats – atributos efetivos (base + upgrades futuros)
+    ship_vitals.gd         ShipVitals – combustível e casco da expedição (puro)
     drill_intent.gd        DrillIntent – intenção de controle (mover, perfurar, impulso)
     mining_rules.gd        MiningRules – fórmula de dano centralizada
     drill.gd               Drill – física em grade, colisão, alvo de perfuração, golpes
@@ -87,6 +88,8 @@ shaders/terrain.gdshader   terreno orgânico (campo contínuo sobre a grade)
   ui/region_carousel.gd    RegionCarousel – deslizar horizontal com encaixe, setas e indicadores
   ui/region_art.gd         RegionArt – ilustração procedural (ilha flutuante) por região
   ui/touch_scroll.gd       TouchScroll – rolagem por arrasto com inércia (cancela o toque no botão)
+  ui/expedition_report.gd  ExpeditionReport – resultado da expedição (extração/resgate)
+  game/elevator_rig.gd     ElevatorRig – cabo do elevador e da cápsula de extração (visual)
   gameplay/ship_art.gd     ShipArt – sprite procedural da nave (quadros da broca)
 assets/fonts/              Press Start 2P e Jersey 10 (OFL 1.1, licenças incluídas)
 assets/environment/        terrain/ ores/ vegetation/ decorations/ – PNGs (importados como Image)
@@ -167,6 +170,9 @@ e `Progression` são puros (testados sem cena); a UI apenas lê e chama GameStat
 | `region_progress_changed` | `region_id, depth_m` (a cada 10 m de recorde) | GameState | SaveService |
 | `region_unlocked` | `region_id: StringName` | GameState | SaveService, Hud (aviso) |
 | `map_opened` / `map_closed` | – | WorldMap | InputController (limpa toques), SaveService |
+| `expedition_started` / `expedition_ended` | região, início (m) / relatório | GameState | SaveService, testes |
+| `elevator_unlocked` | região, profundidade | GameState | Hud (aviso) |
+| `objective_completed` / `region_completed` | região, objetivo, texto / região | GameState | Hud (aviso) |
 
 Sinais locais: `WorldModel.cell_changed(cell)`, `WorldModel.chunk_generated(index)`,
 `Drill.block_hit(...)`, `Drill.block_destroyed(...)`, `Drill.blocked_by_unbreakable(cell)`.
@@ -287,3 +293,21 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
 - **Cavernas**: `CaveDecor` (filho do `ChunkRenderer`) planeja, ao montar o chunk, plantas no
   chão e raízes no teto de cavernas naturais (`WorldModel.is_modified` exclui túneis) e as
   remove quando a célula de apoio é escavada. Sem colisão; desenho em um único CanvasItem.
+
+## 13. Expedições (0.9)
+
+- **Fluxo** (`Main`): base = `WorldMap` (GARAGEM, EXPLORAR, ponto de partida) →
+  `_start_expedition` (`GameState.start_dive` com a seed fixa da região, `Game.start_run`
+  com a escavação salva e o combustível descontado do elevador, `GameState.begin_expedition`)
+  → EXTRAIR (`Game.play_extraction`, cabo do `ElevatorRig`) ou `Drill.stranded` (resgate após
+  1,2 s) → `GameState.end_expedition` (perdas, estrelas, escavação codificada) →
+  `ExpeditionReport` → base.
+- **Combustível/casco** (`ShipVitals`, dono: `Drill`): gasto por atividade, Sobrecarga ×1,5,
+  carvão abastece (`BlockDef.fuel`), calor acima de `HEAT_SAFE_LEVEL` fere o casco. Zerar
+  qualquer um desliga a nave (`disabled`) e emite `stranded`.
+- **Fundo da região**: `WorldGenerator._cell` devolve rocha-mãe a partir de
+  `target_depth_m` e escava a câmara final (elipse com ruído, relíquia no piso, no centro).
+  `GameState.check_final_chamber` conclui o objetivo principal e libera a próxima região.
+- **Persistência**: `profile_seed` → `region_seed(id)`; escavação por região codificada
+  (índice local u16 + material u8, base64 por chunk); elevadores, objetivos, estatísticas por
+  região e a expedição em andamento (fechar o app no meio = resgate) vão no perfil.

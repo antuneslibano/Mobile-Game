@@ -135,8 +135,19 @@ func generate_block(x: int, y: int) -> int:
 func _cell(x: int, y: int, biome_id: int) -> int:
 	if y < 0:
 		return BlockRegistry.AIR
-	if x <= 0 or x >= Balance.WORLD_WIDTH - 1 or y >= Balance.MAX_DEPTH_ROWS:
+	if x <= 0 or x >= Balance.WORLD_WIDTH - 1 or y >= mini(Balance.MAX_DEPTH_ROWS, region.target_depth_m):
 		return BlockRegistry.BEDROCK
+	# Câmara final: salão logo acima do fundo, no centro, com a relíquia no piso.
+	var top: int = region.target_depth_m - Balance.FINAL_CHAMBER_ROWS
+	if y >= top:
+		var cx: int = RegionRegistry.chamber_center_x()
+		var dx: float = float(x - cx) / Balance.FINAL_CHAMBER_HALF_WIDTH
+		var dy: float = (float(y) - (top + region.target_depth_m - 1) * 0.5) / (Balance.FINAL_CHAMBER_ROWS * 0.5)
+		var wobble: float = _cave.get_noise_2d(float(x) * 1.7, float(y) * 1.7) * 0.25
+		if dx * dx + dy * dy <= 1.0 + wobble:
+			if x == cx and y == region.target_depth_m - 1:
+				return BlockRegistry.ARTIFACT
+			return BlockRegistry.AIR
 	var biome: BiomeDef = _layers[clampi(biome_id, 0, _layers.size() - 1)]
 
 	# Cavernas

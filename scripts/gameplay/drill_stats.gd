@@ -18,6 +18,10 @@ var energy_gain: float = 1.0
 var cooling: float = 0.0
 ## Nível do upgrade de impulso.
 var boost_level: int = 0
+## Expedição (0.9): tanque, consumo (multiplicador) e casco.
+var fuel_max: float = Balance.FUEL_BASE
+var fuel_use: float = 1.0
+var hull_max: float = Balance.HULL_BASE
 ## Níveis de módulos: StringName → int (Fase 3).
 var module_levels: Dictionary = {}
 
@@ -38,5 +42,8 @@ func duplicate_stats() -> DrillStats:
 	s.energy_gain = energy_gain
 	s.cooling = cooling
 	s.boost_level = boost_level
+	s.fuel_max = fuel_max
+	s.fuel_use = fuel_use
+	s.hull_max = hull_max
 	s.module_levels = module_levels.duplicate()
 	return s

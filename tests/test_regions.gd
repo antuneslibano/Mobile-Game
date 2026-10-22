@@ -30,18 +30,40 @@ func test_region_registry_is_valid() -> void:
 			check(r.unlock_depth_m > 0 and r.unlock_depth_m <= list[i - 1].target_depth_m, "%s: requisito alcançável" % r.id)
 
 
-func test_unlock_rules_and_progress() -> void:
+func test_unlock_rules_and_objectives() -> void:
 	var dunas: RegionDef = RegionRegistry.get_def(RegionRegistry.DUNAS)
 	var vale: RegionDef = RegionRegistry.get_def(RegionRegistry.VALE)
 	check(RegionRegistry.is_unlocked(vale, {}), "Vale liberado desde o início")
-	check(not RegionRegistry.is_unlocked(dunas, {}), "Dunas bloqueadas sem progresso")
-	check(not RegionRegistry.is_unlocked(dunas, {&"vale": dunas.unlock_depth_m - 1}), "Dunas bloqueadas 1 m antes")
-	check(RegionRegistry.is_unlocked(dunas, {&"vale": dunas.unlock_depth_m}), "Dunas liberadas no requisito")
-	check(RegionRegistry.requirement_text(dunas).contains(vale.display_name), "texto do requisito cita a região")
-	check_eq(RegionRegistry.progress_ratio(vale, 0), 0.0, "progresso 0%")
-	check_eq(RegionRegistry.progress_ratio(vale, vale.target_depth_m * 2), 1.0, "progresso limitado a 100%")
-	check(absf(RegionRegistry.progress_ratio(vale, vale.target_depth_m / 2) - 0.5) < 0.01, "progresso 50%")
+	check(not RegionRegistry.is_unlocked(dunas, {}), "Dunas bloqueadas sem a câmara final do Vale")
+	check(RegionRegistry.is_unlocked(dunas, {&"vale": true}), "Dunas liberadas com o Vale concluído")
+	check(RegionRegistry.requirement_text(dunas).contains(vale.final_name), "requisito cita a câmara final")
+	# Migração (salvamentos anteriores à 0.9): regra antiga por profundidade.
+	check(RegionRegistry.was_unlocked_by_depth(dunas, {&"vale": dunas.unlock_depth_m}), "regra antiga reconhecida")
 	check_eq(RegionRegistry.get_def(&"inexistente").id, RegionRegistry.VALE, "id desconhecido cai no Vale")
+	for r in RegionRegistry.all():
+		check(not r.final_name.is_empty(), "%s tem câmara final" % r.id)
+		check_eq(r.objectives.size(), 7, "%s: 1 principal + 3 pesquisa + 3 estrelas" % r.id)
+		var groups: Dictionary = {}
+		for o: Dictionary in r.objectives:
+			groups[o.group] = int(groups.get(o.group, 0)) + 1
+			if o.kind == &"collect":
+				check(ResourceRegistry.get_def(o.key) != null, "%s: recurso %s existe" % [r.id, o.key])
+		check(groups.get(&"main", 0) == 1 and groups.get(&"research", 0) == 3 and groups.get(&"star", 0) == 3, "%s: grupos de objetivos" % r.id)
+		var reach: Array[BiomeDef] = RegionRegistry.reachable_layers(r)
+		check(not reach.is_empty() and reach[-1].start_row < r.target_depth_m, "%s: camadas até o fundo" % r.id)
+
+
+## Fundo da região: rocha-mãe a partir do target_depth_m, com a câmara final (salão e
+## relíquia no piso) no centro, logo acima.
+func test_region_bottom_and_final_chamber() -> void:
+	for r in RegionRegistry.all():
+		var g := WorldGenerator.new(31, r)
+		var cx: int = RegionRegistry.chamber_center_x()
+		for x in range(1, Balance.WORLD_WIDTH - 1):
+			check_eq(g.generate_block(x, r.target_depth_m), BlockRegistry.BEDROCK, "%s: fundo é rocha-mãe" % r.id)
+		var mid: int = RegionRegistry.chamber_top(r) + Balance.FINAL_CHAMBER_ROWS / 2
+		check_eq(g.generate_block(cx, mid), BlockRegistry.AIR, "%s: câmara final aberta" % r.id)
+		check_eq(g.generate_block(cx, r.target_depth_m - 1), BlockRegistry.ARTIFACT, "%s: relíquia no piso da câmara" % r.id)
 
 
 func test_terrain_is_not_collectible() -> void:
@@ -64,7 +86,7 @@ func test_terrain_is_not_collectible() -> void:
 			BlockRegistry.DIAMOND, BlockRegistry.URANIUM, BlockRegistry.FOSSIL, BlockRegistry.METEORITE]:
 		var d: BlockDef = BlockRegistry.get_def(key)
 		check(not d.is_terrain(), "%s é depósito" % d.key)
-		check(not d.drops.is_empty(), "%s gera recurso" % d.key)
+		check(not d.drops.is_empty() or d.fuel > 0.0, "%s gera recurso (ou combustível)" % d.key)
 		for k: StringName in d.drops:
 			check(ResourceRegistry.get_def(k) != null, "%s → recurso %s registrado" % [d.key, k])
 

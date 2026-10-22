@@ -3,6 +3,37 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.9.0] — Expedições
+
+### Adicionado
+- **Expedições**: cada descida tem começo, meio e fim. A base é o mapa mundial (GARAGEM e
+  EXPLORAR); durante a expedição não se compra nada.
+- **Combustível** (tanque 120, gasta movendo/cavando, ×1,5 na Sobrecarga). **Carvão abastece**
+  o tanque (não vai mais para a carga).
+- **Casco**: o calor acima do nível seguro causa dano (refrigeração reduz).
+- **Extrair** (HUD): a cápsula desce o cabo e leva a nave com **toda a carga**.
+  **Resgate de emergência** (sem combustível ou casco): volta com **metade da carga desta
+  expedição**. Fechar o app no meio conta como resgate.
+- **Relatório da expedição**: carga trazida/perdida, valor, conquistas.
+- **Elevadores**: ao alcançar uma camada nova, um elevador fica no topo dela; a próxima
+  expedição pode começar ali (desce gastando combustível).
+- **Fundo de cada região** (rocha-mãe) com **câmara final** e relíquia; concluí-la libera a
+  próxima região.
+- **Objetivos por região**: principal (câmara final), 3 de pesquisa (coletar recursos) e
+  3 estrelas (câmara final numa só expedição, carga grande, 5 extrações sem resgate).
+- **Mundo persistente**: mapa fixo por região e escavação salva (minério tirado não volta).
+- **HUD**: barras de combustível e casco, termômetro, botão EXTRAIR; **alertas visuais**
+  com vinheta pulsante nas bordas e aviso piscando (combustível baixo/crítico,
+  superaquecimento com dano no casco, calor).
+- Upgrades novos: **Tanque**, **Eficiência**, **Blindagem**.
+- Testes: `test_expedition.gd`, regras de região/câmara, simulação com expedições,
+  extração/resgate/alertas no teste de cena.
+
+### Alterado
+- Próxima região liberada pela câmara final da anterior (salvamentos antigos mantêm o que
+  já estava liberado).
+- Garagem só na base; carrossel mostra a conclusão dos objetivos.
+
 ## [0.8.1] — Nave maior
 
 ### Alterado

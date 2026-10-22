@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="UpgradeDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/upgrade_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"fuel_tank"
+display_name = "Tanque"
+description = "Mais combustível por expedição: vá mais fundo e volte."
+currency = &"credits"
+base_cost = 60.0
+cost_growth = 1.5
+max_level = 20
+stat = &"fuel_tank"
+step = 15.0
+available_from_phase = 3
+important = false
+color = Color(1, 0.65, 0.2, 1)

@@ -13,6 +13,10 @@ extends Node2D
 @onready var input: InputController = $InputController
 
 var world: WorldModel
+var rig: ElevatorRig
+## Extração em andamento (a nave sobe pelo cabo; física parada).
+var extracting: bool = false
+signal extraction_finished
 
 
 func _ready() -> void:
@@ -21,6 +25,8 @@ func _ready() -> void:
 	drill.blocked_by_unbreakable.connect(_on_unbreakable)
 	drill.boost_started.connect(_on_boost_started)
 	drill.overdrive_ready.connect(func() -> void: EventBus.overdrive_ready.emit())
+	drill.refueled.connect(func(amount: float) -> void:
+		pickups.show_text(drill.position + Vector2(0, -40), "+%d combustível" % roundi(amount), Color("ffb347")))
 	drill.modules.pulse_fired.connect(func(_c: Vector2, _r: float, crit: bool) -> void:
 		camera.add_shake(0.45 if crit else 0.3))
 	input.drill = drill
@@ -28,25 +34,51 @@ func _ready() -> void:
 	EventBus.resources_collected.connect(_on_resources_collected)
 	EventBus.modules_changed.connect(_on_modules_changed)
 	module_fx.setup(drill)
+	rig = ElevatorRig.new()
+	rig.name = "ElevatorRig"
+	add_child(rig)
+	move_child(rig, drill.get_index())
 
 
-## start_row >= 0 (apenas debug) abre um bolsão e começa naquela profundidade (em metros).
-func start_run(world_seed: int, start_row: int = -1) -> void:
+## Começa uma expedição: mundo fixo da região (com a escavação salva) e a nave na
+## superfície ou num elevador (start_row em metros, com o combustível já descontado).
+## mods vazio = mundo intocado.
+func start_run(world_seed: int, start_row: int = -1, mods: Dictionary = {}, fuel_ratio: float = 1.0) -> void:
 	if world != null:
 		world.shutdown()
+	extracting = false
 	var region: RegionDef = GameState.region()
 	world = WorldModel.new(world_seed, region)
+	if not mods.is_empty():
+		world.import_modifications(mods)
 	background.setup(world_seed, region)
 	var spawn: Vector2 = Drill.surface_spawn()
-	if start_row >= 0:
+	if start_row > 0:
 		spawn.y = (start_row + 0.5) * Balance.BLOCK_PX
-		world.fill_circle(spawn, Balance.BIT_RADIUS_PX + 4.0, BlockRegistry.AIR)
+		world.fill_circle(spawn, Balance.BIT_RADIUS_PX + 6.0, BlockRegistry.AIR)
 	_apply_stats()
 	drill.setup(world, spawn, world_seed)
+	drill.vitals.reset(drill.stats, fuel_ratio)
+	drill.visible = true
+	rig.show_at(spawn, start_row > 0)
 	_on_modules_changed(GameState.economy.equipped_modules)
 	camera.target = drill
 	camera.snap_to_target()
 	terrain.setup(world, camera)
+
+
+## Cápsula: o cabo desce até a nave e a puxa para cima; emite extraction_finished.
+func play_extraction(duration: float = 1.6) -> void:
+	if world == null or extracting:
+		return
+	extracting = true
+	rig.pull(drill, duration)
+	var tw := create_tween()
+	tw.tween_interval(0.35)
+	tw.tween_property(drill, "position:y", drill.position.y - 900.0, duration - 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_callback(func() -> void:
+		drill.visible = false
+		extraction_finished.emit())
 
 
 func _exit_tree() -> void:
@@ -55,10 +87,11 @@ func _exit_tree() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if world == null:
+	if world == null or extracting:
 		return
 	drill.physics_step(delta, input.get_intent())
 	GameState.update_depth(drill.depth_m())
+	GameState.check_final_chamber(floori(drill.position.x / Balance.BLOCK_PX), drill.depth_m())
 
 
 func _apply_stats() -> void:

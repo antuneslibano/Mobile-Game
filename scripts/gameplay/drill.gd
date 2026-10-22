@@ -10,6 +10,9 @@ signal dug(counts: Dictionary, at: Vector2)
 signal blocked_by_unbreakable(point: Vector2)
 signal boost_started
 signal overdrive_ready
+## Combustível ou casco zerou: fim da expedição (resgate de emergência).
+signal stranded(reason: StringName)
+signal refueled(amount: float)
 
 const MAX_STEP_PX: float = 4.0
 const CONTACT_PROBE_PX: float = 1.5
@@ -31,6 +34,9 @@ var digging: bool = false
 var rng := RandomNumberGenerator.new()
 var energy := EnergySystem.new()
 var modules := ModuleSystem.new()
+var vitals := ShipVitals.new()
+## Parada (sem combustível ou casco): não se move nem cava até a extração.
+var disabled: bool = false
 ## Multiplicador atual de golpes/s (Sobrecarga × calor).
 var speed_mult: float = 1.0
 var heat_penalty: float = 0.0
@@ -51,6 +57,8 @@ func setup(p_world: WorldModel, spawn: Vector2, p_seed: int = 0) -> void:
 	grounded = false
 	digging = false
 	energy.reset(stats)
+	vitals.reset(stats)
+	disabled = false
 	modules.rng.seed = p_seed + 17
 
 
@@ -100,9 +108,12 @@ func physics_step(delta: float, intent: DrillIntent) -> void:
 	heat_penalty = HeatRules.penalty(depth_m(), stats.cooling)
 	speed_mult = energy.speed_mult(stats) * (1.0 - heat_penalty)
 
-	var a: Vector2 = DrillIntent.sanitize(intent.aim)
+	var a: Vector2 = DrillIntent.sanitize(intent.aim) if not disabled else Vector2.ZERO
 	var throttle: float = a.length()
 	var steering: bool = throttle > 0.05
+	if not disabled and vitals.step(delta, stats, steering or digging, energy.is_boosting(), HeatRules.heat_at(depth_m())):
+		disabled = true
+		stranded.emit(&"fuel" if vitals.is_out_of_fuel() else &"hull")
 	if steering:
 		var target: Vector2 = a / throttle
 		facing = facing.slerp(target, clampf(delta * 14.0, 0.0, 1.0)).normalized()
@@ -201,6 +212,10 @@ func _on_dug(res: WorldModel.DigResult, at: Vector2) -> void:
 	if res.counts.is_empty():
 		return
 	dug.emit(res.counts, at)
+	var fuel: float = fuel_for(res.counts)
+	if fuel > 0.0:
+		vitals.refuel(fuel)
+		refueled.emit(fuel)
 	var value: Vector2 = volume_value(res.counts)
 	if energy.add_charge(EnergySystem.charge_for(value.x, value.y, depth_m(), stats)):
 		overdrive_ready.emit()
@@ -223,6 +238,14 @@ static func volume_value(counts: Dictionary) -> Vector2:
 			else:
 				credits += amount * r.sell_value
 	return Vector2(credits, crystals)
+
+
+## Combustível abastecido pelas células removidas (carvão).
+static func fuel_for(counts: Dictionary) -> float:
+	var f: float = 0.0
+	for id: int in counts:
+		f += BlockRegistry.get_def(id).fuel * float(counts[id]) / Balance.CELLS_PER_BLOCK
+	return f
 
 
 ## Drops (fracionários) correspondentes às células removidas.

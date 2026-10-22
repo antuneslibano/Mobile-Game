@@ -70,20 +70,22 @@ func test_stats_reflect_levels_and_preview() -> void:
 	note("dano: %s" % " → ".join(Progression.preview(UpgradeRegistry.get_def(&"damage"), {})))
 
 
-## Simulação de balanceamento (tests/balance_sim.gd): o jogador que vai atrás dos minérios
-## visíveis progride nas faixas-alvo; usa a Sobrecarga quando enche, vende a cada 15 s e
-## compra o upgrade mais barato.
+## Simulação de balanceamento com expedições (tests/balance_sim.gd): o jogador que vai atrás
+## dos minérios conclui o Vale das Raízes (câmara final) e progride nas faixas-alvo.
 func test_balance_simulation_greedy_player() -> void:
-	var r: Dictionary = Sim.run(&"minerios", 10.0)
-	note("10 min buscando minérios: " + Sim.summary(r))
+	var r: Dictionary = Sim.run(&"minerios", 12.0)
+	note("12 min buscando minérios: " + Sim.summary(r))
 	var marks: Dictionary = r.marks
 	# Faixas-alvo (GAME_DESIGN.md §7.2.1).
 	check(marks.has(50) and float(marks[50]) > 20.0 and float(marks[50]) < 300.0, "50 m entre 20 s e 5 min")
-	check(r.depth >= 120 and r.depth <= 450, "10 min levam a 120–450 m (%d m)" % r.depth)
-	check(r.bought >= 10, "compra ao menos 10 upgrades em 10 minutos (%d)" % r.bought)
-	check(not (r.modules as Array).is_empty(), "adquire e equipa ao menos um módulo em 10 minutos")
-	check(r.first_full > 30.0, "a energia exige esforço: 1ª Sobrecarga após 30 s (%.0f s)" % r.first_full)
-	check(r.overdrives >= 2 and r.overdrives <= 25, "Sobrecargas são eventos, não spam (%d em 10 min)" % r.overdrives)
+	check(float(r.final_at) > 120.0 and float(r.final_at) < 720.0, "câmara final do Vale entre 2 e 12 min (%.0f s)" % float(r.final_at))
+	check(int(r.expeditions) >= 3, "o combustível divide o jogo em expedições (%d)" % int(r.expeditions))
+	check((r.elevators as Array).size() >= 2, "elevadores instalados (%s)" % str(r.elevators))
+	check(r.bought >= 10, "compra ao menos 10 upgrades (%d)" % r.bought)
+	check(not (r.modules as Array).is_empty(), "adquire e equipa ao menos um módulo")
+	check(r.first_full > 20.0, "a energia exige esforço: 1ª Sobrecarga após 20 s (%.0f s)" % r.first_full)
+	check(r.overdrives >= 2 and r.overdrives <= 30, "Sobrecargas são eventos, não spam (%d)" % r.overdrives)
+	check(float(r.refuel) > 0.0, "carvão abastece o tanque")
 
 
 ## O dinheiro está nos minérios: desviar até eles rende muito mais do que cavar reto.
