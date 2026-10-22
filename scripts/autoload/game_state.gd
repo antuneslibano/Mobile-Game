@@ -39,6 +39,12 @@ var expedition_reached_final: bool = false
 var pending_notice: String = ""
 ## Entradas do diário já vistas no Laboratório (o resto aparece como novidade na base).
 var journal_seen: int = 0
+## Visual escolhido no Hangar ({encaixe: opção}; vazio = automático) e quantas opções o
+## jogador já viu liberadas (alerta do Hangar).
+var looks: Dictionary = {}
+var looks_seen: int = 0
+## Criaturas catalogadas: { espécie: { "seen": true, "defeated": n } }.
+var creatures: Dictionary = {}
 
 
 ## Perfil novo (sem salvamento): economia zerada, apenas a primeira região liberada.
@@ -57,6 +63,9 @@ func reset_profile() -> void:
 	expedition_active = false
 	pending_notice = ""
 	journal_seen = 0
+	looks = {}
+	looks_seen = 0
+	creatures = {}
 	_refresh_stats()
 
 
@@ -321,6 +330,9 @@ func to_profile() -> Dictionary:
 		"worlds": _string_keys(world_mods),
 		"expedition": exp,
 		"journal_seen": journal_seen,
+		"looks": _string_keys(looks),
+		"looks_seen": looks_seen,
+		"creatures": _string_keys(creatures),
 	}
 
 
@@ -407,6 +419,19 @@ func apply_profile(d: Dictionary) -> void:
 			pending_notice = "Expedição interrompida: resgate de emergência (−%d créditos em carga)." % int(report.value_lost)
 	economy.tech = done.size()
 	journal_seen = maxi(0, int(d.get("journal_seen", 0)))
+	looks_seen = maxi(0, int(d.get("looks_seen", 0)))
+	creatures = {}
+	var cr: Variant = d.get("creatures", {})
+	if cr is Dictionary:
+		for k: Variant in cr:
+			if Creature.DEFS.has(StringName(str(k))) and cr[k] is Dictionary:
+				creatures[StringName(str(k))] = {"seen": true, "defeated": maxi(0, int((cr[k] as Dictionary).get("defeated", 0)))}
+	looks = {}
+	var lk: Variant = d.get("looks", {})
+	if lk is Dictionary:
+		for k: Variant in lk:
+			if StringName(str(k)) in ShipLooks.SLOTS:
+				looks[StringName(str(k))] = StringName(str(lk[k]))
 	# Salvamento anterior à 0.10: o que já foi coletado na região conta como descoberto.
 	for stats_id: StringName in region_stats:
 		for k: Variant in (region_stats[stats_id] as Dictionary).get("res", {}):
@@ -467,6 +492,41 @@ func _count_research(gained: Dictionary) -> void:
 	for o: Dictionary in region().objectives:
 		if o.kind == &"collect" and not is_objective_done(region_id, o.id) and int(res.get(String(o.key), 0)) >= int(o.target):
 			complete_objective(region_id, o.id)
+
+
+## Criatura avistada (catálogo). Retorna true na primeira vez.
+func see_creature(species: StringName) -> bool:
+	if creatures.has(species):
+		return false
+	creatures[species] = {"seen": true, "defeated": 0}
+	expedition_events.append("Nova criatura catalogada: %s" % Creature.DEFS[species].name)
+	EventBus.creature_discovered.emit(species)
+	return true
+
+
+## Criatura vencida: conta no catálogo e rende amostras biológicas.
+func defeat_creature(species: StringName, at: Vector2) -> void:
+	see_creature(species)
+	creatures[species].defeated = int(creatures[species].defeated) + 1
+	var n: int = int(Creature.DEFS[species].samples)
+	if n > 0:
+		collect_drops(at, {&"bio_sample": float(n)})
+	EventBus.creature_defeated.emit(species)
+
+
+## Visual efetivo da nave (escolhas do Hangar + melhor opção liberada).
+func ship_look() -> Dictionary:
+	return ShipLooks.resolve(looks, economy, done)
+
+
+func set_look(slot: StringName, option: StringName) -> bool:
+	for o: Array in ShipLooks.OPTIONS.get(slot, []):
+		if o[0] == option and ShipLooks.is_unlocked(String(o[2]), economy, done):
+			looks[slot] = option
+			EventBus.looks_changed.emit()
+			SaveService.mark_dirty()
+			return true
+	return false
 
 
 ## Mercado: vende um recurso (n unidades; -1 = tudo).

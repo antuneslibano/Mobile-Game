@@ -223,6 +223,18 @@ func set_cell(c: Vector2i, id: int) -> void:
 		cells_changed.emit(changed)
 
 
+## Escava só terreno (terra, pedra...) num círculo: minérios, especiais e rocha-mãe ficam
+## (túneis das minhocas escavadoras).
+func carve_terrain(center: Vector2, radius: float) -> void:
+	var changed: Array[Vector2i] = []
+	for c in cells_in_circle(center, radius):
+		var id: int = get_cell(c)
+		if id != BlockRegistry.AIR and id != BlockRegistry.BEDROCK and BlockRegistry.get_def(id).is_terrain() and _set_raw(c, BlockRegistry.AIR):
+			changed.append(c)
+	if not changed.is_empty():
+		cells_changed.emit(changed)
+
+
 ## Preenche um retângulo de células com um material (ex.: corpo do guardião vencido).
 func fill_cells(rect: Rect2i, id: int) -> void:
 	var changed: Array[Vector2i] = []

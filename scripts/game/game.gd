@@ -15,6 +15,7 @@ extends Node2D
 var world: WorldModel
 var rig: ElevatorRig
 var guardian: FinalGuardian
+var creatures: CreatureManager
 ## Extração em andamento (a nave sobe pelo cabo; física parada).
 var extracting: bool = false
 var _spark_t: float = 0.0
@@ -31,10 +32,15 @@ func _ready() -> void:
 	drill.overdrive_ready.connect(func() -> void: EventBus.overdrive_ready.emit())
 	drill.refueled.connect(func(amount: float) -> void:
 		pickups.show_text(drill.position + Vector2(0, -40), "+%d combustível" % roundi(amount), Color("ffb347")))
-	drill.modules.pulse_fired.connect(func(_c: Vector2, _r: float, crit: bool) -> void:
-		camera.add_shake(0.45 if crit else 0.3))
+	drill.modules.pulse_fired.connect(func(c: Vector2, r: float, crit: bool) -> void:
+		camera.add_shake(0.45 if crit else 0.3)
+		# O pulso sísmico fere e atordoa criaturas.
+		creatures.area_damage(c, r, drill.stats.damage * Balance.PULSE_DAMAGE_RATIO * (6.0 if crit else 4.0), 1.5))
+	drill.modules.drone_shot.connect(func(p: Vector2) -> void:
+		creatures.area_damage(p, 16.0, drill.stats.damage * Balance.DRONE_DAMAGE_RATIO * 3.0))
 	input.drill = drill
 	EventBus.stats_changed.connect(_apply_stats)
+	EventBus.looks_changed.connect(_apply_look)
 	EventBus.resources_collected.connect(_on_resources_collected)
 	EventBus.modules_changed.connect(_on_modules_changed)
 	module_fx.setup(drill)
@@ -46,6 +52,13 @@ func _ready() -> void:
 	guardian.name = "FinalGuardian"
 	add_child(guardian)
 	move_child(guardian, rig.get_index())
+	creatures = CreatureManager.new()
+	creatures.name = "Creatures"
+	add_child(creatures)
+	move_child(creatures, rig.get_index())
+	creatures.ship_bitten.connect(_on_bitten)
+	creatures.creature_seen.connect(func(sp: StringName) -> void: GameState.see_creature(sp))
+	creatures.creature_defeated.connect(_on_creature_defeated)
 
 
 ## Começa uma expedição: mundo fixo da região (com a escavação salva) e a nave na
@@ -58,6 +71,7 @@ func start_run(world_seed: int, start_row: int = -1, mods: Dictionary = {}, guar
 	var region: RegionDef = GameState.region()
 	world = WorldModel.new(world_seed, region)
 	world.generator.guardian_alive = not guardian_defeated
+	creatures.setup(world, region, world_seed)
 	guardian.setup(region, not guardian_defeated)
 	if not mods.is_empty():
 		world.import_modifications(mods)
@@ -113,6 +127,32 @@ func _physics_process(delta: float) -> void:
 	GameState.update_depth(drill.depth_m())
 	GameState.check_final_chamber(floori(drill.position.x / Balance.BLOCK_PX), drill.depth_m())
 	_guardian_step(delta, intent)
+	creatures.step(delta, drill, DrillIntent.sanitize(intent.aim).length() > 0.05)
+
+
+## Depuração/capturas: abre uma caverna à frente da nave com uma criatura de cada espécie.
+func debug_creature_showcase() -> void:
+	var b: float = Balance.BLOCK_PX
+	var c: Vector2 = drill.position + Vector2(0, 4.0 * b)
+	world.fill_circle(c, 5.0 * b, BlockRegistry.AIR)
+	world.fill_circle(c + Vector2(0, 6.2 * b), 1.8 * b, BlockRegistry.STONE)
+	var spots: Dictionary = {&"firefly": c + Vector2(-2.5 * b, -1.5 * b), &"mole": c + Vector2(2.0 * b, 4.3 * b),
+			&"spider": c + Vector2(3.0 * b, 0.0), &"worm": c + Vector2(-6.5 * b, 2.0 * b)}
+	for sp: StringName in spots:
+		creatures.creatures.append(Creature.new(sp, spots[sp], hash(sp)))
+
+
+func _on_bitten(damage: float, _species: StringName) -> void:
+	drill.apply_hull_damage(damage)
+	camera.add_shake(0.5)
+	fx.emit_burst(drill.position, Color("ff5a3a"), 10, 240.0, 0.5, 3.0, 300.0)
+	EventBus.ship_hit.emit(damage)
+
+
+func _on_creature_defeated(species: StringName, at: Vector2) -> void:
+	fx.emit_burst(at, Color("9bff5a") if species != &"firefly" else Color("e8ff8a"), 18, 260.0, 0.7, 4.0, 400.0)
+	camera.add_shake(0.2)
+	GameState.defeat_creature(species, at)
 
 
 ## Combate com o guardião: dentro da arena a câmera entra em modo de combate; raízes que
@@ -131,7 +171,7 @@ func _guardian_step(delta: float, intent: DrillIntent) -> void:
 		camera.add_shake(0.7)
 		fx.emit_burst(drill.position, guardian.glow_color, 16, 300.0, 0.6, 4.0, 300.0)
 		fx.emit_burst(drill.position, Color("ff5a3a"), 10, 240.0, 0.5, 3.0, 300.0)
-		EventBus.guardian_hit.emit(hit)
+		EventBus.ship_hit.emit(hit)
 	var steering: bool = DrillIntent.sanitize(intent.aim).length() > 0.05
 	if not steering or not guardian.on_body(drill.position, drill.radius):
 		return
@@ -163,6 +203,13 @@ func _on_guardian_defeated() -> void:
 
 func _apply_stats() -> void:
 	drill.stats = GameState.stats
+	_apply_look()
+
+
+func _apply_look() -> void:
+	for c in drill.get_children():
+		if c is DrillVisual:
+			(c as DrillVisual).look = GameState.ship_look()
 
 
 func _on_dig_hit(point: Vector2, material_id: int, crit: bool, removed: int) -> void:

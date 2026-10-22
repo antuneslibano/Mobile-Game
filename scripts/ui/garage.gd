@@ -43,9 +43,10 @@ var _market_rows: VBoxContainer
 var _surplus: Button
 var _lab_page: VBoxContainer
 var _lab_box: VBoxContainer
+var _looks_box: VBoxContainer
 const TITLES: Dictionary = {&"bench": "BANCADA", &"hangar": "HANGAR", &"market": "MERCADO", &"lab": "LABORATÓRIO"}
 ## Minerais do catálogo (sem os materiais antigos de entulho).
-const CATALOG_SKIP: Array[StringName] = [&"dirt", &"stone", &"basalt", &"abyss_stone"]
+const CATALOG_SKIP: Array[StringName] = [&"dirt", &"stone", &"basalt", &"abyss_stone", &"bio_sample"]
 
 
 func _ready() -> void:
@@ -80,7 +81,9 @@ func open_station(kind: StringName) -> void:
 	_show_page()
 	_refresh()
 	if _kind == &"lab":
-		GameState.journal_seen = Journal.unlocked(GameState.economy.discovered, GameState.done).size()
+		GameState.journal_seen = Journal.unlocked(GameState.economy.discovered, GameState.done, GameState.creatures).size()
+	elif _kind == &"hangar":
+		GameState.looks_seen = ShipLooks.unlocked_count(GameState.economy, GameState.done)
 
 
 func station() -> StringName:
@@ -278,6 +281,10 @@ func _build() -> void:
 	_modules_page.add_theme_constant_override("separation", 12)
 	_modules_page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pages.add_child(_modules_page)
+	_looks_box = VBoxContainer.new()
+	_looks_box.name = "Looks"
+	_looks_box.add_theme_constant_override("separation", 8)
+	_modules_page.add_child(_looks_box)
 	_slots_label = UiTheme.label("", 32, UiTheme.ORANGE, 700)
 	_modules_page.add_child(_slots_label)
 	for id in ModuleSystem.ALL:
@@ -483,6 +490,9 @@ func _refresh_market(econ: Economy) -> void:
 		b.add_theme_constant_override("icon_max_width", 30)
 		b.custom_minimum_size = Vector2(170, 70)
 		b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		b.disabled = rd.sell_value <= 0
+		if b.disabled:
+			b.text = "—"
 		b.add_theme_font_size_override("font_size", UiTheme.font_size(24, 700))
 		UiTheme.style_button(b, &"gold")
 		b.pressed.connect(func() -> void: sell_one(key))
@@ -529,7 +539,37 @@ func _refresh_lab(econ: Economy) -> void:
 		nl.custom_minimum_size = Vector2(60, 0)
 		v.add_child(nl)
 		grid.add_child(cell)
-	var entries: Array = Journal.unlocked(econ.discovered, GameState.done)
+	# Criaturas catalogadas.
+	var seen_n: int = GameState.creatures.size()
+	_lab_box.add_child(UiTheme.label("CRIATURAS  ·  %d/%d" % [seen_n, Creature.ORDER.size()], 30, UiTheme.ORANGE, 700))
+	var cgrid := GridContainer.new()
+	cgrid.name = "Creatures"
+	cgrid.columns = 2
+	cgrid.add_theme_constant_override("h_separation", 8)
+	cgrid.add_theme_constant_override("v_separation", 8)
+	_lab_box.add_child(cgrid)
+	for sp in Creature.ORDER:
+		var known: bool = GameState.creatures.has(sp)
+		var cell := PanelContainer.new()
+		cell.add_theme_stylebox_override("panel", PixelArt.style(&"icon_frame" if known else &"inset"))
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var h := HBoxContainer.new()
+		h.add_theme_constant_override("separation", 8)
+		cell.add_child(h)
+		var icon := TextureRect.new()
+		icon.texture = CreatureManager.sprite(&"worm_head" if sp == &"worm" else sp, 0)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.custom_minimum_size = Vector2(64, 52)
+		icon.modulate = Color.WHITE if known else Color(0, 0, 0, 0.75)
+		h.add_child(icon)
+		var cv := VBoxContainer.new()
+		h.add_child(cv)
+		cv.add_child(UiTheme.label(String(Creature.DEFS[sp].name) if known else "???", 21, UiTheme.TEXT if known else UiTheme.TEXT_DIM, 700))
+		if known:
+			cv.add_child(UiTheme.label("vencidas: %d" % int(GameState.creatures[sp].defeated), 19, UiTheme.TEXT_DIM, 500))
+		cgrid.add_child(cell)
+	var entries: Array = Journal.unlocked(econ.discovered, GameState.done, GameState.creatures)
 	_lab_box.add_child(UiTheme.label("DIÁRIO DE PESQUISA  ·  %d/%d" % [entries.size(), Journal.ENTRIES.size()], 30, UiTheme.ORANGE, 700))
 	entries.reverse()
 	for e: Array in entries:
@@ -546,7 +586,44 @@ func _refresh_lab(econ: Economy) -> void:
 		_lab_box.add_child(card)
 
 
+## Visual da nave: uma linha por encaixe com as opções (liberadas tocáveis; bloqueadas
+## mostram o requisito).
+func _refresh_looks(econ: Economy) -> void:
+	for c in _looks_box.get_children():
+		c.queue_free()
+	_looks_box.add_child(UiTheme.label("VISUAL DA NAVE", 32, UiTheme.ORANGE, 700))
+	var look: Dictionary = GameState.ship_look()
+	for slot in ShipLooks.SLOTS:
+		var panel := PanelContainer.new()
+		panel.add_theme_stylebox_override("panel", PixelArt.style(&"inset"))
+		_looks_box.add_child(panel)
+		var v := VBoxContainer.new()
+		v.add_theme_constant_override("separation", 6)
+		panel.add_child(v)
+		v.add_child(UiTheme.label(ShipLooks.SLOT_NAMES[slot], 26, UiTheme.TEXT, 700))
+		var flow := HFlowContainer.new()
+		flow.add_theme_constant_override("h_separation", 8)
+		flow.add_theme_constant_override("v_separation", 8)
+		v.add_child(flow)
+		for o: Array in ShipLooks.OPTIONS[slot]:
+			var id: StringName = o[0]
+			var ok: bool = ShipLooks.is_unlocked(String(o[2]), econ, GameState.done)
+			var b := Button.new()
+			b.name = "Look_%s_%s" % [slot, id]
+			b.text = String(o[1]) if ok else "%s\n%s" % [o[1], ShipLooks.requirement_text(String(o[2]))]
+			b.custom_minimum_size = Vector2(150, 70)
+			b.add_theme_font_size_override("font_size", UiTheme.font_size(18 if ok else 16, 700))
+			UiTheme.style_button(b, &"green" if look.get(slot) == id else &"steel")
+			b.disabled = not ok
+			b.pressed.connect(func() -> void:
+				GameState.set_look(slot, id)
+				_refresh())
+			flow.add_child(b)
+
+
 func _refresh_modules(econ: Economy) -> void:
+	if _kind == &"hangar":
+		_refresh_looks(econ)
 	_slots_label.text = "SLOTS  %d / %d" % [econ.equipped_modules.size(), Balance.MODULE_SLOTS]
 	for id in ModuleSystem.ALL:
 		var b: Button = _module_buttons[id]

@@ -1,7 +1,7 @@
 class_name Journal
 extends RefCounted
 ## Diário de pesquisa do Laboratório (0.10): entradas curtas liberadas por descobertas
-## (recurso coletado pela primeira vez) e por guardiões vencidos. Aos poucos revelam que os
+## (recurso coletado pela primeira vez), criaturas catalogadas e guardiões vencidos. Aos poucos revelam que os
 ## minerais raros e as criaturas estão ligados ao Núcleo.
 
 ## [id, gatilho ("res:<recurso>", "guardian:<região>" ou "start"), título, texto]
@@ -26,6 +26,16 @@ const ENTRIES: Array = [
 		"Ouro em pepitas grandes. Valioso, mas o laboratório quer outra coisa: ele isola o ruído do Núcleo."],
 	[&"artifact", "res:artifact", "Artefato",
 		"Um objeto lapidado, frio, impossível para a geologia daqui. Alguém (ou algo) esteve neste subsolo antes."],
+	[&"firefly", "creature:firefly", "Vaga-lume das raízes",
+		"Insetos luminosos nas cavernas do Vale. Fogem da nave, mas a luz deles pulsa no mesmo ritmo do sinal de calor."],
+	[&"mole", "creature:mole", "Toupeira de raiz",
+		"Pequenos escavadores com raízes crescendo nas costas. Parece que as raízes os usam para se espalhar."],
+	[&"spider", "creature:spider", "Aranha de raiz",
+		"Guarda os veios brilhantes como se fossem ovos. Ataca qualquer coisa que se aproxime do minério."],
+	[&"worm", "creature:worm", "Minhoca escavadora",
+		"Abre túneis enormes e engole terra. Os fósseis com marcas de broca... eram dela. Ela sente a vibração da nave."],
+	[&"bio_sample", "res:bio_sample", "Amostras biológicas",
+		"O tecido das criaturas conduz energia como um mineral. Com ele a Bancada liberou peças orgânicas."],
 	[&"guardian_vale", "guardian:vale", "O Coração da Raiz-Mãe",
 		"As raízes eram um corpo só, protegendo um coração mineral. Quando ele parou, todas as raízes do Vale escureceram. Projetos grandes liberados."],
 	[&"ruby", "res:ruby", "Rubi",
@@ -50,15 +60,17 @@ const ENTRIES: Array = [
 
 
 ## Entradas liberadas (na ordem do diário).
-static func unlocked(discovered: Dictionary, done: Dictionary) -> Array:
+static func unlocked(discovered: Dictionary, done: Dictionary, creatures: Dictionary = {}) -> Array:
 	var out: Array = []
 	for e: Array in ENTRIES:
-		if is_unlocked(String(e[1]), discovered, done):
+		if is_unlocked(String(e[1]), discovered, done, creatures):
 			out.append(e)
 	return out
 
 
-static func is_unlocked(trigger: String, discovered: Dictionary, done: Dictionary) -> bool:
+static func is_unlocked(trigger: String, discovered: Dictionary, done: Dictionary, creatures: Dictionary = {}) -> bool:
+	if trigger.begins_with("creature:"):
+		return creatures.has(StringName(trigger.substr(9)))
 	if trigger == "start":
 		return true
 	if trigger.begins_with("res:"):

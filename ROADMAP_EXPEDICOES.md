@@ -102,7 +102,7 @@ Tela da base com **estações tocáveis**:
 - Os upgrades atuais viram peças com receita; os níveis existentes no salvamento são
   preservados.
 
-## 0.11 — Criaturas (começando pelo Vale)
+## 0.11 — Criaturas (começando pelo Vale) ✅ (Vale implementado; chefe = guardião da 0.9.2)
 
 | Papel | Vale | Comportamento | Recompensa |
 |---|---|---|---|

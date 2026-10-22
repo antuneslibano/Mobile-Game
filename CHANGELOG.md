@@ -3,6 +3,25 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.11.0] — Criaturas do Vale, visual da nave e baús
+
+### Adicionado
+- **Criaturas no Vale das Raízes** (surgem nas cavernas conforme a profundidade):
+  - **Vaga-lume** (a partir de 8 m): voa e brilha, foge da nave; entra no catálogo.
+  - **Toupeira de raiz** (10 m): anda pelo chão das cavernas e foge; rende 1 amostra.
+  - **Aranha de raiz** (60 m): guarda veios brilhantes e ataca quem chega perto (10 de casco).
+  - **Minhoca escavadora** (150 m): abre os próprios túneis, persegue e morde (14 de casco).
+  - A broca encostada fere; o **pulso sísmico** fere e atordoa; o **drone** também acerta.
+  - **Amostras biológicas** (não vendáveis) entram nas receitas do 2º tier de Coleta,
+    Bateria e Drone. Aviso "NOVA CRIATURA", seção **Criaturas** no Laboratório e
+    entradas novas no diário.
+- **Visual da nave**: broca (Aço, Dourada, Cristal, Raiz-Mãe, Plasma), casco (Padrão,
+  Blindado, Titânio), motores (Padrão, Turbo, Tanques extras, Reator) e pintura (Amarelo,
+  Cobre, Esmeralda, Rubi, Ametista). Liberados por níveis de peça, descobertas e guardiões;
+  a nave evolui sozinha e o jogador escolhe no **Hangar** (alerta quando há novidade).
+- **Baús novos**: sprite próprio em 3 variações (madeira com cintas douradas, reforçado em
+  ferro, antigo coberto de raízes e entreaberto com brilho) e aura de brilho.
+
 ## [0.10.0] — Base de pesquisa e construção
 
 ### Adicionado

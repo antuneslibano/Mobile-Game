@@ -8,8 +8,9 @@ func test_resource_registry_covers_all_drops() -> void:
 	for key in ResourceRegistry.order():
 		var r: ResourceDef = ResourceRegistry.get_def(key)
 		check(r.sell_value >= 0, "%s valor >= 0" % key)
-		if r.currency == &"":
+		if r.currency == &"" and key != &"bio_sample":
 			check(r.sell_value > 0, "minério %s vendável" % key)
+	check_eq(ResourceRegistry.get_def(&"bio_sample").sell_value, 0, "amostra biológica não é vendida (serve à pesquisa)")
 
 
 func test_collect_cargo_and_crystals() -> void:

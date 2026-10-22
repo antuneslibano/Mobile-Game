@@ -95,7 +95,7 @@ func test_every_deposit_has_a_sprite_and_terrain_has_none() -> void:
 	for def: BlockDef in BlockRegistry.all():
 		var sprite: String = TerrainSkins.ore_sprite_for(def.id)
 		var row: int = pal.get_pixel(8, def.id).r8
-		if def.art in [BlockDef.Art.ORE, BlockDef.Art.CRYSTAL, BlockDef.Art.PRISM]:
+		if def.art in [BlockDef.Art.ORE, BlockDef.Art.CRYSTAL, BlockDef.Art.PRISM, BlockDef.Art.CHEST]:
 			check(not sprite.is_empty(), "%s tem sprite de depósito" % def.key)
 			check_eq(row, TerrainSkins.ORES.find(sprite), "%s: linha do atlas na paleta" % def.key)
 		else:

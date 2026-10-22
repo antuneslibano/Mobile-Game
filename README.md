@@ -86,6 +86,7 @@ Executa, em modo headless:
 | `--fuel=F` | combustível inicial (fração do tanque; só builds de depuração) |
 | `--extract-at=T` | com `--autotest`, chama a extração em T segundos |
 | `--guardian-hp=F` | vida inicial do guardião da câmara final (fração; só builds de depuração) |
+| `--creatures` | caverna com uma criatura de cada espécie à frente da nave (só builds de depuração) |
 | `--grant-ores=N` | N de cada minério comum no armazém (só builds de depuração) |
 | `--base-at=T`, `--station=KIND` | com `--autotest`, abre a base em T s e a estação (`map`, `bench`, `hangar`, `market`, `lab`) |
 
@@ -182,6 +183,7 @@ Instalar: `adb install -r build/deepforge.apk`, ou copie o APK para o celular e 
 | 0.9.1 | Mapas 2,4× mais fundos, guardião na câmara final, câmera de abertura, sem elevadores | ✅ |
 | 0.9.2 | Combate contra o guardião: arena, ataques de baixo, câmera de combate | ✅ |
 | 0.10 | Base com estações tocáveis, construção com materiais, mercado de excedente, laboratório | ✅ |
+| 0.11 | Criaturas no Vale, visual da nave escolhido no Hangar, baús novos | ✅ |
 | 0.10–0.11 | Base com construção, criaturas — ver [ROADMAP_EXPEDICOES.md](ROADMAP_EXPEDICOES.md) | planejado |
 | 5 | Arte, efeitos, áudio, otimização, exportação Android | pendente |
 

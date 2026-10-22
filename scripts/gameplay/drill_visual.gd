@@ -8,6 +8,8 @@ extends Node2D
 const ART_SCALE: float = 3.0  ## 1 pixel do sprite = 3 px (mesmo pixel de arte do terreno).
 
 var drill: Drill
+## Visual da nave (ShipLooks); atualizado por quem monta a cena (Game).
+var look: Dictionary = {}
 var _t: float = 0.0
 var _kick: float = 0.0
 var _spin: float = 0.0
@@ -61,8 +63,14 @@ func _draw() -> void:
 	# Chamas dos bocais traseiros (azul; maiores na Sobrecarga).
 	if moving or boosting or (drill != null and drill.digging):
 		var length: float = (16.0 if boosting else 8.0) + 3.0 * sin(_t * 40.0)
+		var engine: StringName = look.get(&"engine", &"standard")
 		var col_out := Color(0.35, 0.75, 1.0, 0.85)
 		var col_in := Color(0.85, 0.97, 1.0, 0.95)
+		if engine == &"turbo":
+			length *= 1.5
+		elif engine == &"reactor":
+			col_out = Color(0.3, 1.0, 0.6, 0.85)
+			col_in = Color(0.85, 1.0, 0.92, 0.95)
 		for ny: float in [7.0, 13.0]:
 			var y: float = o.y + ny * s
 			var x0: float = o.x
@@ -82,7 +90,7 @@ func _draw() -> void:
 	# Sprite da nave (quadro da espiral conforme a rotação da broca).
 	var frame: int = int(_spin * 3.0)
 	draw_set_transform(o, 0.0, Vector2(s, s))
-	draw_texture(ShipArt.frame(frame), Vector2.ZERO)
+	draw_texture(ShipArt.frame(frame, look), Vector2.ZERO)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 	# Emissor sísmico (módulo): antena no pod superior com anel de recarga.

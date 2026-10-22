@@ -667,6 +667,70 @@ static func _amethyst(s: int, v: int) -> Image:
 	return _crystal_cluster(["1c0a30", "54309a", "7a54c4", "a88ae8", "eee2ff"], "", s, v, specs, false)
 
 
+## Baú soterrado (16×16): madeira com cintas douradas e fechadura; variações: baú comum,
+## reforçado com ferro e baú antigo coberto de musgo e raízes, entreaberto com brilho.
+static func _chest(s: int, v: int) -> Image:
+	var pal: Array[Color] = [Color("140a04"), Color("4a2a12"), Color("7a4a22"), Color("a8703a"),
+			Color("8a6410"), Color("e0a830"), Color("ffe080"), Color("24242e"), Color("fff2b0"), Color("4a7a28"), Color("8a94a8"), Color("c8d0dc")]
+	if v == 1:
+		pal[1] = Color("3a2010")
+		pal[2] = Color("5e3818")
+		pal[3] = Color("82552a")
+	var cv := Canvas.new(16, 16, pal)
+	var band: int = 10 if v == 1 else 5
+	var band_hi: int = 11 if v == 1 else 6
+	var top: int = 4 if v == 2 else 3   # tampa entreaberta no antigo
+	# Corpo (tábuas horizontais).
+	for y in range(7, 14):
+		for x in range(2, 14):
+			var idx: int = 2
+			if y == 7:
+				idx = 3
+			elif y == 13 or x == 13:
+				idx = 1
+			elif (y - 7) % 3 == 0:
+				idx = 1
+			elif x == 2:
+				idx = 3
+			cv.setp(x, y, idx)
+	# Tampa arredondada.
+	for y in range(top, 7):
+		var inset: int = 1 if y == top else 0
+		for x in range(2 + inset, 14 - inset):
+			cv.setp(x, y, 3 if y == top else (2 if y < 6 else 1))
+	if v == 2:
+		# Fresta com brilho dourado sob a tampa.
+		for x in range(3, 13):
+			cv.setp(x, 7, 8 if x % 3 != 0 else 6)
+	# Cintas verticais e cantos.
+	for x: int in [4, 11]:
+		for y in range(top, 14):
+			cv.setp(x, y, band if y > top else band_hi)
+		cv.setp(x, 13, 4)
+	for y in range(top + 1, 14):
+		cv.setp(2, y, band if y % 2 == 0 else cv.getp(2, y))
+	# Fechadura.
+	cv.setp(7, 7, 7)
+	cv.setp(8, 7, 7)
+	cv.setp(7, 8, 7)
+	cv.setp(8, 8, 7)
+	cv.setp(7, 9, band_hi)
+	cv.setp(8, 9, band_hi)
+	cv.setp(8, 8, 6 if v != 1 else 11)
+	if v == 2:
+		# Musgo e raízes sobre a tampa e descendo pela lateral.
+		for x in range(3, 13):
+			if hash01(x, 1, s) < 0.6:
+				cv.setp(x, top, 9)
+		for y in range(top, 12):
+			if hash01(y, 2, s) < 0.55:
+				cv.setp(12, y, 9 if y < 9 else 1)
+	cv.outline(0)
+	if v != 1:
+		cv.setp(13, top + 1, 8)  # reflexo
+	return cv.image()
+
+
 ## Depósitos: 3 variações por minério (16×16, fundo transparente, halo nos luminosos).
 static func ore_sprites() -> Dictionary:
 	var out: Dictionary = {}
@@ -698,6 +762,7 @@ static func ore_sprites() -> Dictionary:
 				[[4.5, 6.5, 1.2, -0.4], [7.5, 9.5, 1.4, -0.05], [10.5, 8.5, 1.4, 0.2], [13.0, 5.5, 1.1, 0.5]]][v], true)
 		out["ametista" + n] = _amethyst(s + 12, v)
 		out["topazio" + n] = _topaz(s + 13, v)
+		out["bau" + n] = _chest(s + 15, v)
 	return out
 
 

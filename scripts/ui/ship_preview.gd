@@ -54,7 +54,7 @@ func _draw() -> void:
 			draw_rect(Rect2(base + Vector2(sx * i * p, sy * (2 - i) * p) - Vector2(p, p) * 0.5, Vector2(p, p)), c)
 		draw_rect(Rect2(base, Vector2(L * 0.2, L * 0.2)), Color(0, 0, 0, 0))
 	# Nave grande, com leve flutuação.
-	var tex: Texture2D = ShipArt.frame(int(_t * 9.0))
+	var tex: Texture2D = ShipArt.frame(int(_t * 9.0), GameState.ship_look())
 	var k2: float = floorf(minf(inner.size.x * 0.82 / ShipArt.W, inner.size.y * 0.7 / ShipArt.H))
 	var sz := Vector2(ShipArt.W, ShipArt.H) * k2
 	var pos: Vector2 = inner.get_center() - sz * 0.5 + Vector2(0, roundf(sin(_t * 2.0) * 2.0) * p)

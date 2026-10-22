@@ -18,7 +18,7 @@ const TILES: Array[String] = [
 ## Sprites de depósito (16×16, 3 variações cada). Índice = linha no atlas de minérios.
 const ORES: Array[String] = [
 	"cobre", "ferro", "prata", "ouro", "carvao", "titanio", "uranio", "quartzo", "cristal_azul",
-	"ametista", "cristal_verde", "diamante", "cristal_vermelho", "cristal_roxo", "topazio",
+	"ametista", "cristal_verde", "diamante", "cristal_vermelho", "cristal_roxo", "topazio", "bau",
 ]
 const ORE_VARIANTS: int = 3
 
@@ -40,6 +40,7 @@ static func ore_sprite_for(block_id: int) -> String:
 		B.DIAMOND: return "diamante"
 		B.RUBY: return "cristal_vermelho"
 		B.RARE_CRYSTAL: return "cristal_roxo"
+		B.CHEST: return "bau"
 	return ""
 
 

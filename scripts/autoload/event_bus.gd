@@ -37,9 +37,16 @@ signal expedition_started(region_id: StringName)
 signal expedition_ended(report: Dictionary)
 ## A nave entrou na câmara final (uma vez por expedição); guardian_alive = o guardião ainda vive.
 signal final_chamber_reached(region_id: StringName, guardian_alive: bool)
-## Um ataque do guardião acertou a nave (dano no casco).
-signal guardian_hit(damage: float)
+## Algo acertou a nave (guardião ou criatura; dano no casco).
+signal ship_hit(damage: float)
 ## A nave entrou/saiu do modo de combate (arena do guardião).
 signal guardian_combat(active: bool)
 signal objective_completed(region_id: StringName, objective_id: StringName, text: String)
 signal region_completed(region_id: StringName)
+
+# Visual da nave (0.11)
+signal looks_changed
+
+# Criaturas (0.11)
+signal creature_discovered(species: StringName)
+signal creature_defeated(species: StringName)

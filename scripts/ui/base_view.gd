@@ -182,7 +182,7 @@ func _hangar(r: Rect2) -> void:
 	for i in int((r.size.x - 20) / 24.0):
 		_px(r.position.x + 10 + i * 24, base_y - 24, 12, P * 2, Color("f2b33d"))
 	# Nave (de pé, broca para baixo), flutuando.
-	var tex: Texture2D = ShipArt.frame(int(_t * 9.0))
+	var tex: Texture2D = ShipArt.frame(int(_t * 9.0), GameState.ship_look())
 	var k: float = 5.0
 	var sz := Vector2(ShipArt.W, ShipArt.H) * k
 	var bob: float = roundf(sin(_t * 2.0) * 2.0) * P

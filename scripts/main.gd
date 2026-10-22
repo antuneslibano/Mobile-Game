@@ -16,6 +16,7 @@ extends Node
 ##   --extract-at=T      (com --autotest) chama a extração em T segundos
 ##   --guardian-hp=F     (debug) vida inicial do guardião da câmara final (fração)
 ##   --grant-ores=N      (debug) N de cada minério comum no armazém
+##   --creatures         (debug) caverna com uma criatura de cada espécie à frente da nave
 ##   --base-at=T / --station=KIND  (com --autotest) abre a base em T s e, opcional, a estação
 ## Em --autotest o salvamento fica desligado (não toca no perfil real).
 
@@ -79,6 +80,8 @@ func _ready() -> void:
 			game.drill.vitals.fuel = game.drill.vitals.fuel_max * clampf(float(args["fuel"]), 0.0, 1.0)
 		if OS.is_debug_build() and args.has("guardian-hp"):
 			game.guardian.hp = game.guardian.max_hp * clampf(float(args["guardian-hp"]), 0.01, 1.0)
+		if OS.is_debug_build() and args.has("creatures"):
+			game.debug_creature_showcase()
 		if args.has("base-at"):
 			var st := StringName(String(args.get("station", "")))
 			get_tree().create_timer(float(args["base-at"])).timeout.connect(func() -> void:

@@ -340,3 +340,16 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
   `GameState.done`); `sell`, `sell_surplus`, `spend_materials`.
 - **Diário** (`Journal`): entradas com gatilho `res:<recurso>` / `guardian:<região>`;
   `GameState.journal_seen` controla o alerta do Laboratório.
+
+## 15. Criaturas e visual da nave (0.11)
+
+- **Criaturas**: `Creature` (regras puras sobre a grade: vaga-lume, toupeira, aranha,
+  minhoca; `step` devolve a mordida no casco) e `CreatureManager` (filho de `Game`):
+  `plan` decide, por chunk e seed, onde nascem (ao carregar o chunk; somem ao descarregar);
+  `step` simula só perto da nave, aplica a broca, avisa avistamentos e mortes;
+  `area_damage` recebe o pulso sísmico (com atordoamento) e o drone. A minhoca escava com
+  `WorldModel.carve_terrain` (só terreno). `GameState.see_creature/defeat_creature` cuidam
+  do catálogo (salvo) e das amostras biológicas.
+- **Visual da nave**: `ShipLooks` (opções por encaixe e requisitos; `resolve` = escolha
+  salva ou a melhor liberada); `ShipArt.frame(i, look)` gera e guarda o sprite de cada
+  combinação; `DrillVisual.look`, a vitrine do Hangar e a base usam `GameState.ship_look()`.

@@ -43,6 +43,7 @@ static func _build() -> void:
 	_add(&"meteorite", "Meteorito", 1200, Color("ff3a26"))
 	_add(&"rare_crystal", "Cristal raro", 1800, Color("ff9ff3"))
 	_add(&"crystal", "Cristal", 0, Color("6fe3ff"), &"crystals")
+	_add(&"bio_sample", "Amostra biológica", 0, Color("9bff5a"))
 
 
 static func get_def(key: StringName) -> ResourceDef:

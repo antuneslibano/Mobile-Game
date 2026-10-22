@@ -63,8 +63,10 @@ func _ready() -> void:
 	EventBus.overdrive_ready.connect(func() -> void: _show_banner("SOBRECARGA PRONTA", UiTheme.BLUE))
 	EventBus.objective_completed.connect(func(_r: StringName, _o: StringName, _t: String) -> void: _show_banner("OBJETIVO CONCLUÍDO!", PixelArt.GOLD))
 	EventBus.final_chamber_reached.connect(_on_final_chamber)
-	EventBus.guardian_hit.connect(func(_d: float) -> void: _hit_flash = 1.0)
+	EventBus.ship_hit.connect(func(_d: float) -> void: _hit_flash = 1.0)
 	EventBus.guardian_combat.connect(_on_combat)
+	EventBus.creature_discovered.connect(func(sp: StringName) -> void:
+		_show_banner(("NOVA CRIATURA: " + String(Creature.DEFS[sp].name)).to_upper(), Color("9bff5a")))
 	EventBus.wallet_changed.connect(set_currencies)
 	EventBus.cargo_changed.connect(_on_cargo_changed)
 	get_viewport().size_changed.connect(_apply_layout)
