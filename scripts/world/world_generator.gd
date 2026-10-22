@@ -8,10 +8,11 @@ extends RefCounted
 
 const SALT_ORE: int = 0x51ED27
 const SALT_VARIANT: int = 0x2F9A11
-## Multiplicador de chance dentro de um veio (ruído de minério alto).
-const VEIN_MULT: float = 3.0
-const OUTSIDE_VEIN_MULT: float = 0.55
-const VEIN_THRESHOLD: float = 0.25
+## Minérios concentrados em veios (ruído de minério alto) e quase nenhum solto: poucos
+## aglomerados por tela, que valem o desvio (GAME_DESIGN.md §5.5).
+const VEIN_MULT: float = 3.4
+const OUTSIDE_VEIN_MULT: float = 0.08
+const VEIN_THRESHOLD: float = 0.32
 ## Escala vertical das cavernas (<1 = cavernas mais largas que altas).
 const CAVE_Y_SCALE: float = 1.45
 ## Linhas após SAFE_SURFACE_ROWS em que as cavernas aparecem gradualmente.
@@ -160,7 +161,7 @@ func _cell(x: int, y: int, biome_id: int) -> int:
 		for i in ids.size():
 			if y < min_rows[i]:
 				continue
-			acc += chances[i] * depth_bonus * (vein_mult if in_vein[i] == 1 else 1.0)
+			acc += chances[i] * depth_bonus * (vein_mult * Balance.ORE_DENSITY if in_vein[i] == 1 else 1.0)
 			if roll < acc:
 				return ids[i]
 

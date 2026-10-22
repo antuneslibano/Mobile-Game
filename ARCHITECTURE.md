@@ -53,6 +53,7 @@ scripts/
     terrain_view.gd        TerrainView – carrega/descarrega e recicla ChunkRenderers
     chunk_renderer.gd      ChunkRenderer – 1 quad por chunk com o shader de terreno; dados em textura
     cave_decor.gd          CaveDecor – vegetação/pedras de caverna do chunk (só desenho)
+    ore_glow.gd            OreGlow – cintilação, aura e partículas dos minérios valiosos do chunk
     mining_overlay.gd      MiningOverlay – brilho de impacto
   render/
     terrain_textures.gd    TerrainTextures – paleta, ruído, atlas (dos PNGs) e tabelas da região ativa
@@ -273,10 +274,11 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
   misturam por altura (`height_pick`: vence a de relevo — brilho do torrão — mais alto somado
   ao peso, `blend_height`). O mesmo vale para as variações dentro de um material (manchas
   selecionadas por ruído com deformação de domínio). Escolha discreta: pixels nítidos.
-- **Depósitos**: um aglomerado 16×16 por bloco de minério (deslocamento, variação e espelho
-  por bloco), desenhado só onde o material é minério (e na faixa de transição) — recortado
-  pela forma do veio. Contorno vira sombra na rocha; halo com metade da força; veio com
-  fragmentos 2×2 do minério. Decorações embutidas: um sítio de 36 pixels de arte.
+- **Depósitos**: um aglomerado 16×16 por bloco de minério (variação e espelho por bloco),
+  inteiro e com contorno, decidido pela célula do centro do bloco (a grade de blocos
+  coincide com a dos chunks); se o centro foi escavado, o resto do veio ainda mostra o
+  minério. Brilho dos valiosos: `OreGlow` (filho do `ChunkRenderer`, mistura aditiva, some
+  quando o centro do bloco é escavado). Decorações embutidas: um sítio de 36 pixels de arte.
 - **Câmera anti-cintilação**: `DepthCamera` suaviza em ponto flutuante e desenha em passos
   inteiros em pixels do jogo e do aparelho (`step_for_scale`: 1,5× → 2 px), tremor incluído.
 - **Listas roláveis**: `TouchScroll` (garagem, mapa) rola por arrasto em qualquer ponto, com

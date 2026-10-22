@@ -69,7 +69,8 @@ func _run() -> void:
 	EventBus.material_dug.connect(func(_at: Vector2, counts: Dictionary) -> void:
 		for id: int in counts:
 			destroyed[0] += int(counts[id])
-			if BlockRegistry.get_def(id).drops.is_empty() and id != BlockRegistry.AIR:
+			var def: BlockDef = BlockRegistry.get_def(id)
+			if def.drops.is_empty() and id != BlockRegistry.AIR and not def.is_terrain():
 				drops_ok[0] = false)
 
 
@@ -122,7 +123,9 @@ func _run() -> void:
 	_check(it.aim == Vector2.ZERO, "toque na barra superior é ignorado")
 	_touch(3, Vector2(100, 60), false)
 
-	# Sessão curta com o joystick para baixo: precisa descer e coletar.
+	# Sessão curta com o joystick para baixo: precisa descer e coletar. Terra não rende
+	# nada; um bolsão de cobre no caminho rende carga.
+	game.world.fill_circle(game.drill.position + Vector2(0, 90), 40.0, BlockRegistry.COPPER)
 	_touch(0, o, true)
 	_drag(0, o + Vector2(0, r))
 	await _frames(600)
@@ -131,7 +134,7 @@ func _run() -> void:
 	var max_depth: int = GameState.max_depth_m
 	_check(max_depth >= 5, "desceu segurando o toque (%d m)" % max_depth)
 	_check(destroyed[0] >= 40, "material escavado via EventBus (%d células)" % destroyed[0])
-	_check(drops_ok[0], "drops emitidos conforme definição")
+	_check(drops_ok[0], "só terreno sai sem drops (minérios sempre rendem)")
 	_check(not game.drill.is_overlapping_solid(), "perfuradora fora de blocos sólidos")
 	var cam_y: float = game.camera.get_screen_center_position().y
 	_check(cam_y > 0.0 and absf(cam_y - game.drill.global_position.y) < 700.0, "câmera acompanha a profundidade")

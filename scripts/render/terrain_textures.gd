@@ -201,8 +201,8 @@ static func build_palette(layers: Array[BiomeDef] = []) -> Image:
 			def.color_base, def.color_dark, light,
 			def.color_accent, def.color_accent.darkened(0.35), def.color_accent.lightened(0.45),
 			Color(float(def.art) / 255.0, 0, 0, 1),
-			# Coluna 7: brilho próprio (urânio, cristal roxo).
-			Color(1, 0, 0, 1) if def.id in [BlockRegistry.URANIUM, BlockRegistry.RARE_CRYSTAL] else Color.BLACK,
+			# Coluna 7: brilho dos minérios valiosos (0 nenhum, 0,5 cintila, 1 cintila + aura + partículas).
+			Color(TerrainSkins.glow_tier(def) / 2.0, 0, 0, 1),
 			# Coluna 8: linha do sprite de depósito no atlas de minérios (255 = nenhum).
 			Color8(_ore_row(def.id), 0, 0, 255),
 		]

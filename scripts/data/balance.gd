@@ -45,7 +45,7 @@ const MIN_DAMAGE_RATIO: float = 0.15
 ## A energia NÃO regenera com o tempo: é conquistada cavando (valor do material).
 ## A Sobrecarga só ativa com a barra cheia e consome tudo.
 const ENERGY_MAX: float = 100.0
-const ENERGY_PER_CREDIT: float = 0.9         ## Carga por Crédito de material cavado…
+const ENERGY_PER_CREDIT: float = 0.3         ## Carga por Crédito de material cavado…
 const ENERGY_PER_CRYSTAL: float = 12.0       ## …e por Cristal coletado.
 const ENERGY_DEPTH_SCALE_M: float = 150.0    ## Carga ÷ (1 + prof/este) — minérios fundos valem mais.
 const ENERGY_GAIN_PER_LEVEL: float = 0.1     ## Upgrade "Bateria": +10% de carga.
@@ -98,3 +98,7 @@ const MAX_PARTICLES: int = 260
 const HIT_PARTICLES: int = 3
 const BREAK_PARTICLES: int = 14
 const PICKUP_TEXT_MAX: int = 14
+
+## Multiplica a chance de todos os minérios de veio (especiais raros não mudam). Junto com
+## os veios concentrados do gerador, deixa poucos aglomerados por tela.
+const ORE_DENSITY: float = 0.35

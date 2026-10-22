@@ -370,29 +370,29 @@ void fragment() {
 		}
 
 
-		// Depósito: um aglomerado por bloco de minério, recortado pela forma do veio (aparece
-		// onde o material é minério e avança só na faixa de transição). O contorno vira sombra
-		// na rocha e o halo é discreto; variação, deslocamento e espelhamento por bloco.
+		// Depósito: um aglomerado 16×16 por bloco de minério, inteiro e em destaque sobre o
+		// terreno (decidido pela célula do centro do bloco — a grade de blocos coincide com a
+		// dos chunks, então nunca há corte entre chunks). Se o centro já foi escavado, o resto
+		// do veio continua mostrando o minério. Variação e espelhamento por bloco.
+		// O brilho dos valiosos (cintilação, aura, partículas) é desenhado por OreGlow.
+		ivec2 wb = ivec2(floor(q / (cell_px * sub)));
+		ivec2 bl = ivec2(floor(mod(q, cell_px * sub) / art_px));
+		vec4 bcell = CELL(ivec2(floor(((vec2(wb) + 0.5) * cell_px * sub - origin) / cell_px)));
+		int bid = idx_of(bcell.r);
 		int oid = -1;
-		if (is_sprite_art(art)) { oid = id; }
-		else if (id2 >= 0 && w2 > 0.2 && is_sprite_art(art_of(id2))) { oid = id2; }
+		if (bcell.a > 0.5 && is_sprite_art(art_of(bid))) { oid = bid; }
+		else if (is_sprite_art(art)) { oid = id; }
 		if (oid >= 0) {
-			ivec2 wb = ivec2(floor(q / (cell_px * sub)));
-			ivec2 bl = ivec2(floor(mod(q, cell_px * sub) / art_px));
 			vec4 br = cell_rand(wb + ivec2(311, 173));
 			int row = idx_of(pal(8, oid).r);
-			if (row != 255 && br.x > 0.14) {
-				ivec2 lp = bl - ivec2(floor((br.yz - 0.5) * 4.99));
-				if (lp.x >= 0 && lp.y >= 0 && lp.x < ORE_PX && lp.y < ORE_PX) {
-					if (br.w > 0.5) { lp.x = ORE_PX - 1 - lp.x; }
-					vec4 op = texelFetch(ore_atlas, ivec2(int(fract(br.w * 3.7) * 2.99) * ORE_PX + lp.x, row * ORE_PX + lp.y), 0);
-					if (op.a > 0.9 && lum(op.rgb) < 0.09) {
-						col *= 0.55;
-					} else if (op.a > 0.9) {
-						col = op.rgb * (0.86 + 0.12 * n1.g);
-					} else if (op.a > 0.02) {
-						col = mix(col, op.rgb, op.a * 0.45);
-					}
+			if (row != 255) {
+				ivec2 lp = bl;
+				if (br.w > 0.5) { lp.x = ORE_PX - 1 - lp.x; }
+				vec4 op = texelFetch(ore_atlas, ivec2(int(fract(br.w * 3.7) * 2.99) * ORE_PX + lp.x, row * ORE_PX + lp.y), 0);
+				if (op.a > 0.9) {
+					col = op.rgb;
+				} else if (op.a > 0.02) {
+					col = mix(col, op.rgb, op.a);
 				}
 			}
 		}

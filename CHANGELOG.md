@@ -3,6 +3,24 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.8.0] — Minérios raros, valiosos e brilhantes
+
+### Alterado
+- **Economia repensada**: minérios concentrados em poucos veios (~3× menos por área) e
+  preços ~3× maiores; terra, pedra e rochas não rendem mais nada. Na simulação de 10 min,
+  quem vai atrás dos minérios ganha ~6 800 créditos e compra ~41 upgrades; quem só cava
+  reto ganha ~30.
+- Energia da Sobrecarga recalibrada para os novos valores (vem dos minérios).
+- Depósitos voltam a ser desenhados inteiros, em destaque sobre o terreno (com contorno),
+  decididos pelo bloco.
+
+### Adicionado
+- **Brilho dos minérios valiosos** (`OreGlow`): cintilações em estrela (ouro, cristal) e,
+  nos mais valiosos (gemas, urânio, titânio, diamante, cristal raro), aura pulsante e
+  partículas subindo — visíveis de longe.
+- Simulação com duas estratégias (`tests/balance_sim.gd`) e teste de que buscar minérios
+  rende muito mais que cavar reto.
+
 ## [0.7.2] — Correções: minérios, transições e menus
 
 ### Corrigido

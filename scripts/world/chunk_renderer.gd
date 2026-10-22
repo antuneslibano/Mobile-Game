@@ -16,6 +16,7 @@ var _image: Image
 var _texture: ImageTexture
 var _dirty: bool = false
 var _decor: CaveDecor
+var _glow: OreGlow
 
 
 static func _ensure_lut() -> void:
@@ -41,6 +42,11 @@ func assign(index: int) -> void:
 		_decor.name = "CaveDecor"
 		add_child(_decor)
 	_decor.build(world, index)
+	if _glow == null:
+		_glow = OreGlow.new()
+		_glow.name = "OreGlow"
+		add_child(_glow)
+	_glow.build(world, index)
 
 
 ## Reescreve toda a textura de dados (ao atribuir o chunk).
@@ -118,6 +124,8 @@ func update_cells(cells: Array[Vector2i]) -> void:
 		any = true
 	if any and _decor != null:
 		_decor.on_cells_changed(cells)
+	if any and _glow != null:
+		_glow.on_cells_changed(cells)
 	if any and not _dirty:
 		_dirty = true
 		_flush.call_deferred()

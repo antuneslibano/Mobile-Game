@@ -8,7 +8,8 @@ signal page_changed(index: int)
 
 const SNAP_SPEED: float = 12.0
 const SWIPE_FRACTION: float = 0.18     ## Arrasto mínimo (fração da largura) para trocar.
-const FLICK_SPEED: float = 900.0        ## Velocidade (px/s) que também troca de página.
+const FLICK_SPEED: float = 900.0        ## Velocidade (px/s) que também troca de página…
+const FLICK_MIN_FRACTION: float = 0.06  ## …desde que o arrasto passe desta fração da largura.
 const DOTS_H: float = 34.0
 
 var regions: Array[RegionDef] = []
@@ -122,9 +123,10 @@ func _gui_input(event: InputEvent) -> void:
 		var dx: float = x - _start_x
 		var w: float = maxf(1.0, size.x)
 		var dest: int = target
-		if dx < -w * SWIPE_FRACTION or _vel < -FLICK_SPEED:
+		var flick: bool = absf(dx) > w * FLICK_MIN_FRACTION
+		if dx < -w * SWIPE_FRACTION or (flick and dx < 0.0 and _vel < -FLICK_SPEED):
 			dest = target + 1
-		elif dx > w * SWIPE_FRACTION or _vel > FLICK_SPEED:
+		elif dx > w * SWIPE_FRACTION or (flick and dx > 0.0 and _vel > FLICK_SPEED):
 			dest = target - 1
 		go_to(dest)
 		accept_event()

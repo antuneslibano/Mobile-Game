@@ -43,6 +43,30 @@ static func ore_sprite_for(block_id: int) -> String:
 	return ""
 
 
+## Brilho de um depósito pelo valor do que rende (Cristal conta como CRYSTAL_VALUE):
+## 0 = nenhum, 1 = cintila, 2 = cintila + aura pulsante + partículas.
+const CRYSTAL_VALUE: int = 120
+const SPARKLE_VALUE: int = 120
+const AURA_VALUE: int = 300
+
+
+static func block_value(def: BlockDef) -> int:
+	var v: int = 0
+	for k: StringName in def.drops:
+		var r: ResourceDef = ResourceRegistry.get_def(k)
+		if r == null:
+			continue
+		v += (CRYSTAL_VALUE if r.currency != &"" else r.sell_value) * int(def.drops[k])
+	return v
+
+
+static func glow_tier(def: BlockDef) -> int:
+	if ore_sprite_for(def.id).is_empty():
+		return 0
+	var v: int = block_value(def)
+	return 2 if v >= AURA_VALUE else (1 if v >= SPARKLE_VALUE else 0)
+
+
 ## Decorações (célula de 32×32 no atlas). kind: embed = dentro do solo (cortada pelos
 ## túneis), floor = no chão de cavernas naturais, ceil = pendurada no teto, fossil = bloco Fóssil.
 const DECOR: Array = [

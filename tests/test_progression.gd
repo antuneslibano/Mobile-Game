@@ -1,5 +1,7 @@
 extends "res://tests/test_case.gd"
 
+const Sim = preload("res://tests/balance_sim.gd")
+
 
 func test_upgrade_definitions_are_valid() -> void:
 	var defs: Array[UpgradeDef] = UpgradeRegistry.all()
@@ -68,84 +70,27 @@ func test_stats_reflect_levels_and_preview() -> void:
 	note("dano: %s" % " → ".join(Progression.preview(UpgradeRegistry.get_def(&"damage"), {})))
 
 
-## Simulação de balanceamento: jogador que cava para baixo (desviando de vez em quando),
-## usa a Sobrecarga quando a barra enche, vende a cada 15 s e compra o upgrade mais barato.
+## Simulação de balanceamento (tests/balance_sim.gd): o jogador que vai atrás dos minérios
+## visíveis progride nas faixas-alvo; usa a Sobrecarga quando enche, vende a cada 15 s e
+## compra o upgrade mais barato.
 func test_balance_simulation_greedy_player() -> void:
-	var w := WorldModel.new(2024)
-	w.threaded = false
-	var e := Economy.new()
-	var d := Drill.new()
-	d.stats = Progression.build_stats(e.upgrade_levels)
-	d.setup(w, Drill.surface_spawn(), 3)
-	var overdrives: Array[int] = [0]
-	var first_full: Array[float] = [-1.0]
-	var clock: Array[float] = [0.0]   # lambdas capturam por valor: tempo compartilhado via array
-	var t: float = 0.0
-	d.dug.connect(func(counts: Dictionary, _at: Vector2) -> void:
-		e.collect(Drill.drops_for(counts), d.stats.collect_mult))
-	d.boost_started.connect(func() -> void: overdrives[0] += 1)
-	d.overdrive_ready.connect(func() -> void:
-		if first_full[0] < 0.0:
-			first_full[0] = clock[0])
-	var intent := DrillIntent.new()
-	intent.boost = true
-	var dt: float = 1.0 / 60.0
-	var marks: Dictionary = {}
-	var bought: int = 0
-	var next_shop: float = 15.0
-	var minutes: float = 10.0
-	var stuck_t: float = 0.0
-	var last_depth: int = 0
-	while t < minutes * 60.0:
-		# Preso por 4 s: tenta 1,5 s na diagonal (alternando lados) e volta a cavar para baixo.
-		intent.aim = Vector2.DOWN
-		if stuck_t > 4.0:
-			intent.aim = Vector2(1, 1).normalized() if int(t / 11.0) % 2 == 0 else Vector2(-1, 1).normalized()
-			if stuck_t > 5.5:
-				stuck_t = 0.0
-		d.physics_step(dt, intent)
-		t += dt
-		clock[0] = t
-		var depth: int = d.depth_m()
-		if depth > last_depth:
-			last_depth = depth
-			stuck_t = 0.0
-		else:
-			stuck_t += dt
-		for m: int in [25, 50, 100, 150, 200, 300]:
-			if depth >= m and not marks.has(m):
-				marks[m] = t
-		if t >= next_shop:
-			next_shop += 15.0
-			e.sell_all()
-			var bought_any: bool = true
-			while bought_any:
-				bought_any = false
-				var best: UpgradeDef = null
-				for u in UpgradeRegistry.all():
-					if Progression.buy_status(e, u) == Progression.BuyStatus.OK:
-						if best == null or Progression.cost(u, e.get_level(u.id)) < Progression.cost(best, e.get_level(best.id)):
-							best = u
-				if best != null and Progression.try_buy(e, best):
-					bought += 1
-					bought_any = true
-					if best.id in ModuleSystem.ALL and e.get_level(best.id) == 1:
-						e.toggle_module(best.id, Balance.MODULE_SLOTS)
-			d.stats = Progression.build_stats(e.upgrade_levels)
-			d.modules.set_equipped(e.equipped_modules)
-		if w.loaded_chunk_indices().size() > 8:
-			var ci: int = WorldModel.chunk_index_for_row(floori(d.position.y / Balance.CELL_PX))
-			w.unload_outside(ci - 2, ci + 3)
-	var parts: PackedStringArray = []
-	for m: int in marks:
-		parts.append("%dm@%.0fs" % [m, float(marks[m])])
-	note("10 min simulados: %d m, %d upgrades, %d cristais, módulos %s, níveis %s" % [d.depth_m(), bought, e.crystals, str(e.equipped_modules), str(e.upgrade_levels)])
-	note("marcos: %s · 1ª Sobrecarga pronta em %.0fs · %d Sobrecargas" % [", ".join(parts), first_full[0], overdrives[0]])
+	var r: Dictionary = Sim.run(&"minerios", 10.0)
+	note("10 min buscando minérios: " + Sim.summary(r))
+	var marks: Dictionary = r.marks
 	# Faixas-alvo (GAME_DESIGN.md §7.2.1).
 	check(marks.has(50) and float(marks[50]) > 20.0 and float(marks[50]) < 300.0, "50 m entre 20 s e 5 min")
-	check(d.depth_m() >= 120 and d.depth_m() <= 450, "10 min levam a 120–450 m (%d m)" % d.depth_m())
-	check(bought >= 10, "compra ao menos 10 upgrades em 10 minutos (%d)" % bought)
-	check(not e.equipped_modules.is_empty(), "adquire e equipa ao menos um módulo em 10 minutos")
-	check(first_full[0] > 30.0, "a energia exige esforço: 1ª Sobrecarga após 30 s (%.0f s)" % first_full[0])
-	check(overdrives[0] >= 2 and overdrives[0] <= 25, "Sobrecargas são eventos, não spam (%d em 10 min)" % overdrives[0])
-	d.free()
+	check(r.depth >= 120 and r.depth <= 450, "10 min levam a 120–450 m (%d m)" % r.depth)
+	check(r.bought >= 10, "compra ao menos 10 upgrades em 10 minutos (%d)" % r.bought)
+	check(not (r.modules as Array).is_empty(), "adquire e equipa ao menos um módulo em 10 minutos")
+	check(r.first_full > 30.0, "a energia exige esforço: 1ª Sobrecarga após 30 s (%.0f s)" % r.first_full)
+	check(r.overdrives >= 2 and r.overdrives <= 25, "Sobrecargas são eventos, não spam (%d em 10 min)" % r.overdrives)
+
+
+## O dinheiro está nos minérios: desviar até eles rende muito mais do que cavar reto.
+func test_seeking_ores_beats_digging_straight() -> void:
+	var reto: Dictionary = Sim.run(&"reto", 6.0)
+	var busca: Dictionary = Sim.run(&"minerios", 6.0)
+	note("6 min cavando reto: " + Sim.summary(reto))
+	note("6 min buscando minérios: " + Sim.summary(busca))
+	check(busca.earned >= reto.earned * 4, "buscar minérios rende ≥ 4× cavar reto (%d × %d)" % [busca.earned, reto.earned])
+	check(reto.earned > 0, "cavar reto ainda encontra algum minério (%d)" % reto.earned)

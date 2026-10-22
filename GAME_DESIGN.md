@@ -129,16 +129,17 @@ Camadas (resumo):
 `hp` = vida; `hardness` = armadura subtraída de cada golpe.
 
 **Terreno** (`BlockDef.is_terrain()`): forma o cenário e é desenhado como textura contínua —
-nunca como minério. Terra e Pedra **mantêm a recompensa que já existia** (entulho de baixo
-valor na carga: Terra 1, Pedra 2); os terrenos novos não rendem nada.
+nunca como minério — e **não rende nada** (desde a 0.8: o dinheiro está nos minérios; cavar
+reto para baixo não paga). Os recursos antigos de entulho continuam registrados só para
+salvamentos antigos.
 
 | Material | HP | Dureza | Recompensa | Visual |
 |---|---|---|---|---|
-| Terra | 12 | 0 | terra ×1 (existente) | solo macio, pedrinhas e raízes |
-| Pedra | 30 | 1 | pedra ×1 (existente) | pedras compactas iluminadas, rachaduras |
-| Rocha cristalina / dura | 60 / 110 | 4 / 7 | pedra ×3 / ×5 (existente) | pedras |
-| Basalto / Rocha magmática | 220 / 320 | 14 / 18 | basalto ×1 (existente) | pedras escuras / veios incandescentes |
-| Pedra abissal | 700 | 30 | pedra abissal ×1 (existente) | pedras |
+| Terra | 12 | 0 | – | solo macio, pedrinhas e raízes |
+| Pedra | 30 | 1 | – | pedras compactas iluminadas, rachaduras |
+| Rocha cristalina / dura | 60 / 110 | 4 / 7 | – | pedras |
+| Basalto / Rocha magmática | 220 / 320 | 14 / 18 | – | pedras escuras / veios incandescentes |
+| Pedra abissal | 700 | 30 | – | pedras |
 | Areia | 10 | 0 | – | grãos e faixas de vento |
 | Argila | 34 | 1 | – | camadas horizontais |
 | Gelo | 60 | 3 | – | facetas com brilho |
@@ -215,20 +216,29 @@ desgaste visível (material escurece e racha), a máquina gira apontando a broca
   baús e artefatos). Não ocupam carga.
 - **Núcleos Antigos** – apenas por prestígio (Fase 4).
 
-| Recurso | Preço (Créditos) | Recurso | Preço |
-|---|---|---|---|
-| Terra | 1 | Basalto | 30 |
-| Pedra | 2 | Ouro | 60 |
-| Cobre | 8 | Rubi | 120 |
-| Ferro | 15 | Pedra abissal | 90 |
-| Ametista | 40 | Vazionita | 200 |
-| Artefato | 500 | Cristal | → Cristais |
+| Recurso | Preço | Recurso | Preço | Recurso | Preço |
+|---|---|---|---|---|---|
+| Carvão | 18 | Ouro | 200 | Diamante | 900 |
+| Cobre | 30 | Obsidiana | 220 | Minério arcano | 600 |
+| Ferro | 50 | Esmeralda | 280 | Meteorito | 1200 |
+| Quartzo | 60 | Titânio | 340 | Artefato | 1500 |
+| Prata | 80 | Fóssil | 350 | Cristal raro | 1800 |
+| Ametista | 130 | Rubi | 380 | Cristal | → Cristais |
+| | | Urânio | 450 | | |
+
+**Minérios raros e valiosos (0.8)**: os minérios ficam concentrados em poucos veios
+(`WorldGenerator.VEIN_*`, `Balance.ORE_DENSITY = 0.35`): ~5% dos blocos no Vale e 2–4% nas
+outras regiões (antes 10–17%), com preços ~3× maiores. Terreno não rende. A energia da
+Sobrecarga vem do valor coletado (`ENERGY_PER_CREDIT = 0.3`), então também está nos minérios.
+**Brilho por valor** (`TerrainSkins.glow_tier`, desenhado por `OreGlow`): ≥120 cintila
+(ouro, cristal); ≥300 cintila, pulsa com aura e solta partículas (gemas, urânio, titânio,
+diamante, cristal raro) — visíveis de longe, convidam a desviar até eles.
 
 A **carga não tem limite** e a **garagem abre de qualquer profundidade** (botão no HUD),
 pausando o jogo. Assim sessões curtas sempre terminam com uma compra.
 
 Coleta: `ganho = drops × multiplicador_de_coleta`; a parte fracionária acumula por recurso
-entre coletas (determinístico, sem sorteio): com +10%, 10 blocos de terra rendem 11.
+entre coletas (determinístico, sem sorteio): com +10%, 10 blocos de cobre rendem 11.
 
 ### 7.2 Upgrades (`data/upgrades/*.tres`)
 Custo do nível n → n+1: `round(custo_base × crescimento^n)`. Limite `max_level`.
@@ -252,20 +262,25 @@ Toda compra mostra **antes → depois** do atributo efetivo. A compra é atômic
 e sobe o nível, ou não muda nada.
 
 ### 7.2.1 Ritmo-alvo (validado por simulação)
-`test_balance_simulation_greedy_player` simula 10 min de um jogador que cava para baixo
-(desviando na diagonal quando preso), usa a Sobrecarga quando a barra enche e, a cada 15 s,
-vende tudo e compra o upgrade mais barato. Resultado atual (seed 2024):
+`tests/balance_sim.gd` simula a perfuradora real no mundo real (seed 2024) com duas
+estratégias; ambas usam a Sobrecarga quando a barra enche e, a cada 15 s, vendem tudo e
+compram o upgrade mais barato:
+- **minérios** – vai até o minério visível mais próximo (nunca para cima); sem nenhum à vista,
+  cava para baixo;
+- **reto** – só cava para baixo (desvia na diagonal quando presa).
 
-| Marco | Tempo |
-|---|---|
-| 50 m | ~42 s |
-| 100 m (fim da Crosta) | ~1,3 min |
-| 200 m | ~3,5 min |
-| 300 m (calor) | ~5,4 min |
-| 10 min | ~366 m, 31 upgrades, 2 módulos, 9 Sobrecargas |
+| 10 min (Vale) | Buscando minérios | Cavando reto (6 min) |
+|---|---|---|
+| Profundidade | ~281 m | ~211 m |
+| Créditos ganhos | ~6 800 | ~30 |
+| Upgrades | ~41 | 2 |
+| Marcos | 50 m@52 s, 100 m@71 s, 200 m@145 s | 50 m@39 s, 200 m@311 s |
+| Sobrecargas | 7 (1ª aos 49 s) | 0 |
 
-O teste exige: 50 m entre 20 s e 5 min; 120–450 m em 10 min; ≥10 upgrades; ≥1 módulo;
-1ª Sobrecarga só após 30 s; entre 2 e 25 Sobrecargas em 10 min.
+Testes: `test_balance_simulation_greedy_player` (buscando minérios: 50 m entre 20 s e 5 min;
+120–450 m em 10 min; ≥10 upgrades; ≥1 módulo; 1ª Sobrecarga após 30 s; 2–25 Sobrecargas) e
+`test_seeking_ores_beats_digging_straight` (buscar minérios rende ≥ 4× cavar reto).
+Na zona abissal do Vale (~260 m) a renda cai muito — é o empurrão para a próxima região.
 
 ### 7.3 Módulos (Fase 3 — implementado)
 **2 slots** `[T] MODULE_SLOTS` (um 3º slot é candidato a melhoria permanente de prestígio).
