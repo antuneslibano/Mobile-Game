@@ -83,12 +83,15 @@ func _process(_delta: float) -> void:
 	var v: Vector2 = stick_vector()
 	joystick_to_intent(v, _intent)
 	_intent.boost = false
+	_intent.sonar = false
 	var pressed: Dictionary = {}
 	for index: int in _touches:
 		var kind: StringName = (_touches[index] as Dictionary)["kind"]
 		pressed[kind] = true
 		if kind == &"boost":
 			_intent.boost = true
+		elif kind == &"sonar":
+			_intent.sonar = true
 	# Teclado (desktop): setas/WASD combinam direções (diagonais incluídas); cima só em
 	# rampa (com um lado).
 	var k := Vector2.ZERO
@@ -104,6 +107,8 @@ func _process(_delta: float) -> void:
 		_intent.aim = DrillIntent.sanitize(k.normalized())
 	if Input.is_key_pressed(KEY_SHIFT):
 		_intent.boost = true
+	if Input.is_key_pressed(KEY_Q):
+		_intent.sonar = true
 	if hud != null:
 		hud.set_pad_pressed(pressed)
 		if _stick_index >= 0 and _touches.has(_stick_index):

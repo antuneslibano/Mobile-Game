@@ -178,10 +178,14 @@ func test_seismic_pulse_and_crit_synergy() -> void:
 	d.modules.pulse_cd = 0.01
 	var it := DrillIntent.new()
 	it.aim = Vector2.DOWN
-	for i in 20:
+	for i in 6:
 		d.physics_step(DT, it)
 	check(pulses[0] >= 1, "pulso dispara enquanto cava")
-	check(not centers.is_empty() and not w.is_solid(WorldModel.world_to_cell(centers[0] + Vector2(50, 10))), "pulso abre área ao lado")
+	var side: Vector2 = centers[0] + Vector2(50, 10) if not centers.is_empty() else Vector2.ZERO
+	check(not centers.is_empty() and w.is_solid(WorldModel.world_to_cell(side)), "onda de choque ainda não chegou à borda (não é instantânea)")
+	for i in 40:
+		d.physics_step(DT, it)
+	check(not centers.is_empty() and not w.is_solid(WorldModel.world_to_cell(side)), "a onda abre a área ao lado")
 	check(SynergyRules.is_active(SynergyRules.CRITICAL_RESONANCE, d.modules.equipped, d.stats), "Ressonância Crítica ativa com pulso")
 	check(not SynergyRules.is_active(SynergyRules.CRITICAL_RESONANCE, [&"drone"] as Array[StringName], d.stats), "inativa sem pulso")
 	d.modules.pulse_cd = 5.0

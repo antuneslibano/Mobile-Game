@@ -33,6 +33,9 @@ var _t: float = 0.0
 var _heat_label: Label
 var _heat_tint: ColorRect
 var _boost: PadButton
+var _sonar: PadButton
+## Sonar observado (recarga) para o botão.
+var sonar: SonarOverlay
 var _joystick: VirtualJoystick
 var _banner: Label
 var _banner_t: float = 0.0
@@ -243,6 +246,10 @@ func _build() -> void:
 	_boost.size_flags_horizontal = Control.SIZE_SHRINK_END
 	_root.add_child(_boost)
 	_pads.append(_boost)
+	_sonar = PadButton.new(&"sonar", &"sonar", "SONAR", &"green")
+	_sonar.name = "SonarButton"
+	_root.add_child(_sonar)
+	_pads.append(_sonar)
 
 	_hint = _label("Arraste o dedo em qualquer direção (menos para cima)\ne desenhe o seu próprio túnel.", UiTheme.FONT_SMALL, UiTheme.TEXT)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -357,6 +364,8 @@ func _apply_layout() -> void:
 	_top.size = Vector2(vp.x - SIDE_MARGIN, TOP_HEIGHT - 16.0)
 	_boost.size = Vector2(BOOST_SIZE, BOOST_SIZE)
 	_boost.position = Vector2(vp.x - BOOST_SIZE - SIDE_MARGIN, vp.y - _safe_bottom - BOOST_SIZE - SIDE_MARGIN)
+	_sonar.size = Vector2(BOOST_SIZE * 0.85, BOOST_SIZE * 0.85)
+	_sonar.position = Vector2(SIDE_MARGIN, vp.y - _safe_bottom - _sonar.size.y - SIDE_MARGIN)
 	_joystick.rest_pos = Vector2(vp.x * 0.5, vp.y - _safe_bottom - Balance.JOYSTICK_RADIUS_PX - 60.0)
 	_joystick.queue_redraw()
 	_hint.position = Vector2(0, _joystick.rest_pos.y - Balance.JOYSTICK_RADIUS_PX - 110.0)
@@ -404,6 +413,10 @@ func _process(delta: float) -> void:
 			_boost.text = "SOBRECARGA"
 		else:
 			_boost.text = "%d%%" % int(e.fill_ratio() * 100.0)
+		if sonar != null:
+			var ready_s: bool = sonar.is_ready()
+			_sonar.text = "SONAR" if ready_s else "%ds" % ceili(sonar.cooldown)
+			_sonar.modulate = Color(1.15 + 0.15 * sin(Time.get_ticks_msec() * 0.008), 1.2, 1.15) if ready_s else Color(1, 1, 1, 0.55)
 		_set_heat(drill.depth_m(), drill.heat_penalty)
 		_update_vitals(delta)
 		_update_guardian()
@@ -542,6 +555,15 @@ func _update_vitals(delta: float) -> void:
 		tint = Color(1.0, 0.1, 0.05)
 		strength = 0.3 + 0.5 * _hit_flash
 		text = "CASCO ATINGIDO!"
+	elif drill.strain > 1.0:
+		tint = Color(1.0, 0.25, 0.05)
+		strength = 0.4 + 0.3 * blink
+		text = "BROCA SUPERAQUECIDA! PARE DE FORÇAR"
+	elif drill.strain > 0.35:
+		tint = Color(1.0, 0.5, 0.1)
+		strength = 0.15 + 0.25 * drill.strain
+		text = "BROCA ESQUENTANDO %d%%" % roundi(drill.strain * 100.0)
+		color = Color("ffb347")
 	elif v.hull_dps > 0.0:
 		tint = Color(1.0, 0.12, 0.05)
 		strength = 0.35 + 0.25 * blink

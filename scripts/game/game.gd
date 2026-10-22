@@ -16,6 +16,8 @@ var world: WorldModel
 var rig: ElevatorRig
 var guardian: FinalGuardian
 var creatures: CreatureManager
+var fog: FogLayer
+var sonar: SonarOverlay
 ## Extração em andamento (a nave sobe pelo cabo; física parada).
 var extracting: bool = false
 var _spark_t: float = 0.0
@@ -63,6 +65,18 @@ func _ready() -> void:
 	creatures.ship_bitten.connect(_on_bitten)
 	creatures.creature_seen.connect(func(sp: StringName) -> void: GameState.see_creature(sp))
 	creatures.creature_defeated.connect(_on_creature_defeated)
+	fog = FogLayer.new()
+	fog.name = "Fog"
+	add_child(fog)
+	fog.drill = drill
+	fog.creatures = creatures
+	fog.guardian = guardian
+	sonar = SonarOverlay.new()
+	sonar.name = "Sonar"
+	add_child(sonar)
+	sonar.drill = drill
+	sonar.creatures = creatures
+	fog.sonar = sonar
 
 
 ## Começa uma expedição: mundo fixo da região (com a escavação salva) e a nave na
@@ -76,6 +90,8 @@ func start_run(world_seed: int, start_row: int = -1, mods: Dictionary = {}, guar
 	world = WorldModel.new(world_seed, region)
 	world.generator.guardian_alive = not guardian_defeated
 	creatures.setup(world, region, world_seed)
+	sonar.world = world
+	sonar.reset()
 	guardian.setup(region, not guardian_defeated)
 	if not mods.is_empty():
 		world.import_modifications(mods)
@@ -134,6 +150,9 @@ func _physics_process(delta: float) -> void:
 	GameState.check_final_chamber(floori(drill.position.x / Balance.BLOCK_PX), drill.depth_m())
 	_guardian_step(delta, intent)
 	creatures.step(delta, drill, DrillIntent.sanitize(intent.aim).length() > 0.05)
+	sonar.step(delta)
+	if intent.sonar and not drill.disabled:
+		sonar.ping()
 	# Som: broca girando ao cavar (mais aguda na Sobrecarga) e motor ao se mover.
 	Sfx.drill(drill.digging and not drill.disabled, 1.25 if drill.energy.is_boosting() else 1.0)
 	Sfx.engine(drill.velocity.length() > 20.0 and not drill.disabled)

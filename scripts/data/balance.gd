@@ -142,3 +142,19 @@ const GUARDIAN_REWARD_CRYSTALS: int = 8      ## Cristais (× dificuldade) + 1 Ar
 const DRILL_TIER_LEVELS: Array[int] = [0, 2, 5, 9, 13]
 ## Subida em rampa: componente para cima ≤ esta fração do movimento lateral (~35°).
 const CLIMB_SLOPE: float = 0.7
+
+# --- Broca forçada / névoa / sonar (0.13) ----------------------------------------------
+## Insistir num minério duro demais esquenta a broca: cada golpe soma STRAIN_PER_HIT; a
+## tensão cai STRAIN_DECAY por segundo. Acima de 1,0 o casco sofre STRAIN_HULL_DPS.
+const STRAIN_PER_HIT: float = 0.14
+const STRAIN_DECAY: float = 0.45
+const STRAIN_MAX: float = 1.6
+const STRAIN_HULL_DPS: float = 8.0
+## Névoa: raio da luz da nave (blocos) e profundidade em que a escuridão fica total.
+const LIGHT_RADIUS_BLOCKS: float = 4.6
+const FOG_FULL_DEPTH_M: float = 12.0
+## Sonar: recarga (s), alcance (blocos), velocidade da onda (blocos/s), duração dos sinais.
+const SONAR_COOLDOWN: float = 12.0
+const SONAR_RANGE_BLOCKS: float = 22.0
+const SONAR_SPEED_BLOCKS: float = 26.0
+const SONAR_BLIP_SEC: float = 7.0

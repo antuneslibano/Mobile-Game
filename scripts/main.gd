@@ -17,6 +17,7 @@ extends Node
 ##   --guardian-hp=F     (debug) vida inicial do guardião da câmara final (fração)
 ##   --grant-ores=N      (debug) N de cada minério comum no armazém
 ##   --creatures         (debug) caverna com uma criatura de cada espécie à frente da nave
+##   --sonar-at=T        (com --autotest) usa o sonar em T segundos
 ##   --base-at=T / --station=KIND  (com --autotest) abre a base em T s e, opcional, a estação
 ## Em --autotest o salvamento fica desligado (não toca no perfil real).
 
@@ -49,6 +50,8 @@ func _ready() -> void:
 	game.input.hud = hud
 	hud.drill = game.drill
 	hud.guardian = game.guardian
+	hud.sonar = game.sonar
+	hud.layer = 10
 	garage = Garage.new()
 	garage.name = "Garage"
 	add_child(garage)
@@ -82,6 +85,12 @@ func _ready() -> void:
 			game.guardian.hp = game.guardian.max_hp * clampf(float(args["guardian-hp"]), 0.01, 1.0)
 		if OS.is_debug_build() and args.has("creatures"):
 			game.debug_creature_showcase()
+		if OS.is_debug_build() and args.has("ask-new-area"):
+			get_tree().create_timer(1.5).timeout.connect(func() -> void:
+				world_map.open()
+				world_map.ask_new_area(world_map.current_region()))
+		if args.has("sonar-at"):
+			get_tree().create_timer(float(args["sonar-at"])).timeout.connect(func() -> void: game.sonar.ping())
 		if args.has("base-at"):
 			var st := StringName(String(args.get("station", "")))
 			get_tree().create_timer(float(args["base-at"])).timeout.connect(func() -> void:

@@ -38,9 +38,10 @@ func _init(p_def: UpgradeDef) -> void:
 	row.add_child(info)
 	var title := HBoxContainer.new()
 	info.add_child(title)
-	var name_l := UiTheme.label(def.display_name.to_upper(), 32, UiTheme.TEXT, 700)
+	var name_l := UiTheme.label(def.display_name.to_upper(), 28 if def.display_name.length() > 10 else 32, UiTheme.TEXT, 700)
 	name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_l.clip_text = true
+	name_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name_l.custom_minimum_size = Vector2(120, 0)
 	title.add_child(name_l)
 	_level_label = UiTheme.label("", 28, UiTheme.ORANGE, 700)
 	title.add_child(_level_label)
@@ -136,12 +137,14 @@ func _refresh_recipe(econ: Economy, status: Progression.BuyStatus, level: int) -
 		var need: int = int(mats[k])
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 4)
+		row.alignment = BoxContainer.ALIGNMENT_CENTER
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var icon := TextureRect.new()
 		icon.texture = PixelArt.ore_icon(k)
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.custom_minimum_size = Vector2(36, 32)
+		icon.custom_minimum_size = Vector2(34, 34)
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(icon)
 		row.add_child(UiTheme.label("%d/%d" % [have, need], 25, UiTheme.GREEN if have >= need else UiTheme.RED, 700))

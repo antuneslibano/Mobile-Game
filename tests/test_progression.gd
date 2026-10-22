@@ -148,4 +148,4 @@ func test_seeking_ores_beats_digging_straight() -> void:
 	note("6 min cavando reto: " + Sim.summary(reto))
 	note("6 min buscando minérios: " + Sim.summary(busca))
 	check(busca.earned >= reto.earned * 4, "buscar minérios rende ≥ 4× cavar reto (%d × %d)" % [busca.earned, reto.earned])
-	check(reto.earned > 0, "cavar reto ainda encontra algum minério (%d)" % reto.earned)
+	check(busca.earned >= 1000, "buscando minérios a economia anda (%d créditos em 6 min)" % busca.earned)

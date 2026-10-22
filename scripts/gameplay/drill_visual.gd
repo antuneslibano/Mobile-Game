@@ -108,6 +108,15 @@ func _draw() -> void:
 		var dx: Vector2 = o + Vector2(13.0, 17.0) * s
 		draw_rect(Rect2(dx, Vector2(4, 3)), Color(0.31, 0.95, 1.0, 0.6 + 0.4 * sin(_t * 6.0)))
 
+	# Broca forçada: ponta incandescente e fumaça.
+	if drill != null and drill.strain > 0.2:
+		var tip2: Vector2 = o + Vector2(ShipArt.W - 4, 10) * s
+		var k: float = clampf(drill.strain, 0.0, 1.5)
+		draw_circle(tip2, 6.0 + 6.0 * k, Color(1.0, 0.35 + 0.3 * (1.0 - k), 0.1, 0.25 + 0.3 * k))
+		draw_circle(tip2, 3.0 + 3.0 * k, Color(1.0, 0.85, 0.5, 0.5 * k))
+		for i in 3:
+			var ph: float = fposmod(_t * 1.5 + i / 3.0, 1.0)
+			draw_circle(tip2 + Vector2(-ph * 20.0, -ph * 30.0 - 6.0), 3.0 + ph * 5.0, Color(0.3, 0.3, 0.32, (1.0 - ph) * 0.5 * k))
 	# Faísca na ponta da broca ao cavar.
 	if drill != null and drill.digging:
 		var tip: Vector2 = o + Vector2(ShipArt.W - 1, 10) * s

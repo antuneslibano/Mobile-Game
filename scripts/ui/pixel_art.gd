@@ -257,6 +257,12 @@ static func _icon_img(id: StringName) -> Image:
 			rect(img, 4, 4, 10, 10, Color("1a3a6a"))
 			rect(img, 4, 4, 10, 1, Color("8a93a3"))
 			poly(img, PackedVector2Array([Vector2(10, 5), Vector2(6, 10), Vector2(9, 10), Vector2(8, 14), Vector2(12, 8), Vector2(9, 8)]), CYAN)
+		&"sonar":
+			for r: float in [3.0, 6.0, 9.0]:
+				for a in range(-40, 41, 8):
+					var ang: float = deg_to_rad(float(a) - 90.0)
+					px(img, int(9.0 + cos(ang) * r), int(14.0 + sin(ang) * r), CYAN if r < 9.0 else Color("8affd0"))
+			circle(img, 9, 14, 2.0, Color("8affd0"))
 		&"boost":
 			poly(img, PackedVector2Array([Vector2(11, 1), Vector2(4, 10), Vector2(9, 10), Vector2(6, 17), Vector2(14, 7), Vector2(9, 7)]), GOLD)
 			poly(img, PackedVector2Array([Vector2(10, 3), Vector2(6, 9), Vector2(9, 9), Vector2(8, 13), Vector2(12, 8), Vector2(9, 8)]), GOLD_HI)

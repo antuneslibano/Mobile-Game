@@ -86,6 +86,8 @@ Executa, em modo headless:
 | `--fuel=F` | combustível inicial (fração do tanque; só builds de depuração) |
 | `--extract-at=T` | com `--autotest`, chama a extração em T segundos |
 | `--guardian-hp=F` | vida inicial do guardião da câmara final (fração; só builds de depuração) |
+| `--sonar-at=T` | com `--autotest`, usa o sonar em T segundos |
+| `--ask-new-area` | abre o mapa com o aviso de "nova área" (só builds de depuração) |
 | `--creatures` | caverna com uma criatura de cada espécie à frente da nave (só builds de depuração) |
 | `--grant-ores=N` | N de cada minério comum no armazém (só builds de depuração) |
 | `--base-at=T`, `--station=KIND` | com `--autotest`, abre a base em T s e a estação (`map`, `bench`, `hangar`, `market`, `lab`) |
@@ -185,6 +187,7 @@ Instalar: `adb install -r build/deepforge.apk`, ou copie o APK para o celular e 
 | 0.10 | Base com estações tocáveis, construção com materiais, mercado de excedente, laboratório | ✅ |
 | 0.11 | Criaturas no Vale, visual da nave escolhido no Hangar, baús novos | ✅ |
 | 0.12 | Broca por nível, subida em rampa, cavernas em patamares, baús raros com plantas, nova área, sons | ✅ |
+| 0.13 | Névoa com luz da nave, sonar, broca forçada esquenta, onda de choque em anéis, correções de interface | ✅ |
 | 0.10–0.11 | Base com construção, criaturas — ver [ROADMAP_EXPEDICOES.md](ROADMAP_EXPEDICOES.md) | planejado |
 | 5 | Arte, efeitos, áudio, otimização, exportação Android | pendente |
 

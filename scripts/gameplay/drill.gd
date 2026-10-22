@@ -47,6 +47,8 @@ var disabled: bool = false
 var speed_mult: float = 1.0
 var heat_penalty: float = 0.0
 var radius: float = Balance.DRILL_RADIUS_PX
+## Tensão da broca (0.13): sobe ao forçar minério duro demais; acima de 1 fere o casco.
+var strain: float = 0.0
 
 var _hit_timer: float = 0.5
 var _unbreakable_cd: float = 0.0
@@ -65,6 +67,7 @@ func setup(p_world: WorldModel, spawn: Vector2, p_seed: int = 0) -> void:
 	energy.reset(stats)
 	vitals.reset(stats)
 	disabled = false
+	strain = 0.0
 	modules.rng.seed = p_seed + 17
 
 
@@ -110,6 +113,10 @@ func physics_step(delta: float, intent: DrillIntent) -> void:
 	if world == null:
 		return
 	_unbreakable_cd = maxf(0.0, _unbreakable_cd - delta)
+	# Broca forçada: a tensão esfria com o tempo; acima de 1, superaquece e fere o casco.
+	strain = maxf(0.0, strain - Balance.STRAIN_DECAY * delta)
+	if strain > 1.0 and not disabled:
+		apply_hull_damage(Balance.STRAIN_HULL_DPS * delta)
 	_dig_visual_t = maxf(0.0, _dig_visual_t - delta)
 	if energy.step(delta, stats, intent.boost):
 		boost_started.emit()
@@ -123,8 +130,12 @@ func physics_step(delta: float, intent: DrillIntent) -> void:
 		disabled = true
 		stranded.emit(&"fuel" if vitals.is_out_of_fuel() else &"hull")
 	if steering:
+		# A broca gira sempre por baixo (nunca passa pelo alto): ângulos medidos de -90°
+		# a 270°, então ir da direita-para-cima à esquerda-para-cima passa pelo "para baixo".
 		var target: Vector2 = a / throttle
-		facing = facing.slerp(target, clampf(delta * 14.0, 0.0, 1.0)).normalized()
+		var af: float = _low_angle(facing)
+		var at: float = _low_angle(target)
+		facing = Vector2.from_angle(lerpf(af, at, clampf(delta * 14.0, 0.0, 1.0)))
 		facing.y = maxf(facing.y, -absf(facing.x) * Balance.CLIMB_SLOPE)
 		facing = facing.normalized() if facing.length() > 0.01 else target
 
@@ -132,6 +143,10 @@ func physics_step(delta: float, intent: DrillIntent) -> void:
 	var desired: Vector2 = Vector2.ZERO
 	if steering:
 		desired = a / throttle * stats.move_speed_blocks * _b * move_mult * throttle
+		# Subir só em rampa de verdade: com a broca já virada para esse lado e a nave
+		# apoiada (no chão ou cavando à frente). No ar, sem apoio, ela não voa.
+		if desired.y < 0.0 and not (facing.y < -0.05 and signf(facing.x) == signf(desired.x) and _supported()):
+			desired.y = 0.0
 	velocity.x = move_toward(velocity.x, desired.x, Balance.DRILL_ACCEL_BLOCKS * _b * delta)
 	# Vertical: gravidade e empurrão para baixo; subir só em rampa (propulsores vencem a
 	# gravidade enquanto a nave mira para cima na diagonal).
@@ -146,6 +161,17 @@ func physics_step(delta: float, intent: DrillIntent) -> void:
 	_update_dig(delta, steering)
 	digging = _dig_visual_t > 0.0
 	modules.step(delta, self)
+
+
+## Ângulo de -90° a 270° (o "para baixo" fica no meio): interpolar nele gira por baixo.
+static func _low_angle(v: Vector2) -> float:
+	var ang: float = v.angle()
+	return ang + TAU if ang < -PI * 0.5 else ang
+
+
+## Apoiada: tocando o chão, cavando ou encostada no terreno à frente.
+func _supported() -> bool:
+	return grounded or _dig_visual_t > 0.0 or world.circle_hits_solid(position + facing * 6.0, radius)
 
 
 ## Movimento com colisão contínua (subpassos) e deslizamento por eixo.
@@ -200,9 +226,11 @@ func _do_hit() -> bool:
 	var cells: Array[Vector2i] = world.cells_in_circle(c, rb, dig_ceiling())
 	cells.append_array(world.blocking_cells(position + facing * PLOW_PX, radius))
 	var res: WorldModel.DigResult = world.dig_cells(cells, roll.x, dig_ceiling(), stats.drill_tier)
-	if res.too_hard >= 0 and _unbreakable_cd <= 0.0:
-		_unbreakable_cd = UNBREAKABLE_FEEDBACK_SEC
-		blocked_by_hardness.emit(c + facing * rb * 0.6, res.too_hard)
+	if res.too_hard >= 0:
+		strain = minf(Balance.STRAIN_MAX, strain + Balance.STRAIN_PER_HIT)
+		if _unbreakable_cd <= 0.0:
+			_unbreakable_cd = UNBREAKABLE_FEEDBACK_SEC
+			blocked_by_hardness.emit(c + facing * rb * 0.6, res.too_hard)
 	if res.touched == 0:
 		if res.unbreakable and _unbreakable_cd <= 0.0:
 			_unbreakable_cd = UNBREAKABLE_FEEDBACK_SEC
@@ -224,6 +252,19 @@ func apply_external_dig(center: Vector2, r: float, raw_damage: float, crit: bool
 		dig_hit.emit(center, res.main_id, crit, res.removed())
 		_on_dug(res, center)
 	return res
+
+
+## Escava um anel (onda de choque): células entre r_in e r_out do centro.
+## top: teto da onda (o da nave quando ela foi disparada).
+func apply_external_ring(center: Vector2, r_in: float, r_out: float, raw_damage: float, crit: bool, top: float) -> void:
+	var cells: Array[Vector2i] = []
+	for c in world.cells_in_circle(center, r_out, top):
+		if WorldModel.cell_center(c).distance_to(center) >= r_in:
+			cells.append(c)
+	var res: WorldModel.DigResult = world.dig_cells(cells, raw_damage, top, stats.drill_tier)
+	if res.touched > 0:
+		dig_hit.emit(center + (Vector2.RIGHT * r_out).rotated(rng.randf() * TAU), res.main_id, crit, res.removed())
+		_on_dug(res, center)
 
 
 ## Dano externo no casco (ex.: pulso do guardião). Zerado → resgate de emergência.

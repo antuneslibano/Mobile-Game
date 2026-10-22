@@ -13,6 +13,9 @@ const DRONE: StringName = &"drone"
 const SEISMIC: StringName = &"seismic"
 const ALL: Array[StringName] = [SIDE_DRILL, DRONE, SEISMIC]
 
+## Duração da onda de choque (do centro até o raio máximo).
+const WAVE_SEC: float = 0.45
+var _wave: Dictionary = {}
 var equipped: Array[StringName] = []
 var drone_cd: float = Balance.DRONE_INTERVAL
 var pulse_cd: float = Balance.PULSE_INTERVAL
@@ -62,6 +65,7 @@ func on_drill_hit(drill: Drill, crit: bool) -> void:
 
 func step(delta: float, drill: Drill) -> void:
 	var s: DrillStats = drill.stats
+	_step_wave(delta, drill)
 	if has(DRONE) and level(s, DRONE) > 0:
 		drone_cd -= delta
 		if drone_cd <= 0.0:
@@ -120,4 +124,18 @@ func fire_pulse(drill: Drill) -> void:
 		dmg *= s.crit_mult
 	var r: float = pulse_radius_px(s)
 	pulse_fired.emit(drill.position, r, crit)
-	drill.apply_external_dig(drill.position, r, dmg, crit)
+	# Onda de choque (0.13): quebra de dentro para fora, em anéis, ao longo de WAVE_SEC.
+	_wave = {"c": drill.position, "r": r, "dmg": dmg, "crit": crit, "t": 0.0, "done": 0.0, "top": drill.dig_ceiling()}
+
+
+## Avança a onda de choque em andamento: escava o anel entre o raio já feito e o atual.
+func _step_wave(delta: float, drill: Drill) -> void:
+	if _wave.is_empty():
+		return
+	_wave.t = float(_wave.t) + delta
+	var cur: float = minf(1.0, float(_wave.t) / WAVE_SEC) * float(_wave.r)
+	if cur > float(_wave.done):
+		drill.apply_external_ring(_wave.c, float(_wave.done), cur, float(_wave.dmg), bool(_wave.crit), float(_wave.top))
+		_wave.done = cur
+	if float(_wave.t) >= WAVE_SEC:
+		_wave = {}

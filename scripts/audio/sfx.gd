@@ -116,6 +116,17 @@ func _build_all() -> void:
 	# Sobrecarga: varredura subindo.
 	_streams[&"boost"] = _synth(0.45, false, func(t: float, _i: int) -> float:
 		return (_saw(t * (180.0 + 900.0 * t)) * 0.4) * (1.0 - t / 0.45), 0.5)
+	# Sonar: "ping" de submarino com ecos.
+	_streams[&"sonar"] = _synth(1.4, false, func(t: float, _i: int) -> float:
+		var v: float = 0.0
+		for k in 4:
+			var tt: float = t - k * 0.3
+			if tt >= 0.0:
+				v += sin(TAU * 1150.0 * tt) * exp(-tt * 9.0) * pow(0.45, k)
+		return v * 0.7, 0.6)
+	# Sinal do sonar encontrando algo.
+	_streams[&"blip"] = _synth(0.09, false, func(t: float, _i: int) -> float:
+		return sin(TAU * 1600.0 * t) * exp(-t * 35.0), 0.45)
 	# Toque de interface.
 	_streams[&"click"] = _synth(0.05, false, func(t: float, _i: int) -> float:
 		return _square(t * 1200.0) * 0.3 * exp(-t * 70.0), 0.4)

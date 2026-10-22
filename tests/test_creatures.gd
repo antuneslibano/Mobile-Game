@@ -172,3 +172,88 @@ func test_sounds() -> void:
 	var drill: AudioStreamWAV = (s.get("_streams") as Dictionary)[&"drill"]
 	check(drill.loop_mode == AudioStreamWAV.LOOP_FORWARD, "broca em loop")
 	s.free()
+
+
+## 0.13: forçar minério duro demais esquenta a broca e fere o casco.
+func test_drill_strain() -> void:
+	var w := WorldModel.new(8, RegionRegistry.get_def(RegionRegistry.VALE))
+	w.threaded = false
+	var b: float = Balance.BLOCK_PX
+	var p := Vector2(12 * b, 120 * b)
+	w.get_chunk(WorldModel.chunk_index_for_row(int(p.y / Balance.CELL_PX)))
+	w.fill_circle(p, 3.0 * b, BlockRegistry.GOLD)
+	w.fill_circle(p, 30.0, BlockRegistry.AIR)
+	var d := Drill.new()
+	d.stats = Progression.build_stats({})
+	d.setup(w, p, 1)
+	var it := DrillIntent.new()
+	it.aim = Vector2.DOWN
+	var hull0: float = d.vitals.hull
+	for i in 60 * 6:
+		d.physics_step(1.0 / 60.0, it)
+	check(d.strain > 1.0, "forçar ouro com broca fraca superaquece (%.2f)" % d.strain)
+	check(d.vitals.hull < hull0, "broca superaquecida fere o casco (%.0f)" % d.vitals.hull)
+	it.aim = Vector2.ZERO
+	for i in 60 * 5:
+		d.physics_step(1.0 / 60.0, it)
+	check(d.strain < 0.2, "parando de forçar, a broca esfria")
+	d.free()
+
+
+## 0.13: no ar, alternar diagonais para cima não faz a nave voar.
+func test_no_flying_zigzag() -> void:
+	var w := WorldModel.new(9, RegionRegistry.get_def(RegionRegistry.VALE))
+	w.threaded = false
+	var b: float = Balance.BLOCK_PX
+	var p := Vector2(12 * b, 200 * b)
+	w.get_chunk(WorldModel.chunk_index_for_row(int(p.y / Balance.CELL_PX)))
+	w.get_chunk(WorldModel.chunk_index_for_row(int(p.y / Balance.CELL_PX)) - 1)
+	w.fill_circle(p, 7.0 * b, BlockRegistry.AIR)
+	var d := Drill.new()
+	d.stats = Progression.build_stats({})
+	d.setup(w, p + Vector2(0, 5.0 * b), 1)
+	var it := DrillIntent.new()
+	var low: float = d.position.y
+	for i in 60 * 6:
+		it.aim = Vector2(1, -1).normalized() if (i / 20) % 2 == 0 else Vector2(-1, -1).normalized()
+		d.physics_step(1.0 / 60.0, it)
+		low = minf(low, d.position.y)
+	check(low > p.y + 5.0 * b - 2.0 * b, "zigue-zague no ar não sobe (topo %.0f, partida %.0f)" % [low, p.y + 5.0 * b])
+	d.free()
+
+
+## 0.13: névoa por profundidade e sonar marcando minérios.
+func test_fog_and_sonar() -> void:
+	check_eq(FogLayer.strength_at(0), 0.0, "superfície sem névoa")
+	check_eq(FogLayer.strength_at(int(Balance.FOG_FULL_DEPTH_M) + 5), 1.0, "subsolo no escuro")
+	var w := WorldModel.new(10, RegionRegistry.get_def(RegionRegistry.VALE))
+	w.threaded = false
+	var b: float = Balance.BLOCK_PX
+	var p := Vector2(12 * b, 60 * b)
+	for i in range(2, 7):
+		w.get_chunk(i)
+	w.set_cell(WorldModel.world_to_cell(p + Vector2(4 * b, 0)), BlockRegistry.COPPER)
+	for dx in range(-2, 2):
+		for dy in range(-2, 2):
+			w.set_cell(WorldModel.world_to_cell(p + Vector2(4 * b, 0)) + Vector2i(dx, dy), BlockRegistry.COPPER)
+	var d := Drill.new()
+	d.stats = Progression.build_stats({})
+	d.setup(w, p, 1)
+	var s := SonarOverlay.new()
+	s.world = w
+	s.drill = d
+	check(s.is_ready(), "sonar pronto")
+	check(s.ping() and not s.is_ready(), "sonar dispara e entra em recarga")
+	check(not s.ping(), "na recarga não dispara de novo")
+	for i in 120:
+		s.step(1.0 / 60.0)
+	var found: bool = false
+	for bl: Dictionary in s.blips:
+		if (bl.pos as Vector2).distance_to(p + Vector2(4.5 * b, 0.5 * b)) < 2.0 * b:
+			found = true
+	check(found, "sonar marca o minério próximo (%d sinais)" % s.blips.size())
+	for i in 60 * int(Balance.SONAR_COOLDOWN + 1):
+		s.step(1.0 / 60.0)
+	check(s.is_ready() and s.blips.is_empty(), "recarga volta e os sinais somem")
+	s.free()
+	d.free()

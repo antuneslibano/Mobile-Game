@@ -372,3 +372,19 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
   e apaga escavação e recorde.
 - **Som**: autoload `Sfx` sintetiza `AudioStreamWAV` na inicialização; `play`, `drill`,
   `engine`; loops silenciam com o jogo pausado.
+
+## 17. 0.13: névoa, sonar e broca forçada
+
+- **Névoa** (`FogLayer`, CanvasLayer 2, shader `shaders/fog.gdshader`): escuridão em tela
+  com o círculo de luz da nave (`LIGHT_RADIUS_BLOCKS`, convertido pela transformação do
+  canvas, então acompanha o zoom do combate) e até 24 luzes extras (vaga-lumes, guardião,
+  onda do sonar). O HUD fica na camada 10.
+- **Sonar** (`SonarOverlay`, CanvasLayer 3): `ping` (recarga), `step` avança a onda e
+  `_scan_ring` marca blocos de minério/baú e criaturas entre o raio anterior e o atual;
+  desenho em tela (sinais e setas de borda). Disparo por `DrillIntent.sonar` (botão do HUD
+  ou Q).
+- **Broca forçada**: `Drill.strain` sobe a cada golpe em minério duro demais e cai com o
+  tempo; acima de 1 fere o casco (`STRAIN_*` em Balance).
+- **Onda de choque**: `ModuleSystem._step_wave` → `Drill.apply_external_ring` (anéis com o
+  teto fixado no disparo).
+- **Subida**: `Drill._low_angle` (giro sempre por baixo) e `_supported` (só sobe apoiada).

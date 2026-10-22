@@ -3,6 +3,33 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.13.0] — Névoa, sonar, broca forçada e correções
+
+### Adicionado
+- **Névoa**: o subsolo fica escuro; só se vê o que a luz da nave alcança (~4,6 blocos),
+  com borda em degraus de pixel art. Vaga-lumes e o guardião também iluminam. Na
+  superfície não há névoa (escurece até 12 m).
+- **Sonar** (botão verde no canto inferior esquerdo, tecla Q): bip de submarino e uma
+  onda que marca minérios, baús (com a cor da raridade) e criaturas em até 22 blocos.
+  Sinais pulsam na posição (visíveis na névoa) e, fora da tela, viram setas na borda
+  apontando a direção. Minério que a broca ainda não quebra aparece riscado. Recarga 12 s.
+- **Broca forçada**: insistir num minério duro demais esquenta a broca ("BROCA
+  ESQUENTANDO %"); passando do limite ela superaquece, solta fumaça e fere o casco até
+  você parar.
+
+### Alterado
+- **Onda de choque** (pulso sísmico) quebra em anéis de dentro para fora (0,45 s), não
+  mais de uma vez.
+- **Subida**: a broca gira sempre por baixo, e a nave só sobe apoiada (no chão ou cavando
+  a rampa) e com a broca já virada para o lado da subida. Inverter a diagonal no ar não
+  faz mais a nave voar.
+
+### Corrigido
+- Nomes longos cortados nos cartões da Bancada e do Hangar (agora quebram linha).
+- Visual da nave no Hangar: requisito em texto legível embaixo de cada opção.
+- Ícones dos materiais alinhados nas receitas.
+- Aviso de "Nova área" centralizado em qualquer tela.
+
 ## [0.12.0] — Broca por nível, rampas, cavernas, baús raros e som
 
 ### Adicionado

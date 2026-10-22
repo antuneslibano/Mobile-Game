@@ -359,8 +359,8 @@ func _module_card(id: StringName) -> PanelContainer:
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	info.add_theme_constant_override("separation", 4)
 	row.add_child(info)
-	var mname := UiTheme.label(def.display_name.to_upper(), 32, UiTheme.TEXT, 700)
-	mname.clip_text = true
+	var mname := UiTheme.label(def.display_name.to_upper(), 28, UiTheme.TEXT, 700)
+	mname.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	mname.custom_minimum_size = Vector2(120, 0)
 	info.add_child(mname)
 	var bar := SegmentedBar.new(10, UiTheme.ORANGE, 26.0)
@@ -617,17 +617,28 @@ func _refresh_looks(econ: Economy) -> void:
 		for o: Array in ShipLooks.OPTIONS[slot]:
 			var id: StringName = o[0]
 			var ok: bool = ShipLooks.is_unlocked(String(o[2]), econ, GameState.done)
+			var cell := VBoxContainer.new()
+			cell.add_theme_constant_override("separation", 2)
+			cell.custom_minimum_size = Vector2(196, 0)
 			var b := Button.new()
 			b.name = "Look_%s_%s" % [slot, id]
-			b.text = String(o[1]) if ok else "%s\n%s" % [o[1], ShipLooks.requirement_text(String(o[2]))]
-			b.custom_minimum_size = Vector2(150, 70)
-			b.add_theme_font_size_override("font_size", UiTheme.font_size(18 if ok else 16, 700))
+			b.text = UiTheme.display_text(String(o[1]).to_upper())
+			b.custom_minimum_size = Vector2(196, 62)
+			b.add_theme_font_size_override("font_size", UiTheme.font_size(17, 700))
 			UiTheme.style_button(b, &"green" if look.get(slot) == id else &"steel")
 			b.disabled = not ok
 			b.pressed.connect(func() -> void:
 				GameState.set_look(slot, id)
 				_refresh())
-			flow.add_child(b)
+			cell.add_child(b)
+			if not ok:
+				# Requisito em fonte de texto (legível), embaixo do botão.
+				var req := UiTheme.label(ShipLooks.requirement_text(String(o[2])), 19, UiTheme.TEXT_DIM, 500)
+				req.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+				req.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				req.custom_minimum_size = Vector2(196, 0)
+				cell.add_child(req)
+			flow.add_child(cell)
 
 
 func _refresh_modules(econ: Economy) -> void:
