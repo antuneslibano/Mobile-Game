@@ -1,7 +1,8 @@
 class_name UpgradeCard
 extends PanelContainer
-## Cartão de upgrade no estilo da referência: ícone em moldura laranja, nome + "Nv. X",
-## barra de nível segmentada, descrição, antes → depois, preço (botão dourado) e seta verde.
+## Cartão de peça da Bancada: ícone em moldura laranja, nome + "Nv. X", barra de nível,
+## descrição, antes → depois, receita (materiais: tem/precisa) ou o projeto que falta,
+## preço (botão dourado) e seta verde para construir.
 
 signal buy_requested(id: StringName)
 
@@ -11,6 +12,8 @@ var _bar: SegmentedBar
 var _change: Label
 var _price: Button
 var _arrow: Button
+var _mats: HFlowContainer
+var _req: Label
 
 
 func _init(p_def: UpgradeDef) -> void:
@@ -52,6 +55,16 @@ func _init(p_def: UpgradeDef) -> void:
 	_change.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_change.custom_minimum_size = Vector2(120, 0)
 	info.add_child(_change)
+	_mats = HFlowContainer.new()
+	_mats.name = "Materials"
+	_mats.add_theme_constant_override("h_separation", 12)
+	_mats.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	info.add_child(_mats)
+	_req = UiTheme.label("", 24, UiTheme.ORANGE, 600)
+	_req.name = "Requirement"
+	_req.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_req.custom_minimum_size = Vector2(120, 0)
+	info.add_child(_req)
 
 	var buy := VBoxContainer.new()
 	buy.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -82,8 +95,9 @@ func refresh(econ: Economy) -> void:
 	var status: Progression.BuyStatus = Progression.buy_status(econ, def)
 	var p: PackedStringArray = Progression.preview(def, econ.upgrade_levels)
 	_change.text = "%s  →  %s" % [p[0], p[1]] if status != Progression.BuyStatus.MAXED else "%s  (máximo)" % p[0]
+	_refresh_recipe(econ, status, level)
 	match status:
-		Progression.BuyStatus.LOCKED:
+		Progression.BuyStatus.LOCKED, Progression.BuyStatus.RESEARCH:
 			_price.text = "—"
 		Progression.BuyStatus.MAXED:
 			_price.text = "MÁX"
@@ -96,12 +110,42 @@ func refresh(econ: Economy) -> void:
 	_arrow.disabled = not can
 	# Sem saldo: preço continua legível (dourado apagado), seta desativada.
 	_price.modulate = Color.WHITE if can else Color(1, 1, 1, 0.75)
-	if not can and status == Progression.BuyStatus.NO_FUNDS:
+	if not can and (status == Progression.BuyStatus.NO_FUNDS or status == Progression.BuyStatus.NO_MATERIALS):
 		_price.add_theme_stylebox_override("disabled", PixelArt.style(&"gold_pressed"))
 		_price.add_theme_color_override("font_disabled_color", Color("3a2208"))
 	else:
 		_price.remove_theme_stylebox_override("disabled")
 		_price.remove_theme_color_override("font_disabled_color")
+
+
+## Receita do próximo nível: cada material com tem/precisa (verde/vermelho); projeto
+## bloqueado mostra o que falta (descobrir material ou vencer um guardião).
+func _refresh_recipe(econ: Economy, status: Progression.BuyStatus, level: int) -> void:
+	for c in _mats.get_children():
+		c.queue_free()
+	var maxed: bool = status == Progression.BuyStatus.MAXED
+	var req: String = "" if maxed else Recipes.requirement(def, level, econ.discovered, econ.tech)
+	_req.visible = req != ""
+	_req.text = "PROJETO BLOQUEADO · " + req if req != "" else ""
+	_mats.visible = not maxed and req == ""
+	if not _mats.visible:
+		return
+	var mats: Dictionary = Progression.materials(def, level)
+	for k: StringName in mats:
+		var have: int = int(econ.cargo.get(k, 0))
+		var need: int = int(mats[k])
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 4)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var icon := TextureRect.new()
+		icon.texture = PixelArt.ore_icon(k)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.custom_minimum_size = Vector2(36, 32)
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(icon)
+		row.add_child(UiTheme.label("%d/%d" % [have, need], 25, UiTheme.GREEN if have >= need else UiTheme.RED, 700))
+		_mats.add_child(row)
 
 
 ## Mantido para compatibilidade (outros scripts formatam números com ele).

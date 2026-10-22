@@ -104,7 +104,7 @@ static func run(strategy: StringName, minutes: float, world_seed: int = 2024, re
 					var s: DrillStats = d.stats
 					if guardian.take_damage(s.damage * s.hits_per_second * d.speed_mult * (1.0 + s.crit_chance * (s.crit_mult - 1.0)) * dt):
 						stats.guardian_at = t
-						w.fill_cells(Game.guardian_body_cells(guardian), BlockRegistry.AIR)
+						w.fill_cells(guardian.body_cells(), BlockRegistry.AIR)
 			if float(stats.final_at) < 0.0 and depth >= RegionRegistry.chamber_top(region) + 1 \
 					and absi(floori(d.position.x / Balance.BLOCK_PX) - RegionRegistry.chamber_center_x()) <= Balance.FINAL_CHAMBER_HALF_WIDTH:
 				stats.final_at = t
@@ -132,20 +132,13 @@ static func run(strategy: StringName, minutes: float, world_seed: int = 2024, re
 				if gained > 0:
 					e.cargo[k] = int(e.cargo[k]) - floori(gained * (1.0 - Balance.RESCUE_KEEP_RATIO))
 		t += BASE_TIME
-		e.sell_all()
-		var bought_any: bool = true
-		while bought_any:
-			bought_any = false
-			var best: UpgradeDef = null
-			for u in UpgradeRegistry.all():
-				if Progression.buy_status(e, u) == Progression.BuyStatus.OK:
-					if best == null or Progression.cost(u, e.get_level(u.id)) < Progression.cost(best, e.get_level(best.id)):
-						best = u
-			if best != null and Progression.try_buy(e, best):
-				bought += 1
-				bought_any = true
-				if best.id in ModuleSystem.ALL and e.get_level(best.id) == 1:
-					e.toggle_module(best.id, Balance.MODULE_SLOTS)
+		if float(stats.guardian_at) >= 0.0:
+			e.tech = 1
+		# Base (0.10): constrói o que der com materiais + moeda, vende só o excedente e
+		# constrói de novo com os Créditos.
+		bought += _build_all(e)
+		e.sell_surplus(Recipes.reserve(e.upgrade_levels))
+		bought += _build_all(e)
 	var out: Dictionary = {
 		"depth": max_depth, "earned": e.lifetime_credits, "crystals": e.crystals, "bought": bought,
 		"marks": marks, "modules": e.equipped_modules.duplicate(), "levels": e.upgrade_levels.duplicate(),
@@ -158,6 +151,23 @@ static func run(strategy: StringName, minutes: float, world_seed: int = 2024, re
 	d.free()
 	guardian.free()
 	return out
+
+
+## Constrói a peça mais barata disponível, repetidamente. Retorna quantas construiu.
+static func _build_all(e: Economy) -> int:
+	var n: int = 0
+	while true:
+		var best: UpgradeDef = null
+		for u in UpgradeRegistry.all():
+			if Progression.buy_status(e, u) == Progression.BuyStatus.OK:
+				if best == null or Progression.cost(u, e.get_level(u.id)) < Progression.cost(best, e.get_level(best.id)):
+					best = u
+		if best == null or not Progression.try_buy(e, best):
+			return n
+		n += 1
+		if best.id in ModuleSystem.ALL and e.get_level(best.id) == 1:
+			e.toggle_module(best.id, Balance.MODULE_SLOTS)
+	return n
 
 
 static func _is_ore(id: int) -> bool:

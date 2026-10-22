@@ -105,7 +105,7 @@ const ORE_DENSITY: float = 0.35
 
 ## Custos em Créditos dos upgrades (×). A nave 1,5× colhe mais de cada veio; os preços
 ## dos minérios ficam altos (vale desviar) e o custo das melhorias acompanha.
-const UPGRADE_CREDIT_COST_MULT: float = 3.0
+const UPGRADE_CREDIT_COST_MULT: float = 1.5
 
 # --- Expedições (0.9) ---------------------------------------------------------------
 const FUEL_BASE: float = 120.0               ## Tanque inicial (≈ segundos de atividade).

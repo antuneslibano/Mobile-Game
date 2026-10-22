@@ -84,7 +84,7 @@ Ciclo: **Base → Expedição → Extração → Pesquisa/Construção → Base*
 
 ---
 
-## 0.10 — Base e construção
+## 0.10 — Base e construção ✅ (implementada)
 
 Tela da base com **estações tocáveis**:
 

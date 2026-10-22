@@ -16,7 +16,14 @@ static func is_maxed(def: UpgradeDef, level: int) -> bool:
 	return level >= def.max_level
 
 
-enum BuyStatus { OK, LOCKED, MAXED, NO_FUNDS }
+## LOCKED = fase futura; RESEARCH = projeto ainda não liberado (Recipes.requirement);
+## NO_MATERIALS = faltam materiais no armazém; NO_FUNDS = falta moeda.
+enum BuyStatus { OK, LOCKED, MAXED, NO_FUNDS, NO_MATERIALS, RESEARCH }
+
+
+## Materiais do próximo nível (receita da Bancada).
+static func materials(def: UpgradeDef, level: int) -> Dictionary:
+	return Recipes.materials(def, level)
 
 
 static func buy_status(econ: Economy, def: UpgradeDef) -> BuyStatus:
@@ -25,18 +32,24 @@ static func buy_status(econ: Economy, def: UpgradeDef) -> BuyStatus:
 	var level: int = econ.get_level(def.id)
 	if is_maxed(def, level):
 		return BuyStatus.MAXED
+	if Recipes.requirement(def, level, econ.discovered, econ.tech) != "":
+		return BuyStatus.RESEARCH
+	if not econ.has_materials(materials(def, level)):
+		return BuyStatus.NO_MATERIALS
 	if not econ.can_afford(def.currency, cost(def, level)):
 		return BuyStatus.NO_FUNDS
 	return BuyStatus.OK
 
 
-## Compra um nível. Operação atômica: ou debita e sobe o nível, ou não altera nada.
+## Constrói um nível. Operação atômica: ou debita moeda e materiais e sobe o nível, ou não
+## altera nada.
 static func try_buy(econ: Economy, def: UpgradeDef) -> bool:
 	if buy_status(econ, def) != BuyStatus.OK:
 		return false
 	var level: int = econ.get_level(def.id)
 	if not econ.spend(def.currency, cost(def, level)):
 		return false
+	econ.spend_materials(materials(def, level))
 	econ.set_level(def.id, level + 1)
 	return true
 

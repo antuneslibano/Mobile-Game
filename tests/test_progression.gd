@@ -30,13 +30,23 @@ func test_costs_grow_monotonically() -> void:
 func test_buy_is_atomic_and_respects_limits() -> void:
 	var e := Economy.new()
 	var dmg: UpgradeDef = UpgradeRegistry.get_def(&"damage")
+	var mats: Dictionary = Recipes.materials(dmg, 0)
+	check(not mats.is_empty(), "nível 1 da broca pede materiais (%s)" % str(mats))
+	check_eq(Progression.buy_status(e, dmg), Progression.BuyStatus.RESEARCH, "material nunca visto: projeto bloqueado")
+	e.collect({&"copper": 1})
+	e.cargo.erase(&"copper")
+	check_eq(Progression.buy_status(e, dmg), Progression.BuyStatus.NO_MATERIALS, "descoberto mas sem material no armazém")
+	for k: StringName in mats:
+		e.cargo[k] = int(mats[k]) + 2
 	check_eq(Progression.buy_status(e, dmg), Progression.BuyStatus.NO_FUNDS, "sem saldo")
 	check(not Progression.try_buy(e, dmg), "compra recusada sem saldo")
 	check_eq(e.get_level(&"damage"), 0, "nível inalterado")
+	check_eq(int(e.cargo[&"copper"]), int(mats[&"copper"]) + 2, "materiais preservados quando falha")
 	var c0: int = Progression.cost(dmg, 0)
 	e.credits = c0 + 5
-	check(Progression.try_buy(e, dmg), "compra com saldo")
+	check(Progression.try_buy(e, dmg), "constrói com saldo e materiais")
 	check_eq(e.credits, 5, "debitou exatamente o custo")
+	check_eq(int(e.cargo[&"copper"]), 2, "gastou exatamente os materiais")
 	check_eq(e.get_level(&"damage"), 1, "subiu um nível")
 	e.set_level(&"damage", dmg.max_level)
 	e.credits = 999999999
@@ -48,6 +58,43 @@ func test_buy_is_atomic_and_respects_limits() -> void:
 	check_eq(Progression.buy_status(e, locked), Progression.BuyStatus.LOCKED, "upgrade de fase futura bloqueado")
 	check(not Progression.try_buy(e, locked), "bloqueado não compra")
 	check_eq(e.crystals, 999, "cristais preservados")
+
+
+## Bancada (0.10): trilhas de materiais por tier, projeto grande após o guardião, reserva e
+## venda do excedente.
+func test_recipes_and_market() -> void:
+	for u in UpgradeRegistry.all():
+		check(Recipes.TRACKS.has(u.id), "%s tem receita" % u.id)
+		for lvl in [0, 4, 8, 12]:
+			for k: StringName in Recipes.materials(u, lvl):
+				check(ResourceRegistry.get_def(k) != null and ResourceRegistry.get_def(k).currency == &"", "%s nv %d: material %s existe e vai para o armazém" % [u.id, lvl, k])
+	var dmg: UpgradeDef = UpgradeRegistry.get_def(&"damage")
+	check(Recipes.materials(dmg, 0).keys() != Recipes.materials(dmg, 5).keys(), "a trilha muda de material no 2º tier")
+	var all_found: Dictionary = {}
+	for k in ResourceRegistry.order():
+		all_found[k] = true
+	check(Recipes.requirement(dmg, 9, all_found, 0).contains("guardião"), "3º tier pede vencer um guardião")
+	check_eq(Recipes.requirement(dmg, 9, all_found, 1), "", "guardião vencido libera o projeto grande")
+	var e := Economy.new()
+	e.collect({&"iron": 40, &"gold": 3})
+	var reserve: Dictionary = Recipes.reserve(e.upgrade_levels)
+	check(int(reserve.get(&"iron", 0)) > 0, "a Bancada reserva ferro")
+	var gained: int = e.sell_surplus(reserve)
+	check(gained > 0 and int(e.cargo.get(&"iron", 0)) == int(reserve[&"iron"]), "excedente vendido, reserva mantida")
+	check(not e.cargo.has(&"gold"), "ouro sem uso no próximo nível é excedente")
+	check_eq(e.sell(&"iron", 999), int(reserve[&"iron"]) * ResourceRegistry.get_def(&"iron").sell_value, "vender por recurso")
+	check(e.discovered.has(&"gold") and Economy.from_dict(e.to_dict()).discovered.has(&"gold"), "descobertas salvas")
+
+
+## Diário do Laboratório: entradas por descoberta e por guardião.
+func test_journal() -> void:
+	check_eq(Journal.unlocked({}, {}).size(), 1, "só a entrada inicial num perfil novo")
+	check(Journal.unlocked({&"copper": true}, {}).size() == 2, "descobrir cobre libera uma entrada")
+	check(Journal.unlocked({}, {&"vale": true}).size() == 2, "vencer o guardião do Vale libera uma entrada")
+	for e: Array in Journal.ENTRIES:
+		var trig: String = String(e[1])
+		if trig.begins_with("res:"):
+			check(ResourceRegistry.get_def(StringName(trig.substr(4))) != null, "entrada %s cita recurso existente" % e[0])
 
 
 func test_stats_reflect_levels_and_preview() -> void:

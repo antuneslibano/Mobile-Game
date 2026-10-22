@@ -15,12 +15,15 @@ extends Node
 ##   --fuel=F            (debug) combustível inicial (fração do tanque)
 ##   --extract-at=T      (com --autotest) chama a extração em T segundos
 ##   --guardian-hp=F     (debug) vida inicial do guardião da câmara final (fração)
+##   --grant-ores=N      (debug) N de cada minério comum no armazém
+##   --base-at=T / --station=KIND  (com --autotest) abre a base em T s e, opcional, a estação
 ## Em --autotest o salvamento fica desligado (não toca no perfil real).
 
 @onready var game: Game = $Game
 @onready var hud: Hud = $Hud
 var garage: Garage
 var world_map: WorldMap
+var base: BaseScreen
 var report: ExpeditionReport
 var _rescue: bool = false
 var _rescue_reason: StringName = &""
@@ -52,7 +55,13 @@ func _ready() -> void:
 	world_map.name = "WorldMap"
 	add_child(world_map)
 	world_map.explore_requested.connect(_on_explore)
-	world_map.garage_requested.connect(garage.open)
+	base = BaseScreen.new()
+	base.name = "BaseScreen"
+	add_child(base)
+	move_child(base, garage.get_index())
+	base.station_requested.connect(_on_station)
+	garage.closed.connect(func() -> void: base._refresh())
+	world_map.closed.connect(func() -> void: base._refresh())
 	report = ExpeditionReport.new()
 	report.name = "ExpeditionReport"
 	add_child(report)
@@ -70,16 +79,25 @@ func _ready() -> void:
 			game.drill.vitals.fuel = game.drill.vitals.fuel_max * clampf(float(args["fuel"]), 0.0, 1.0)
 		if OS.is_debug_build() and args.has("guardian-hp"):
 			game.guardian.hp = game.guardian.max_hp * clampf(float(args["guardian-hp"]), 0.01, 1.0)
+		if args.has("base-at"):
+			var st := StringName(String(args.get("station", "")))
+			get_tree().create_timer(float(args["base-at"])).timeout.connect(func() -> void:
+				base.open()
+				if st != &"":
+					_on_station(st))
 		if args.has("extract-at"):
 			get_tree().create_timer(float(args["extract-at"])).timeout.connect(extract)
 	else:
 		game.start_run(GameState.world_seed, -1, GameState.region_mods(GameState.region_id), GameState.done.has(GameState.region_id))
+	if OS.is_debug_build() and args.has("grant-ores"):
+		var n: float = float(args["grant-ores"])
+		GameState.collect_drops(Vector2.ZERO, {&"copper": n, &"iron": n, &"quartz": n, &"silver": n * 0.5, &"gold": n * 0.3, &"fossil": 2.0, &"amethyst": 3.0})
 	if OS.is_debug_build() and (args.has("grant-credits") or args.has("grant-crystals")):
 		GameState.economy.credits += int(args.get("grant-credits", "0"))
 		GameState.economy.crystals += int(args.get("grant-crystals", "0"))
-		GameState.sell_cargo()
+		GameState._emit_economy()
 	if not testing and not args.has("no-map"):
-		world_map.open()
+		base.open()
 	if testing:
 		var bot := Autopilot.new()
 		bot.name = "Autopilot"
@@ -115,9 +133,14 @@ static func _parse_args(raw: PackedStringArray) -> Dictionary:
 
 
 func _notification(what: int) -> void:
-	# "Voltar" no Android: fecha a garagem se aberta (tratado nela); senão encerra.
-	if what == NOTIFICATION_WM_GO_BACK_REQUEST and (garage == null or not garage.is_open()) \
-			and (world_map == null or world_map.is_open()):
+	# "Voltar" no Android: fecha a tela de cima (estação ou mapa); na base, encerra.
+	if what != NOTIFICATION_WM_GO_BACK_REQUEST:
+		return
+	if garage != null and garage.is_open():
+		garage.close()
+	elif world_map != null and world_map.is_open():
+		world_map.close()
+	elif base != null and base.is_open():
 		get_tree().quit()
 
 
@@ -125,6 +148,7 @@ func _notification(what: int) -> void:
 func _on_explore(region_id: StringName) -> void:
 	_start_expedition(region_id)
 	world_map.close()
+	base.close()
 
 
 ## start_row > 0 só em testes/depuração (--start-row).
@@ -173,4 +197,12 @@ func _on_extraction_finished() -> void:
 
 
 func _back_to_base() -> void:
-	world_map.open()
+	base.open()
+
+
+## Estação tocada na base.
+func _on_station(kind: StringName) -> void:
+	if kind == &"map":
+		world_map.open()
+	else:
+		garage.open_station(kind)

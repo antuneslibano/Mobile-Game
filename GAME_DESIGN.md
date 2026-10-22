@@ -284,6 +284,18 @@ resiste > 5 s; ≥3 expedições; 1ª expedição não passa da metade; combust�
 ≥10 upgrades; ≥1 módulo; 1ª Sobrecarga após 20 s; 2–30 Sobrecargas; carvão abastece) e
 `test_seeking_ores_beats_digging_straight` (≥ 4×).
 
+### 7.2.1b Construção na Bancada (0.10)
+Cada nível de peça custa moeda (custo em Créditos ×1,5) **e materiais** da trilha da peça
+(`scripts/economy/recipes.gd`): tier 1 nos níveis 1–4 (cobre, ferro, quartzo), tier 2 nos
+níveis 5–8 (prata, ametista, quartzo), tier 3 a partir do 9 (ouro, titânio, esmeralda,
+rubi…; **projeto grande**, exige um guardião vencido). Quantidade: 1 + nível/2 no tier 1,
+1 + (nível−4)/2 no tier 2, 1 + (nível−8)/3 no tier 3 (o secundário pede metade). O Mercado
+vende só o **excedente** (acima da reserva do próximo nível de cada peça).
+
+Simulação (Vale, 16–20 min, buscando minérios): ~70 peças construídas, câmara final aos
+~10 min, guardião vencido aos ~16 min; os níveis param no 8 até o primeiro guardião.
+Cavando reto quase não há materiais: ~3 peças.
+
 ### 7.2.2 Expedições (0.9)
 | Parâmetro `[T]` | Valor |
 |---|---|

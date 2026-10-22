@@ -37,6 +37,8 @@ var expedition_events: PackedStringArray = []
 var expedition_reached_final: bool = false
 ## Aviso para mostrar na base ao carregar (ex.: expedição interrompida).
 var pending_notice: String = ""
+## Entradas do diário já vistas no Laboratório (o resto aparece como novidade na base).
+var journal_seen: int = 0
 
 
 ## Perfil novo (sem salvamento): economia zerada, apenas a primeira região liberada.
@@ -54,6 +56,7 @@ func reset_profile() -> void:
 	world_mods = {}
 	expedition_active = false
 	pending_notice = ""
+	journal_seen = 0
 	_refresh_stats()
 
 
@@ -187,6 +190,7 @@ func complete_region(hull_ratio: float) -> void:
 	if done.has(r.id):
 		return
 	done[r.id] = true
+	economy.tech = done.size()
 	complete_objective(r.id, &"final")
 	if hull_ratio >= 0.5:
 		complete_objective(r.id, &"guardian")
@@ -316,6 +320,7 @@ func to_profile() -> Dictionary:
 		"rstats": stats_out,
 		"worlds": _string_keys(world_mods),
 		"expedition": exp,
+		"journal_seen": journal_seen,
 	}
 
 
@@ -400,6 +405,13 @@ func apply_profile(d: Dictionary) -> void:
 		var report: Dictionary = end_expedition(true, &"interrupted")
 		if int(report.value_lost) > 0:
 			pending_notice = "Expedição interrompida: resgate de emergência (−%d créditos em carga)." % int(report.value_lost)
+	economy.tech = done.size()
+	journal_seen = maxi(0, int(d.get("journal_seen", 0)))
+	# Salvamento anterior à 0.10: o que já foi coletado na região conta como descoberto.
+	for stats_id: StringName in region_stats:
+		for k: Variant in (region_stats[stats_id] as Dictionary).get("res", {}):
+			if ResourceRegistry.get_def(StringName(str(k))) != null:
+				economy.discovered[StringName(str(k))] = true
 	_refresh_stats()
 
 
@@ -455,6 +467,24 @@ func _count_research(gained: Dictionary) -> void:
 	for o: Dictionary in region().objectives:
 		if o.kind == &"collect" and not is_objective_done(region_id, o.id) and int(res.get(String(o.key), 0)) >= int(o.target):
 			complete_objective(region_id, o.id)
+
+
+## Mercado: vende um recurso (n unidades; -1 = tudo).
+func sell_resource(key: StringName, n: int = -1) -> int:
+	var value: int = economy.sell(key, int(economy.cargo.get(key, 0)) if n < 0 else n)
+	if value > 0:
+		EventBus.cargo_sold.emit(value)
+	_emit_economy()
+	return value
+
+
+## Mercado: vende só o que a Bancada não precisa (reserva do próximo nível de cada peça).
+func sell_surplus() -> int:
+	var value: int = economy.sell_surplus(Recipes.reserve(economy.upgrade_levels))
+	if value > 0:
+		EventBus.cargo_sold.emit(value)
+	_emit_economy()
+	return value
 
 
 func sell_cargo() -> int:

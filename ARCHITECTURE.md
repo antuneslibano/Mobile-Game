@@ -325,3 +325,18 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
 - **Persistência**: `profile_seed` → `region_seed(id)`; escavação por região codificada
   (índice local u16 + material u8, base64 por chunk); objetivos, estatísticas por
   região e a expedição em andamento (fechar o app no meio = resgate) vão no perfil.
+
+## 14. Base e construção (0.10)
+
+- **Fluxo**: `Main` abre `BaseScreen` (galpão desenhado por `BaseView`, cinco botões de
+  estação) ao iniciar e depois de cada relatório. `station_requested` → `&"map"` abre o
+  `WorldMap` (EXPLORAR fecha mapa e base); as demais abrem `Garage.open_station(kind)`
+  (páginas Bancada, Hangar, Mercado e Laboratório). Mapa e estações restauram a pausa ao
+  fechar; o "voltar" do Android fecha a tela de cima e, na base, encerra.
+- **Receitas** (`Recipes`): trilha de materiais por peça e tier; `requirement` (material não
+  descoberto ou projeto grande sem guardião); `reserve` (maior pedido de cada material pelos
+  próximos níveis). `Progression.buy_status/try_buy` checam e gastam materiais (atômico).
+- **Economia**: `Economy.discovered` (salvo) e `tech` (guardiões vencidos, derivado de
+  `GameState.done`); `sell`, `sell_surplus`, `spend_materials`.
+- **Diário** (`Journal`): entradas com gatilho `res:<recurso>` / `guardian:<região>`;
+  `GameState.journal_seen` controla o alerta do Laboratório.

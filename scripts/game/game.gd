@@ -147,20 +147,9 @@ func _guardian_step(delta: float, intent: DrillIntent) -> void:
 		_on_guardian_defeated()
 
 
-## Células do corpo do guardião (para abrir o piso quando ele é vencido).
-static func guardian_body_cells(g: FinalGuardian) -> Rect2i:
-	var half: int = (Balance.FINAL_CHAMBER_HALF_WIDTH + 1) * Balance.CELL_SUB
-	var cx: int = floori(g.center.x / Balance.CELL_PX)
-	var x0: int = maxi(Balance.WALL_CELLS, cx - half)
-	var x1: int = mini(Balance.WORLD_CELLS_X - Balance.WALL_CELLS - 1, cx + half)
-	var y0: int = roundi(g.body_top / Balance.CELL_PX)
-	var y1: int = roundi(g.floor_y / Balance.CELL_PX)
-	return Rect2i(x0, y0, x1 - x0 + 1, y1 - y0)
-
-
 func _on_guardian_defeated() -> void:
 	var c: Vector2 = guardian.center + Vector2(0, Balance.BLOCK_PX)
-	world.fill_cells(guardian_body_cells(guardian), BlockRegistry.AIR)
+	world.fill_cells(guardian.body_cells(), BlockRegistry.AIR)
 	for i in 5:
 		fx.emit_burst(Vector2(lerpf(guardian.x0, guardian.x1, i / 4.0), guardian.body_top + 30.0), guardian.glow_color, 20, 420.0, 1.1, 5.0, 400.0)
 	fx.emit_burst(c, Color("fff2a8"), 40, 420.0, 1.0, 3.0, 150.0)

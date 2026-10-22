@@ -149,6 +149,17 @@ func take_damage(amount: float) -> bool:
 	return true
 
 
+## Células do corpo (para abrir o piso quando o guardião é vencido).
+func body_cells() -> Rect2i:
+	var half: int = (Balance.FINAL_CHAMBER_HALF_WIDTH + 1) * Balance.CELL_SUB
+	var cx: int = floori(center.x / Balance.CELL_PX)
+	var c0: int = maxi(Balance.WALL_CELLS, cx - half)
+	var c1: int = mini(Balance.WORLD_CELLS_X - Balance.WALL_CELLS - 1, cx + half)
+	var y0: int = roundi(body_top / Balance.CELL_PX)
+	var y1: int = roundi(floor_y / Balance.CELL_PX)
+	return Rect2i(c0, y0, c1 - c0 + 1, y1 - y0)
+
+
 ## Quanto um ataque está para fora (0..1).
 static func extension(a: Dictionary) -> float:
 	var t: float = float(a.t) - float(a.warn)

@@ -3,11 +3,10 @@ extends CanvasLayer
 ## Mapa mundial = base entre expedições (0.9): carrossel com uma região por vez e painel
 ## com descrição, dificuldade, objetivos (principal, pesquisa, estrelas), camadas até o
 ## fundo, recursos, riscos e equipamentos. Toda expedição parte da superfície.
-## EXPLORAR começa uma expedição; GARAGEM abre a garagem (só na base). Pausa o jogo enquanto
+## EXPLORAR começa uma expedição; BASE (ou o X) volta à base. Pausa o jogo enquanto
 ## aberto. Só lê GameState/registros; quem escuta explore_requested (Main) inicia a expedição.
 
 signal explore_requested(region_id: StringName)
-signal garage_requested
 signal closed
 
 var _root: Control
@@ -39,6 +38,7 @@ func open() -> void:
 	if visible:
 		return
 	visible = true
+	_was_paused = get_tree().paused
 	get_tree().paused = true
 	_credits.text = UiTheme.short_number(GameState.economy.credits)
 	_crystals.text = UiTheme.short_number(GameState.economy.crystals)
@@ -47,11 +47,14 @@ func open() -> void:
 	EventBus.map_opened.emit()
 
 
+var _was_paused: bool = false
+
+
 func close() -> void:
 	if not visible:
 		return
 	visible = false
-	get_tree().paused = false
+	get_tree().paused = _was_paused
 	EventBus.map_closed.emit()
 	closed.emit()
 
@@ -75,14 +78,9 @@ func explore() -> bool:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if visible and event.is_action_pressed("ui_cancel") and GameState.expedition_active:
+	if visible and event.is_action_pressed("ui_cancel"):
 		close()
 		get_viewport().set_input_as_handled()
-
-
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_GO_BACK_REQUEST and visible and GameState.expedition_active:
-		close()
 
 
 # --- Construção ----------------------------------------------------------------------
@@ -174,12 +172,12 @@ func _build() -> void:
 	bottom.add_theme_constant_override("separation", 10)
 	v.add_child(bottom)
 	_garage = Button.new()
-	_garage.name = "GarageButton"
-	_garage.text = UiTheme.display_text("GARAGEM")
+	_garage.name = "BaseButton"
+	_garage.text = UiTheme.display_text("< BASE")
 	_garage.custom_minimum_size = Vector2(230, 88)
 	_garage.add_theme_font_size_override("font_size", UiTheme.font_size(30, 700))
 	UiTheme.style_button(_garage, &"gold")
-	_garage.pressed.connect(func() -> void: garage_requested.emit())
+	_garage.pressed.connect(close)
 	bottom.add_child(_garage)
 	bottom.add_child(_explore)
 
@@ -346,7 +344,7 @@ func _refresh() -> void:
 		_explore.text = UiTheme.display_text("EXPLORAR  >")
 		_explore.disabled = false
 		UiTheme.style_button(_explore, &"green")
-	_close.visible = GameState.expedition_active
+	_close.visible = true
 	_scroll.scroll_vertical = 0
 
 

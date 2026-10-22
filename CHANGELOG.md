@@ -3,6 +3,26 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.10.0] — Base de pesquisa e construção
+
+### Adicionado
+- **Base de pesquisa**: o hub entre expedições é um galpão em pixel art com cinco
+  **estações tocáveis**, cada uma com placa e alerta "!" quando há novidade:
+  - **Mesa de mapas**: mapa mundial e expedição (também no botão EXPEDIÇÃO);
+  - **Bancada**: construir peças com **materiais + Créditos/Cristais** (receita com tem/precisa);
+  - **Hangar**: nave, atributos e módulos (equipar/remover);
+  - **Mercado**: armazém; vender por recurso, **só o excedente** (o que a Bancada não usa) ou tudo;
+  - **Laboratório**: catálogo de minerais descobertos e **diário de pesquisa** (história).
+- **Receitas**: cada peça tem uma trilha de materiais em 3 tiers (níveis 1–4, 5–8, 9+);
+  um nível só vira projeto quando seus materiais foram descobertos; o 3º tier é um
+  **projeto grande**, liberado ao vencer um guardião.
+- 20 entradas no diário, liberadas por descobertas e pelo guardião do Vale.
+
+### Alterado
+- Economia híbrida: custo em Créditos das peças ×1,5 (era ×3), já que os minérios agora
+  também são materiais.
+- O mapa mundial abre pela base (botão "< BASE" volta); a garagem virou as estações.
+
 ## [0.9.2] — Combate contra o guardião
 
 ### Alterado

@@ -13,6 +13,10 @@ var upgrade_levels: Dictionary = {}   ## StringName → int
 var lifetime_credits: int = 0
 ## Módulos equipados (ordem = slot). Limite em Balance.MODULE_SLOTS.
 var equipped_modules: Array[StringName] = []
+## Recursos já coletados alguma vez (catálogo do Laboratório e projetos da Bancada).
+var discovered: Dictionary = {}       ## StringName → true
+## Nível tecnológico: guardiões de câmara final vencidos (libera projetos grandes).
+var tech: int = 0
 var _fraction: Dictionary = {}        ## StringName → float (sobra do multiplicador de coleta)
 
 
@@ -31,6 +35,7 @@ func collect(drops: Dictionary, mult: float = 1.0) -> Dictionary:
 		if n <= 0:
 			continue
 		gained[key] = n
+		discovered[key] = true
 		if def.currency == CRYSTALS:
 			crystals += n
 		else:
@@ -52,6 +57,50 @@ func cargo_value() -> int:
 		if def != null:
 			v += def.sell_value * int(cargo[key])
 	return v
+
+
+## Vende até n unidades de um recurso do armazém. Retorna os Créditos recebidos.
+func sell(key: StringName, n: int) -> int:
+	var have: int = int(cargo.get(key, 0))
+	var def: ResourceDef = ResourceRegistry.get_def(key)
+	n = mini(n, have)
+	if def == null or n <= 0:
+		return 0
+	if have - n > 0:
+		cargo[key] = have - n
+	else:
+		cargo.erase(key)
+	var value: int = def.sell_value * n
+	credits += value
+	lifetime_credits += value
+	return value
+
+
+## Vende só o excedente: o que passa da reserva ({recurso: quantidade}).
+func sell_surplus(reserve: Dictionary) -> int:
+	var value: int = 0
+	for key: StringName in cargo.keys():
+		value += sell(key, int(cargo[key]) - int(reserve.get(key, 0)))
+	return value
+
+
+func has_materials(mats: Dictionary) -> bool:
+	for k: Variant in mats:
+		if int(cargo.get(StringName(k), 0)) < int(mats[k]):
+			return false
+	return true
+
+
+## Gasta materiais do armazém (atômico: só se tiver todos).
+func spend_materials(mats: Dictionary) -> bool:
+	if not has_materials(mats):
+		return false
+	for k: Variant in mats:
+		var key := StringName(k)
+		cargo[key] = int(cargo[key]) - int(mats[k])
+		if int(cargo[key]) <= 0:
+			cargo.erase(key)
+	return true
 
 
 ## Vende toda a carga. Retorna os Créditos recebidos.
@@ -100,9 +149,12 @@ func to_dict() -> Dictionary:
 	var eq: Array = []
 	for m in equipped_modules:
 		eq.append(String(m))
+	var disc: Array = []
+	for k: StringName in discovered:
+		disc.append(String(k))
 	return {
 		"credits": credits, "crystals": crystals, "lifetime_credits": lifetime_credits,
-		"cargo": cargo_out, "upgrades": levels, "equipped": eq,
+		"cargo": cargo_out, "upgrades": levels, "equipped": eq, "discovered": disc,
 	}
 
 
@@ -125,6 +177,13 @@ static func from_dict(d: Dictionary) -> Economy:
 			var def: UpgradeDef = UpgradeRegistry.get_def(StringName(str(k)))
 			if def != null:
 				e.upgrade_levels[def.id] = clampi(int(up_in[k]), 0, def.max_level)
+	var disc_in: Variant = d.get("discovered", [])
+	if disc_in is Array:
+		for k: Variant in disc_in:
+			if ResourceRegistry.get_def(StringName(str(k))) != null:
+				e.discovered[StringName(str(k))] = true
+	for k: StringName in e.cargo:
+		e.discovered[k] = true
 	var eq_in: Variant = d.get("equipped", [])
 	if eq_in is Array:
 		for m: Variant in eq_in:
