@@ -269,13 +269,13 @@ compram o upgrade mais barato:
   cava para baixo;
 - **reto** – só cava para baixo (desvia na diagonal quando presa).
 
-| 10 min (Vale) | Buscando minérios | Cavando reto (6 min) |
+| 10 min (Vale, nave 1,5×, custos ×3) | Buscando minérios | Cavando reto |
 |---|---|---|
-| Profundidade | ~281 m | ~211 m |
-| Créditos ganhos | ~6 800 | ~30 |
-| Upgrades | ~41 | 2 |
-| Marcos | 50 m@52 s, 100 m@71 s, 200 m@145 s | 50 m@39 s, 200 m@311 s |
-| Sobrecargas | 7 (1ª aos 49 s) | 0 |
+| Profundidade | ~283 m | ~249 m (10 min) |
+| Créditos ganhos | ~10 400 | ~60 |
+| Upgrades | ~32 | 1 |
+| Marcos | 50 m@35 s, 100 m@70 s, 200 m@130 s | 50 m@22 s, 200 m@322 s |
+| Sobrecargas | 8 (1ª aos 31 s) | 1 |
 
 Testes: `test_balance_simulation_greedy_player` (buscando minérios: 50 m entre 20 s e 5 min;
 120–450 m em 10 min; ≥10 upgrades; ≥1 módulo; 1ª Sobrecarga após 30 s; 2–25 Sobrecargas) e

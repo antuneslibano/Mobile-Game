@@ -74,7 +74,7 @@ func test_digging_down_progresses() -> void:
 func test_diagonal_draws_its_own_path() -> void:
 	var w := _model(12)
 	_rect(w, Vector2(60, 0), Vector2(1100, 900), BlockRegistry.DIRT)
-	var start := Vector2(300, -20)
+	var start := Vector2(300, -Balance.DRILL_RADIUS_PX - 5.0)
 	var d := _new_drill(w, start)
 	_run(d, DrillIntent.new(), 0.5)
 	var p0: Vector2 = d.position
@@ -149,7 +149,7 @@ func test_no_tunneling_when_falling_fast() -> void:
 		var w := _model(16)
 		_rect(w, Vector2(60, 0), Vector2(1100, 3000), BlockRegistry.STONE)
 		_rect(w, Vector2(480, 0), Vector2(600, 2400), BlockRegistry.AIR)
-		var d := _new_drill(w, Vector2(540, -20))
+		var d := _new_drill(w, Vector2(540, -Balance.DRILL_RADIUS_PX - 5.0))
 		var r := _run(d, DrillIntent.new(), 5.0, dt)
 		check_eq(r.x, 0, "queda rápida sem atravessar (dt=%.3f)" % dt)
 		check(absf(d.position.y + d.radius - 2400.0) < 2.0, "parou sobre o piso (dt=%.3f, base %.1f)" % [dt, d.position.y + d.radius])
@@ -176,7 +176,7 @@ func test_more_damage_digs_faster() -> void:
 	for dmg: float in [4.0, 20.0]:
 		var w := _model(18)
 		_rect(w, Vector2(60, 0), Vector2(1100, 2000), BlockRegistry.STONE)
-		var d := _new_drill(w, Vector2(540, -20))
+		var d := _new_drill(w, Vector2(540, -Balance.DRILL_RADIUS_PX - 5.0))
 		d.stats.damage = dmg
 		_run(d, _aim(Vector2.DOWN), 6.0)
 		depths.append(d.position.y)

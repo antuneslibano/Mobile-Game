@@ -95,7 +95,7 @@ func test_overdrive_digs_faster_and_wider() -> void:
 	for boost: bool in [false, true]:
 		var w := _model(42)
 		_rect(w, Vector2(60, 0), Vector2(1100, 1500), BlockRegistry.STONE)
-		var d := _drill(w, Vector2(540, -20))
+		var d := _drill(w, Vector2(540, -Balance.DRILL_RADIUS_PX - 5.0))
 		if boost:
 			d.energy.add_charge(1000.0)
 		var it := DrillIntent.new()
@@ -127,7 +127,7 @@ func test_side_drill_widens_tunnel() -> void:
 	for equip: bool in [false, true]:
 		var w := _model(43)
 		_rect(w, Vector2(60, 0), Vector2(1100, 900), BlockRegistry.DIRT)
-		var d := _drill(w, Vector2(540, -20), {&"side_drill": 5})
+		var d := _drill(w, Vector2(540, -Balance.DRILL_RADIUS_PX - 5.0), {&"side_drill": 5})
 		if equip:
 			d.modules.set_equipped([&"side_drill"] as Array[StringName])
 		var it := DrillIntent.new()

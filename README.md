@@ -166,7 +166,8 @@ Instalar: `adb install -r build/deepforge.apk`, ou copie o APK para o celular e 
 | 2 | Recursos, inventário, garagem, economia, upgrades | ✅ concluída |
 | 3 | Escavação livre, terreno orgânico, joystick, módulos, energia/Sobrecarga, calor, sinergias | ✅ concluída |
 | — | Mapa mundial com 6 regiões, terrenos × depósitos, salvamento do perfil | ✅ |
-| 4 | Prestígio, testes, balanceamento | pendente |
+| — | Minérios raros/valiosos com brilho, nave 1,5× | ✅ |
+| 0.9–0.11 | Expedições (combustível, extração, elevadores, fundo e objetivos por região), base com construção, criaturas — ver [ROADMAP_EXPEDICOES.md](ROADMAP_EXPEDICOES.md) | planejado |
 | 5 | Arte, efeitos, áudio, otimização, exportação Android | pendente |
 
 ## Limitações conhecidas

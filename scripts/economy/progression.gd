@@ -8,7 +8,8 @@ const MAX_COOLING: float = 0.9
 
 
 static func cost(def: UpgradeDef, level: int) -> int:
-	return maxi(1, roundi(def.base_cost * pow(def.cost_growth, level)))
+	var mult: float = Balance.UPGRADE_CREDIT_COST_MULT if def.currency == Economy.CREDITS else 1.0
+	return maxi(1, roundi(def.base_cost * mult * pow(def.cost_growth, level)))
 
 
 static func is_maxed(def: UpgradeDef, level: int) -> bool:

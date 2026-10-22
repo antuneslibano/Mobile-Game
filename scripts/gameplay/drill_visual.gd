@@ -5,7 +5,7 @@ extends Node2D
 ## Apenas lê o estado do nó Drill pai; nenhuma regra de jogo aqui.
 
 ## Tamanho do pixel de arte da nave em jogo.
-const ART_SCALE: float = 2.0
+const ART_SCALE: float = 3.0  ## 1 pixel do sprite = 3 px (mesmo pixel de arte do terreno).
 
 var drill: Drill
 var _t: float = 0.0

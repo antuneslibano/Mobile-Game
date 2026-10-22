@@ -34,9 +34,9 @@ const DRILL_BASE_CRIT_CHANCE: float = 0.05
 const DRILL_BASE_CRIT_MULT: float = 2.0
 const DRILL_MOVE_SPEED_BLOCKS: float = 4.5
 const DRILL_ACCEL_BLOCKS: float = 40.0
-const DRILL_RADIUS_PX: float = 15.0      ## Corpo (círculo de colisão; menor que a broca em qualquer ângulo).
-const BIT_RADIUS_PX: float = 24.0        ## Área cavada à frente (> corpo: o túnel cabe a máquina).
-const BIT_OFFSET_PX: float = 12.0        ## Centro da broca à frente do corpo.
+const DRILL_RADIUS_PX: float = 22.5      ## Corpo (círculo de colisão; menor que a broca em qualquer ângulo). Nave 1,5× (0.8.1).
+const BIT_RADIUS_PX: float = 36.0        ## Área cavada à frente (> corpo: o túnel cabe a máquina).
+const BIT_OFFSET_PX: float = 18.0        ## Centro da broca à frente do corpo.
 const GRAVITY_BLOCKS: float = 32.0
 const MAX_FALL_BLOCKS: float = 14.0
 const MIN_DAMAGE_RATIO: float = 0.15
@@ -65,8 +65,8 @@ const HEAT_PENALTY_MAX: float = 0.3
 
 # --- Módulos (Fase 3) -----------------------------------------------------------------
 const MODULE_SLOTS: int = 2
-const SIDE_DRILL_RADIUS_PX: float = 5.0      ## Broca lateral: alarga a área cavada…
-const SIDE_DRILL_RADIUS_PER_LEVEL: float = 1.2
+const SIDE_DRILL_RADIUS_PX: float = 7.5      ## Broca lateral: alarga a área cavada…
+const SIDE_DRILL_RADIUS_PER_LEVEL: float = 1.8
 const DRONE_INTERVAL: float = 1.6
 const DRONE_INTERVAL_PER_LEVEL: float = 0.09
 const DRONE_DAMAGE_RATIO: float = 0.6        ## Dano do drone (× dano da broca).
@@ -102,3 +102,7 @@ const PICKUP_TEXT_MAX: int = 14
 ## Multiplica a chance de todos os minérios de veio (especiais raros não mudam). Junto com
 ## os veios concentrados do gerador, deixa poucos aglomerados por tela.
 const ORE_DENSITY: float = 0.35
+
+## Custos em Créditos dos upgrades (×). A nave 1,5× colhe mais de cada veio; os preços
+## dos minérios ficam altos (vale desviar) e o custo das melhorias acompanha.
+const UPGRADE_CREDIT_COST_MULT: float = 3.0

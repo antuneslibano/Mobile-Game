@@ -3,6 +3,18 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.8.1] — Nave maior
+
+### Alterado
+- **Nave 1,5× maior** (1 pixel do sprite = 3 px, o mesmo pixel de arte do terreno); corpo,
+  broca e broca lateral crescem junto, então o túnel continua do tamanho da nave.
+- Custo em Créditos dos upgrades ×3: a nave maior colhe mais de cada veio (simulação de
+  10 min buscando minérios: ~283 m, ~32 upgrades, ~10 400 créditos; cavando reto: ~60).
+
+### Documentação
+- `ROADMAP_EXPEDICOES.md`: plano das versões 0.9 (expedições), 0.10 (base e construção) e
+  0.11 (criaturas) com as decisões tomadas.
+
 ## [0.8.0] — Minérios raros, valiosos e brilhantes
 
 ### Alterado
