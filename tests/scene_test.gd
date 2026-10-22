@@ -68,15 +68,20 @@ func _run() -> void:
 	for kind: String in ["map", "lab", "bench", "hangar", "market"]:
 		_check(base.find_child("Station_" + kind, true, false) != null, "estação %s tocável" % kind)
 	_check(base.has_badge(&"lab"), "laboratório avisa a primeira entrada do diário")
-	# Porta de metal: tocar numa estação desce a porta, troca a tela por trás e sobe.
-	(base.find_child("Station_bench", true, false) as Button).pressed.emit()
+	# Porta de metal (só no Laboratório): desce, troca a tela por trás e sobe.
+	(base.find_child("Station_lab", true, false) as Button).pressed.emit()
 	await _frames(2)
 	_check(Transitions.shutter_busy() and not main.get_node("Garage").call("is_open"), "porta de metal desce antes de trocar de tela")
 	var door_frames: int = 0
 	while Transitions.shutter_busy() and door_frames < 300:
 		await _frames(1)
 		door_frames += 1
-	_check(main.get_node("Garage").call("is_open") and not Transitions.shutter_busy(), "a porta sobe com a Bancada aberta (%d quadros)" % door_frames)
+	_check(main.get_node("Garage").call("is_open") and not Transitions.shutter_busy(), "a porta sobe com o Laboratório aberto (%d quadros)" % door_frames)
+	main.get_node("Garage").call("close")
+	await _frames(2)
+	(base.find_child("Station_bench", true, false) as Button).pressed.emit()
+	await _frames(2)
+	_check(not Transitions.shutter_busy() and main.get_node("Garage").call("is_open"), "Bancada abre direto, sem porta")
 	main.get_node("Garage").call("close")
 	await _frames(2)
 	# O resto do teste troca de tela muitas vezes: sem porta, a troca é imediata.

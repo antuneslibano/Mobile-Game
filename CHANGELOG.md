@@ -3,6 +3,16 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.15.1] — Porta só no Laboratório e compatibilidade
+
+### Alterado
+- A porta de metal agora só aparece ao entrar e sair do Laboratório; as demais telas
+  voltaram a entrar deslizando (com o "whoosh"), como na 0.14. Sons da porta mais baixos.
+
+### Corrigido
+- APK também para celulares com Android 32 bits (armeabi-v7a), além de 64 bits.
+- Abas do Laboratório recriadas na hora (o catálogo não perdia o nome ao reabrir).
+
 ## [0.15.0] — Porta de metal, plantas que brilham e volume
 
 ### Adicionado

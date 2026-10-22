@@ -166,10 +166,9 @@ func _notification(what: int) -> void:
 func _on_explore(region_id: StringName) -> void:
 	if Transitions.shutter_busy():
 		return
-	Transitions.shutter(get_tree(), func() -> void:
-		_start_expedition(region_id)
-		world_map.close()
-		base.close())
+	_start_expedition(region_id)
+	world_map.close()
+	base.close()
 
 
 ## start_row > 0 só em testes/depuração (--start-row).
@@ -222,12 +221,14 @@ func _back_to_base() -> void:
 
 
 ## Estação tocada na base.
-## A troca passa pela porta de metal (Transitions.shutter).
+## Só o Laboratório abre pela porta de metal (Transitions.shutter); as outras estações
+## entram deslizando.
 func _on_station(kind: StringName) -> void:
 	if Transitions.shutter_busy():
 		return
-	Transitions.shutter(get_tree(), func() -> void:
-		if kind == &"map":
-			world_map.open()
-		else:
-			garage.open_station(kind))
+	if kind == &"map":
+		world_map.open()
+	elif kind == &"lab":
+		Transitions.shutter(get_tree(), func() -> void: garage.open_station(kind))
+	else:
+		garage.open_station(kind)

@@ -45,6 +45,8 @@ func open() -> void:
 	_crystals.text = UiTheme.short_number(GameState.economy.crystals)
 	_carousel.setup(RegionRegistry.all(), RegionRegistry.index_of(GameState.region_id))
 	_refresh()
+	Transitions.slide_in(_root)
+	Sfx.play(&"whoosh")
 	EventBus.map_opened.emit()
 
 
@@ -60,10 +62,9 @@ func close() -> void:
 	closed.emit()
 
 
-## Volta para a base passando pela porta de metal.
+## Volta para a base (a base aparece com fade).
 func close_animated() -> void:
-	if visible and not Transitions.shutter_busy():
-		Transitions.shutter(get_tree(), close)
+	close()
 
 
 func current_region() -> RegionDef:

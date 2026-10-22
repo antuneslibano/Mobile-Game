@@ -79,6 +79,9 @@ func open_station(kind: StringName) -> void:
 		_was_paused = get_tree().paused
 		get_tree().paused = true
 		EventBus.garage_opened.emit()
+		if _kind != &"lab":  # o Laboratório entra pela porta de metal
+			Transitions.slide_in(_root)
+			Sfx.play(&"whoosh")
 	else:
 		Transitions.fade_in(_root, 0.18)
 	_show_page()
@@ -93,10 +96,14 @@ func station() -> StringName:
 	return _kind
 
 
-## Volta para a base passando pela porta de metal.
+## Volta para a base: do Laboratório pela porta de metal; das outras estações direto.
 func close_animated() -> void:
-	if visible and not Transitions.shutter_busy():
+	if not visible or Transitions.shutter_busy():
+		return
+	if _kind == &"lab":
 		Transitions.shutter(get_tree(), close)
+	else:
+		close()
 
 
 func close() -> void:
@@ -511,6 +518,7 @@ func _refresh_market(econ: Economy) -> void:
 
 func _refresh_lab(econ: Economy) -> void:
 	for c in _lab_box.get_children():
+		_lab_box.remove_child(c)  # sai já da árvore: o novo "Catalog" mantém o nome
 		c.queue_free()
 	# Abas: só uma seção aparece por vez (o catálogo não fica todo à mostra).
 	var tabs := HBoxContainer.new()

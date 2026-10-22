@@ -26,15 +26,15 @@ func _ready() -> void:
 	var vp: Vector2 = get_viewport().get_visible_rect().size
 	_panel.size = vp
 	_panel.position = Vector2(0, -vp.y)
-	Sfx.play(&"shutter", 1.0, -4.0)
+	Sfx.play(&"shutter", 1.0, -14.0)
 	var tw: Tween = create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tw.tween_property(_panel, "position:y", 0.0, DOWN_SEC).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tw.tween_callback(func() -> void: Sfx.play(&"door_slam", 1.0, -2.0))
+	tw.tween_callback(func() -> void: Sfx.play(&"door_slam", 1.0, -13.0))
 	tw.tween_property(_panel, "position:y", -22.0, 0.07).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.tween_property(_panel, "position:y", 0.0, 0.07).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_interval(HOLD_SEC)
 	tw.tween_callback(_swap)
-	tw.tween_callback(func() -> void: Sfx.play(&"shutter", 0.85, -6.0))
+	tw.tween_callback(func() -> void: Sfx.play(&"shutter", 0.85, -16.0))
 	tw.tween_property(_panel, "position:y", -vp.y, UP_SEC).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	tw.tween_callback(queue_free)
 
