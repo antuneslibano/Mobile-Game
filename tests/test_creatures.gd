@@ -160,13 +160,29 @@ func test_chests_and_blueprints() -> void:
 	check_eq(ShipLooks.resolve({}, e, {})[&"drill"], &"steel", "planta não troca o visual sozinha")
 	check(Economy.from_dict(e.to_dict()).blueprints.has(&"bp_ember"), "plantas salvas")
 	check(ShipArt.build(0, {&"drill": &"ember", &"hull": &"gilded", &"engine": &"firefly", &"paint": &"chrome"}).get_width() == ShipArt.W, "visuais de planta desenham")
+	# 0.14: tocar no baú coleta o bloco inteiro de uma vez (não precisa quebrar aos poucos).
+	var w := WorldModel.new(12, RegionRegistry.get_def(RegionRegistry.VALE))
+	var sub: int = Balance.CELL_SUB
+	var blk := Vector2i(10, 30)
+	w.get_chunk(WorldModel.chunk_index_for_row(blk.y * sub))
+	for y in sub:
+		for x in sub:
+			w.set_cell(blk * sub + Vector2i(x, y), BlockRegistry.CHEST)
+	var one: Array[Vector2i] = [blk * sub]
+	var dr: WorldModel.DigResult = w.dig_cells(one, 0.01)
+	var left: int = 0
+	for y in sub:
+		for x in sub:
+			if w.peek_cell(blk * sub + Vector2i(x, y)) == BlockRegistry.CHEST:
+				left += 1
+	check(left == 0 and dr.chest_blocks == [blk], "um toque coleta o baú inteiro (%d células restantes)" % left)
 
 
 ## 0.12: sons sintetizados existem e têm o formato certo.
 func test_sounds() -> void:
 	var s := load("res://scripts/audio/sfx.gd").new() as Node
 	s.call("_build_all")
-	for n: StringName in [&"drill", &"engine", &"hit", &"break", &"clank", &"pickup", &"chest", &"ship_hit", &"creature", &"boost", &"click"]:
+	for n: StringName in [&"drill", &"engine", &"hit", &"break", &"clank", &"pickup", &"chest", &"ship_hit", &"creature", &"boost", &"click", &"whoosh", &"firefly", &"mole", &"spider", &"worm", &"bite"]:
 		var st: AudioStreamWAV = (s.get("_streams") as Dictionary).get(n)
 		check(st != null and st.data.size() > 100, "som %s gerado" % n)
 	var drill: AudioStreamWAV = (s.get("_streams") as Dictionary)[&"drill"]

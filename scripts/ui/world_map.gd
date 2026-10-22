@@ -45,6 +45,8 @@ func open() -> void:
 	_crystals.text = UiTheme.short_number(GameState.economy.crystals)
 	_carousel.setup(RegionRegistry.all(), RegionRegistry.index_of(GameState.region_id))
 	_refresh()
+	Transitions.slide_in(_root)
+	Sfx.play(&"whoosh")
 	EventBus.map_opened.emit()
 
 

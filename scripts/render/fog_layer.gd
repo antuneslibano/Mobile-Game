@@ -43,18 +43,19 @@ func _process(_delta: float) -> void:
 	_mat.set_shader_parameter("rect_size", vp)
 	_mat.set_shader_parameter("ship_pos", xf * drill.global_position)
 	_mat.set_shader_parameter("radius", Balance.LIGHT_RADIUS_BLOCKS * Balance.BLOCK_PX * sc)
-	_mat.set_shader_parameter("strength", 0.94 * s)
+	_mat.set_shader_parameter("strength", 0.86 * s)
 	var lights: Array[Vector4] = []
 	if guardian != null and guardian.alive and guardian.in_arena(drill.position):
 		var gp: Vector2 = xf * (guardian.center + Vector2(0, Balance.BLOCK_PX))
 		lights.append(Vector4(gp.x, gp.y, 9.0 * Balance.BLOCK_PX * sc, 0.9))
-	if sonar != null and sonar.wave_active():
+	var glow: float = sonar.light_level() if sonar != null else 0.0
+	if glow > 0.01:
 		var sp: Vector2 = xf * sonar.wave_center
-		# A onda do sonar acende um anel fino por onde passa (aproximado por 1 luz larga e fraca).
-		lights.append(Vector4(sp.x, sp.y, sonar.wave_radius * sc, 0.18))
+		# A onda do sonar clareia por onde passa e depois apaga devagar (fade).
+		lights.append(Vector4(sp.x, sp.y, sonar.wave_radius * sc, 0.2 * glow))
 	if creatures != null:
 		for c in creatures.creatures:
-			if lights.size() >= 24:
+			if lights.size() >= 8:
 				break
 			if c.species == &"firefly":
 				var fp: Vector2 = xf * c.pos
@@ -63,7 +64,7 @@ func _process(_delta: float) -> void:
 	var arr: Array = []
 	for l in lights:
 		arr.append(l)
-	while arr.size() < 24:
+	while arr.size() < 8:
 		arr.append(Vector4.ZERO)
 	_mat.set_shader_parameter("lights", arr)
 	_mat.set_shader_parameter("light_count", lights.size())

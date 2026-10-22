@@ -13,6 +13,8 @@ var chunk_index: int = 0
 ## Célula do centro do bloco → [posição local do centro, nível, cor, fase].
 var items: Dictionary = {}
 var _t: float = 0.0
+var _redraw_cd: float = 0.0
+const REDRAW_SEC: float = 1.0 / 30.0
 
 
 func _init() -> void:
@@ -67,10 +69,23 @@ func on_cells_changed(cells: Array[Vector2i]) -> void:
 
 
 func _process(delta: float) -> void:
+	_t += delta
 	if items.is_empty() or not is_visible_in_tree():
 		return
-	_t += delta
-	queue_redraw()
+	# Desempenho (0.14): redesenha a ~30 quadros/s e só se o chunk estiver na tela.
+	_redraw_cd -= delta
+	if _redraw_cd > 0.0:
+		return
+	_redraw_cd = REDRAW_SEC
+	if _on_screen():
+		queue_redraw()
+
+
+func _on_screen() -> bool:
+	var view: Rect2 = get_canvas_transform().affine_inverse() * get_viewport_rect()
+	var top: float = global_position.y
+	var h: float = float(Balance.CHUNK_CELLS_Y * Balance.CELL_PX)
+	return top < view.end.y + 64.0 and top + h > view.position.y - 64.0
 
 
 func _px(p: Vector2) -> Vector2:

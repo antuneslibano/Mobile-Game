@@ -44,6 +44,7 @@ var _surplus: Button
 var _lab_page: VBoxContainer
 var _lab_box: VBoxContainer
 var _looks_box: VBoxContainer
+var _lab_tab: StringName = &"minerals"
 const TITLES: Dictionary = {&"bench": "BANCADA", &"hangar": "HANGAR", &"market": "MERCADO", &"lab": "LABORATÓRIO"}
 ## Minerais do catálogo (sem os materiais antigos de entulho).
 const CATALOG_SKIP: Array[StringName] = [&"dirt", &"stone", &"basalt", &"abyss_stone", &"bio_sample"]
@@ -78,6 +79,10 @@ func open_station(kind: StringName) -> void:
 		_was_paused = get_tree().paused
 		get_tree().paused = true
 		EventBus.garage_opened.emit()
+		Transitions.slide_in(_root)
+		Sfx.play(&"whoosh")
+	else:
+		Transitions.fade_in(_root, 0.18)
 	_show_page()
 	_refresh()
 	if _kind == &"lab":
@@ -503,6 +508,81 @@ func _refresh_market(econ: Economy) -> void:
 func _refresh_lab(econ: Economy) -> void:
 	for c in _lab_box.get_children():
 		c.queue_free()
+	# Abas: só uma seção aparece por vez (o catálogo não fica todo à mostra).
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 6)
+	_lab_box.add_child(tabs)
+	for t: Array in [[&"minerals", "MINERAIS"], [&"creatures", "CRIATURAS"], [&"plans", "PLANTAS"], [&"diary", "DIÁRIO"]]:
+		var tb := Button.new()
+		tb.name = "LabTab_" + String(t[0])
+		tb.text = UiTheme.display_text(String(t[1]))
+		tb.custom_minimum_size = Vector2(0, 64)
+		tb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		tb.add_theme_font_size_override("font_size", UiTheme.font_size(20, 700))
+		UiTheme.style_button(tb, &"gold" if _lab_tab == t[0] else &"steel")
+		var id: StringName = t[0]
+		tb.pressed.connect(func() -> void:
+			_lab_tab = id
+			Sfx.play(&"click")
+			_refresh())
+		tabs.add_child(tb)
+	_lab_box.add_child(UiTheme.label("Toque em um item para ver a ficha.", 21, UiTheme.TEXT_DIM, 500))
+	match _lab_tab:
+		&"creatures":
+			_lab_creatures()
+		&"plans":
+			_lab_plans(econ)
+		&"diary":
+			_lab_diary(econ)
+		_:
+			_lab_minerals(econ)
+
+
+func _lab_grid(name: String, cols: int) -> GridContainer:
+	var g := GridContainer.new()
+	g.name = name
+	g.columns = cols
+	g.add_theme_constant_override("h_separation", 8)
+	g.add_theme_constant_override("v_separation", 8)
+	_lab_box.add_child(g)
+	return g
+
+
+## Célula tocável do catálogo (ícone + nome, ou silhueta "???").
+func _lab_cell(icon_tex: Texture2D, title: String, known: bool, on_tap: Callable) -> Button:
+	var cell := Button.new()
+	cell.custom_minimum_size = Vector2(0, 112)
+	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UiTheme.style_button(cell, &"steel")
+	if known:
+		cell.add_theme_stylebox_override("normal", PixelArt.style(&"icon_frame"))
+	var v := VBoxContainer.new()
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.set_anchors_preset(Control.PRESET_FULL_RECT)
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cell.add_child(v)
+	var icon := TextureRect.new()
+	icon.texture = icon_tex
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.custom_minimum_size = Vector2(56, 52)
+	icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.modulate = Color.WHITE if known else Color(0, 0, 0, 0.75)
+	v.add_child(icon)
+	var nl := UiTheme.label(title if known else "???", 19, UiTheme.TEXT if known else UiTheme.TEXT_DIM, 600)
+	nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	nl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	nl.custom_minimum_size = Vector2(80, 0)
+	nl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(nl)
+	cell.pressed.connect(func() -> void:
+		Sfx.play(&"click")
+		on_tap.call())
+	return cell
+
+
+func _lab_minerals(econ: Economy) -> void:
 	var keys: Array[StringName] = []
 	for key in ResourceRegistry.order():
 		if not key in CATALOG_SKIP:
@@ -511,92 +591,180 @@ func _refresh_lab(econ: Economy) -> void:
 	for key in keys:
 		if econ.discovered.has(key):
 			found += 1
-	_lab_box.add_child(UiTheme.label("CATÁLOGO  ·  %d/%d" % [found, keys.size()], 30, UiTheme.ORANGE, 700))
-	var grid := GridContainer.new()
-	grid.name = "Catalog"
-	grid.columns = 4
-	grid.add_theme_constant_override("h_separation", 8)
-	grid.add_theme_constant_override("v_separation", 8)
-	_lab_box.add_child(grid)
+	_lab_box.add_child(UiTheme.label("MINERAIS  ·  %d/%d" % [found, keys.size()], 28, UiTheme.ORANGE, 700))
+	var grid := _lab_grid("Catalog", 4)
 	for key in keys:
 		var known: bool = econ.discovered.has(key)
-		var cell := PanelContainer.new()
-		cell.add_theme_stylebox_override("panel", PixelArt.style(&"icon_frame" if known else &"inset"))
-		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var v := VBoxContainer.new()
-		v.alignment = BoxContainer.ALIGNMENT_CENTER
-		cell.add_child(v)
-		var icon := TextureRect.new()
-		icon.texture = PixelArt.ore_icon(key)
-		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.custom_minimum_size = Vector2(56, 50)
-		icon.modulate = Color.WHITE if known else Color(0, 0, 0, 0.75)
-		v.add_child(icon)
-		var nl := UiTheme.label(ResourceRegistry.get_def(key).display_name if known else "???", 20, UiTheme.TEXT if known else UiTheme.TEXT_DIM, 600)
-		nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		nl.clip_text = true
-		nl.custom_minimum_size = Vector2(60, 0)
-		v.add_child(nl)
-		grid.add_child(cell)
-	# Plantas de visual achadas em baús.
-	var bps: Array = []
-	for id: StringName in Chests.BLUEPRINTS:
-		bps.append(String(Chests.BLUEPRINTS[id][1]) if econ.blueprints.has(id) else "???")
-	_lab_box.add_child(UiTheme.label("PLANTAS DE BAÚ  ·  %d/%d" % [econ.blueprints.size(), Chests.BLUEPRINTS.size()], 30, UiTheme.ORANGE, 700))
-	var bl := UiTheme.label(" · ".join(bps), 22, UiTheme.TEXT, 500)
-	bl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	bl.custom_minimum_size = Vector2(300, 0)
-	_lab_box.add_child(bl)
-	# Criaturas catalogadas.
-	var seen_n: int = GameState.creatures.size()
-	_lab_box.add_child(UiTheme.label("CRIATURAS  ·  %d/%d" % [seen_n, Creature.ORDER.size()], 30, UiTheme.ORANGE, 700))
-	var cgrid := GridContainer.new()
-	cgrid.name = "Creatures"
-	cgrid.columns = 2
-	cgrid.add_theme_constant_override("h_separation", 8)
-	cgrid.add_theme_constant_override("v_separation", 8)
-	_lab_box.add_child(cgrid)
+		var rd: ResourceDef = ResourceRegistry.get_def(key)
+		grid.add_child(_lab_cell(PixelArt.ore_icon(key), rd.display_name, known, func() -> void: _mineral_card(key, known)))
+
+
+func _lab_creatures() -> void:
+	_lab_box.add_child(UiTheme.label("CRIATURAS  ·  %d/%d" % [GameState.creatures.size(), Creature.ORDER.size()], 28, UiTheme.ORANGE, 700))
+	var grid := _lab_grid("Creatures", 2)
 	for sp in Creature.ORDER:
 		var known: bool = GameState.creatures.has(sp)
-		var cell := PanelContainer.new()
-		cell.add_theme_stylebox_override("panel", PixelArt.style(&"icon_frame" if known else &"inset"))
-		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var h := HBoxContainer.new()
-		h.add_theme_constant_override("separation", 8)
-		cell.add_child(h)
-		var icon := TextureRect.new()
-		icon.texture = CreatureManager.sprite(&"worm_head" if sp == &"worm" else sp, 0)
-		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.custom_minimum_size = Vector2(64, 52)
-		icon.modulate = Color.WHITE if known else Color(0, 0, 0, 0.75)
-		h.add_child(icon)
-		var cv := VBoxContainer.new()
-		h.add_child(cv)
-		cv.add_child(UiTheme.label(String(Creature.DEFS[sp].name) if known else "???", 21, UiTheme.TEXT if known else UiTheme.TEXT_DIM, 700))
-		if known:
-			cv.add_child(UiTheme.label("vencidas: %d" % int(GameState.creatures[sp].defeated), 19, UiTheme.TEXT_DIM, 500))
-		cgrid.add_child(cell)
+		var tex: Texture2D = CreatureManager.sprite(&"worm_head" if sp == &"worm" else sp, 0)
+		grid.add_child(_lab_cell(tex, String(Creature.DEFS[sp].name), known, func() -> void: _creature_card(sp, known)))
+
+
+func _lab_plans(econ: Economy) -> void:
+	_lab_box.add_child(UiTheme.label("PLANTAS DE BAÚ  ·  %d/%d" % [econ.blueprints.size(), Chests.BLUEPRINTS.size()], 28, UiTheme.ORANGE, 700))
+	var grid := _lab_grid("Plans", 2)
+	for id: StringName in Chests.BLUEPRINTS:
+		var known: bool = econ.blueprints.has(id)
+		var bp: Array = Chests.BLUEPRINTS[id]
+		var look: Dictionary = {bp[0]: _look_for_blueprint(id)}
+		var tex: Texture2D = ShipArt.frame(0, look)
+		grid.add_child(_lab_cell(tex, String(bp[1]), known, func() -> void: _detail(String(bp[1]) if known else "???", tex if known else null,
+				["Visual exclusivo da nave (%s)." % ShipLooks.SLOT_NAMES[bp[0]].to_lower(), "Encontrada em baú raro ou lendário." if known else "Ainda não encontrada. Procure baús raros (aura azul) e lendários (aura roxa).",
+				"Escolha no Hangar." if known else ""], UiTheme.ORANGE)))
+
+
+static func _look_for_blueprint(id: StringName) -> StringName:
+	for slot in ShipLooks.SLOTS:
+		for o: Array in ShipLooks.OPTIONS[slot]:
+			if String(o[2]) == "bp:" + String(id):
+				return o[0]
+	return &""
+
+
+func _lab_diary(econ: Economy) -> void:
 	var entries: Array = Journal.unlocked(econ.discovered, GameState.done, GameState.creatures)
-	_lab_box.add_child(UiTheme.label("DIÁRIO DE PESQUISA  ·  %d/%d" % [entries.size(), Journal.ENTRIES.size()], 30, UiTheme.ORANGE, 700))
+	_lab_box.add_child(UiTheme.label("DIÁRIO  ·  %d/%d" % [entries.size(), Journal.ENTRIES.size()], 28, UiTheme.ORANGE, 700))
 	entries.reverse()
 	for e: Array in entries:
-		var card := PanelContainer.new()
-		card.add_theme_stylebox_override("panel", PixelArt.style(&"inset"))
-		var v := VBoxContainer.new()
-		v.add_theme_constant_override("separation", 4)
-		card.add_child(v)
-		v.add_child(UiTheme.label(String(e[2]).to_upper(), 26, UiTheme.BLUE, 700))
-		var t := UiTheme.label(String(e[3]), 24, UiTheme.TEXT, 500)
-		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		t.custom_minimum_size = Vector2(300, 0)
-		v.add_child(t)
-		_lab_box.add_child(card)
+		var b := Button.new()
+		b.text = UiTheme.display_text(String(e[2]).to_upper())
+		b.custom_minimum_size = Vector2(0, 64)
+		b.add_theme_font_size_override("font_size", UiTheme.font_size(18, 700))
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		UiTheme.style_button(b, &"steel")
+		b.pressed.connect(func() -> void: _detail(String(e[2]), null, [String(e[3])], UiTheme.BLUE))
+		_lab_box.add_child(b)
 
 
-## Visual da nave: uma linha por encaixe com as opções (liberadas tocáveis; bloqueadas
-## mostram o requisito).
+## Ficha de um mineral: descrição (do diário), preço, broca necessária e onde aparece.
+func _mineral_card(key: StringName, known: bool) -> void:
+	var rd: ResourceDef = ResourceRegistry.get_def(key)
+	if not known:
+		_detail("???", null, ["Ainda não descoberto. Colete para catalogar."], UiTheme.TEXT_DIM)
+		return
+	var lines: Array = []
+	for e: Array in Journal.ENTRIES:
+		if String(e[1]) == "res:" + String(key):
+			lines.append(String(e[3]))
+	if rd.currency != &"":
+		lines.append("Moeda: usada nos módulos (Cristais).")
+	else:
+		lines.append("Valor: %d créditos cada." % rd.sell_value)
+	var block_id: int = -1
+	for def: BlockDef in BlockRegistry.all():
+		if def.drops.has(key) and not def.is_terrain():
+			block_id = def.id
+			break
+	if block_id >= 0:
+		var tier: int = MiningRules.required_tier(block_id)
+		lines.append("Broca necessária: Nv. %d (%s)." % [Balance.DRILL_TIER_LEVELS[tier], MiningRules.TIER_NAMES[tier]])
+		var where: PackedStringArray = []
+		for r in RegionRegistry.all():
+			for b in r.layers:
+				for entry: Array in b.ore_table:
+					if int(entry[0]) == block_id and b.start_row < r.target_depth_m:
+						where.append("%s (%d m+)" % [r.display_name, maxi(int(entry[2]), b.start_row)])
+						break
+		if not where.is_empty():
+			lines.append("Onde: " + ", ".join(where.slice(0, 4)) + ".")
+	var uses: PackedStringArray = []
+	for u in UpgradeRegistry.all():
+		for lvl in [0, 4, 8]:
+			if Recipes.materials(u, lvl).has(key) and not uses.has(u.display_name):
+				uses.append(u.display_name)
+	if not uses.is_empty():
+		lines.append("Bancada: " + ", ".join(uses) + ".")
+	lines.append("Coletados nesta região: %d." % int(GameState._rstats(GameState.region_id).res.get(String(key), 0)))
+	_detail(rd.display_name, PixelArt.ore_icon(key), lines, rd.color)
+
+
+func _creature_card(sp: StringName, known: bool) -> void:
+	if not known:
+		_detail("???", null, ["Criatura ainda não vista. Explore as cavernas do Vale (use o sonar)."], UiTheme.TEXT_DIM)
+		return
+	var d: Dictionary = Creature.DEFS[sp]
+	var lines: Array = []
+	for e: Array in Journal.ENTRIES:
+		if String(e[1]) == "creature:" + String(sp):
+			lines.append(String(e[3]))
+	lines.append("Hostil: morde (%d de casco)." % int(d.dmg) if bool(d.hostile) else "Inofensiva.")
+	lines.append("Vida: %d  ·  Amostras: %d" % [int(d.hp), int(d.samples)])
+	lines.append("Profundidade: a partir de %d m." % int(CreatureManager.SPAWNS[&"vale"][sp]))
+	lines.append("Vencidas: %d." % int(GameState.creatures[sp].defeated))
+	_detail(String(d.name), CreatureManager.sprite(&"worm_head" if sp == &"worm" else sp, 0), lines, Color("9bff5a"))
+
+
+## Cartão de detalhes por cima do catálogo (toque fora ou em FECHAR para sair).
+func _detail(title: String, icon_tex: Texture2D, lines: Array, color: Color) -> void:
+	var old: Node = _root.get_node_or_null("LabDetail")
+	if old != null:
+		old.queue_free()
+	var layer := Control.new()
+	layer.name = "LabDetail"
+	layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_root.add_child(layer)
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.65)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.gui_input.connect(func(ev: InputEvent) -> void:
+		if ev is InputEventMouseButton and (ev as InputEventMouseButton).pressed:
+			layer.queue_free())
+	layer.add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(center)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", PixelArt.style(&"frame"))
+	panel.custom_minimum_size = Vector2(minf(620.0, _root.get_viewport_rect().size.x - 40.0), 0)
+	center.add_child(panel)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 12)
+	panel.add_child(v)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 14)
+	v.add_child(head)
+	if icon_tex != null:
+		var fr := PanelContainer.new()
+		fr.add_theme_stylebox_override("panel", PixelArt.style(&"icon_frame"))
+		head.add_child(fr)
+		var icon := TextureRect.new()
+		icon.texture = icon_tex
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.custom_minimum_size = Vector2(96, 96)
+		fr.add_child(icon)
+	var t := UiTheme.label(title.to_upper(), 30, color, 700)
+	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	t.custom_minimum_size = Vector2(200, 0)
+	head.add_child(t)
+	for line: Variant in lines:
+		if String(line) == "":
+			continue
+		var l := UiTheme.label(String(line), 23, UiTheme.TEXT, 500)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.custom_minimum_size = Vector2(minf(560.0, _root.get_viewport_rect().size.x - 80.0), 0)
+		v.add_child(l)
+	var close_b := Button.new()
+	close_b.name = "DetailClose"
+	close_b.text = UiTheme.display_text("FECHAR")
+	close_b.custom_minimum_size = Vector2(0, 70)
+	close_b.add_theme_font_size_override("font_size", UiTheme.font_size(24, 700))
+	UiTheme.style_button(close_b, &"steel")
+	close_b.pressed.connect(func() -> void: layer.queue_free())
+	v.add_child(close_b)
+	Transitions.pop_in(panel)
+
+
 func _refresh_looks(econ: Economy) -> void:
 	for c in _looks_box.get_children():
 		c.queue_free()

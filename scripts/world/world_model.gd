@@ -366,6 +366,21 @@ func dig_cells(cells: Array[Vector2i], raw_damage: float, min_y: float = -INF, d
 		if not MiningRules.can_break(id, drill_tier):
 			res.too_hard = id
 			continue
+		if id == BlockRegistry.CHEST:
+			# Baú é coletável (0.14): ao ser tocado sai inteiro (as 16 células do bloco),
+			# nunca fica um pedaço preso no cenário.
+			var blk := Vector2i(c.x / Balance.CELL_SUB, c.y / Balance.CELL_SUB)
+			if not res.chest_blocks.has(blk):
+				res.chest_blocks.append(blk)
+				for oy in Balance.CELL_SUB:
+					for ox in Balance.CELL_SUB:
+						var cc := Vector2i(blk.x * Balance.CELL_SUB + ox, blk.y * Balance.CELL_SUB + oy)
+						if get_cell(cc) == BlockRegistry.CHEST and _set_raw(cc, BlockRegistry.AIR):
+							res.counts[id] = int(res.counts.get(id, 0)) + 1
+							changed.append(cc)
+							seen[cc] = true
+			res.touched += 1
+			continue
 		res.touched += 1
 		touched_by_id[id] = int(touched_by_id.get(id, 0)) + 1
 		var cell_hp: float = def.max_hp / Balance.CELL_SUB
@@ -373,10 +388,7 @@ func dig_cells(cells: Array[Vector2i], raw_damage: float, min_y: float = -INF, d
 		if frac >= 1.0:
 			_set_raw(c, BlockRegistry.AIR)
 			res.counts[id] = int(res.counts.get(id, 0)) + 1
-			if id == BlockRegistry.CHEST:
-				var blk := Vector2i(c.x / Balance.CELL_SUB, c.y / Balance.CELL_SUB)
-				if not res.chest_blocks.has(blk):
-					res.chest_blocks.append(blk)
+
 		else:
 			ch.dmg[local] = mini(254, ceili(frac * 255.0))
 		changed.append(c)

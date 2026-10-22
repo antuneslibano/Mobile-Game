@@ -16,6 +16,7 @@ extends Node
 ##   --extract-at=T      (com --autotest) chama a extração em T segundos
 ##   --guardian-hp=F     (debug) vida inicial do guardião da câmara final (fração)
 ##   --grant-ores=N      (debug) N de cada minério comum no armazém
+##   --splash            (com --autotest) mostra a tela de abertura
 ##   --creatures         (debug) caverna com uma criatura de cada espécie à frente da nave
 ##   --sonar-at=T        (com --autotest) usa o sonar em T segundos
 ##   --base-at=T / --station=KIND  (com --autotest) abre a base em T s e, opcional, a estação
@@ -110,6 +111,11 @@ func _ready() -> void:
 		GameState._emit_economy()
 	if not testing and not args.has("no-map"):
 		base.open()
+	if not testing or args.has("splash"):
+		# Tela de abertura (0.14) por cima da base enquanto o jogo termina de carregar.
+		var splash := SplashScreen.new()
+		splash.name = "Splash"
+		add_child(splash)
 	if testing:
 		var bot := Autopilot.new()
 		bot.name = "Autopilot"

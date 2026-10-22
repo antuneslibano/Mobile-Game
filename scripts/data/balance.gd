@@ -151,7 +151,7 @@ const STRAIN_DECAY: float = 0.45
 const STRAIN_MAX: float = 1.6
 const STRAIN_HULL_DPS: float = 8.0
 ## Névoa: raio da luz da nave (blocos) e profundidade em que a escuridão fica total.
-const LIGHT_RADIUS_BLOCKS: float = 4.6
+const LIGHT_RADIUS_BLOCKS: float = 6.0
 const FOG_FULL_DEPTH_M: float = 12.0
 ## Sonar: recarga (s), alcance (blocos), velocidade da onda (blocos/s), duração dos sinais.
 const SONAR_COOLDOWN: float = 12.0

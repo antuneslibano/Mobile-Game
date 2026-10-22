@@ -56,6 +56,12 @@ func _run() -> void:
 	var main: Node = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	add_child(main)
 	await _frames(10)
+	_check(main.get_node_or_null("Splash") != null, "tela de abertura aparece ao abrir o jogo")
+	var waited: int = 0
+	while main.get_node_or_null("Splash") != null and waited < 600:
+		await _frames(1)
+		waited += 1
+	_check(main.get_node_or_null("Splash") == null, "tela de abertura some sozinha (%d quadros)" % waited)
 	var world_map: WorldMap = main.get("world_map")
 	var base: BaseScreen = main.get("base")
 	_check(base != null and base.is_open() and get_tree().paused and not world_map.is_open(), "a base abre ao iniciar")
@@ -242,6 +248,13 @@ func _run() -> void:
 	garage.open_station(&"lab")
 	await _frames(1)
 	_check(garage.find_child("Catalog", true, false) != null and not base.has_badge(&"lab"), "laboratório mostra catálogo e marca o diário como lido")
+	var cat: Node = garage.find_child("Catalog", true, false)
+	(cat.get_child(0) as Button).pressed.emit()
+	await _frames(2)
+	_check(garage.find_child("LabDetail", true, false) != null, "tocar num item do catálogo abre o cartão de detalhes")
+	(garage.find_child("DetailClose", true, false) as Button).pressed.emit()
+	await _frames(2)
+	_check(garage.find_child("LabDetail", true, false) == null, "FECHAR some com o cartão")
 	var close_b: Button = garage.find_child("CloseButton", true, false)
 	close_b.pressed.emit()
 	await _frames(2)

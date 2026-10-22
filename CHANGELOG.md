@@ -3,6 +3,34 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.14.0] — Catálogo, trilha sonora, abertura e polimento
+
+### Adicionado
+- **Tela de abertura**: ao abrir o jogo, o nome DEEPFORGE e a nave furando camadas de
+  terra com barra de carregamento (1,8 a 4 s, enquanto a trilha é gerada); some com fade.
+- **Catálogo no Laboratório**: abas Minerais, Criaturas, Plantas e Diário em grade; o que
+  ainda não foi achado aparece como silhueta "???". Tocar num item abre a ficha (descrição,
+  valor, broca necessária, regiões, uso na Bancada, quantos já coletou / onde vive,
+  comportamento, quantas venceu).
+- **Trilha sonora** bem baixinha (pads e sinos gerados no próprio jogo, em loop) e **sons
+  das criaturas** (zumbido do vaga-lume, guincho da toupeira, chiado da aranha, ronco da
+  minhoca, mordida), mais altos quanto mais perto.
+- **Transições**: estações da base, mapa e relatório de expedição deslizam/aparecem com
+  animação e um "whoosh"; a placa da estação dá um pulinho ao tocar.
+
+### Alterado
+- **Baú coletável**: encostar no baú coleta o bloco inteiro de uma vez (não quebra mais
+  aos poucos).
+- **Névoa** maior (luz de 6 blocos), mais escura fora da luz e com transição gradual do
+  claro para o escuro.
+- **Sonar**: a onda, a luz e os sinais somem com fade em vez de apagar de uma vez.
+- **Receitas graduais**: cada nível da Bancada pede mais material que o anterior
+  (1, 2, 3, 4… no 1º tier).
+
+### Desempenho
+- Brilho dos minérios redesenhado a 30 quadros/s e só nos chunks visíveis; criaturas não
+  redesenham sem criaturas; visual da nave guardado em cache; névoa com 8 luzes extras.
+
 ## [0.13.0] — Névoa, sonar, broca forçada e correções
 
 ### Adicionado

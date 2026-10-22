@@ -70,6 +70,15 @@ func test_recipes_and_market() -> void:
 				check(ResourceRegistry.get_def(k) != null and ResourceRegistry.get_def(k).currency == &"", "%s nv %d: material %s existe e vai para o armazém" % [u.id, lvl, k])
 	var dmg: UpgradeDef = UpgradeRegistry.get_def(&"damage")
 	check(Recipes.materials(dmg, 0).keys() != Recipes.materials(dmg, 5).keys(), "a trilha muda de material no 2º tier")
+	# 0.14: dentro de cada tier, cada nível pede mais material que o anterior.
+	for lv in [[0, 1, 2, 3], [Recipes.TIER_LEVELS[0], Recipes.TIER_LEVELS[0] + 1, Recipes.TIER_LEVELS[0] + 2]]:
+		var prev: int = 0
+		var grows: bool = true
+		for l: int in lv:
+			var n: int = int(Recipes.materials(dmg, l).values()[0])
+			grows = grows and n > prev
+			prev = n
+		check(grows, "receitas crescem a cada nível (a partir do nível %d)" % int(lv[0]))
 	var all_found: Dictionary = {}
 	for k in ResourceRegistry.order():
 		all_found[k] = true

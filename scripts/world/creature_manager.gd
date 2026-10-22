@@ -126,6 +126,8 @@ func step(delta: float, drill: Drill, steering: bool) -> void:
 		var bite: float = c.step(delta, world, ship, drill.radius) if not drill.disabled else 0.0
 		if bite > 0.0:
 			ship_bitten.emit(bite, c.species)
+			Sfx.play(&"bite", randf_range(0.9, 1.1))
+		_maybe_sound(c, delta, c.pos.distance_to(ship) / b)
 		if c.pos.distance_to(ship) < SEE_BLOCKS * b:
 			creature_seen.emit(c.species)
 		if steering:
@@ -136,6 +138,27 @@ func step(delta: float, drill: Drill, steering: bool) -> void:
 					break
 	for c in dead:
 		_kill(c)
+
+
+## Sons das criaturas perto da nave (mais alto quanto mais perto), de tempos em tempos.
+func _maybe_sound(c: Creature, delta: float, dist_blocks: float) -> void:
+	c.sound_cd -= delta
+	if c.sound_cd > 0.0 or dist_blocks > 8.0:
+		return
+	var vol: float = -4.0 - dist_blocks * 2.2
+	match c.species:
+		&"firefly":
+			c.sound_cd = randf_range(2.5, 5.0)
+			Sfx.play(&"firefly", randf_range(0.9, 1.2), vol - 6.0)
+		&"mole":
+			c.sound_cd = randf_range(1.5, 3.5)
+			Sfx.play(&"mole", randf_range(0.9, 1.15), vol)
+		&"spider":
+			c.sound_cd = randf_range(2.0, 3.5)
+			Sfx.play(&"spider", randf_range(0.85, 1.1), vol)
+		&"worm":
+			c.sound_cd = randf_range(1.6, 3.0)
+			Sfx.play(&"worm", randf_range(0.8, 1.05), vol + 2.0)
 
 
 ## Dano em área (pulso sísmico: também atordoa) e tiro do drone.
@@ -171,7 +194,9 @@ func alive_count(species: StringName = &"") -> int:
 # --- Desenho ---------------------------------------------------------------------------
 
 func _process(_delta: float) -> void:
-	queue_redraw()
+	if not creatures.is_empty() or get_meta("drawn", false):
+		set_meta("drawn", not creatures.is_empty())
+		queue_redraw()
 
 
 func _draw() -> void:

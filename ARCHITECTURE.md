@@ -377,7 +377,7 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
 
 - **Névoa** (`FogLayer`, CanvasLayer 2, shader `shaders/fog.gdshader`): escuridão em tela
   com o círculo de luz da nave (`LIGHT_RADIUS_BLOCKS`, convertido pela transformação do
-  canvas, então acompanha o zoom do combate) e até 24 luzes extras (vaga-lumes, guardião,
+  canvas, então acompanha o zoom do combate) e até 8 luzes extras (vaga-lumes, guardião,
   onda do sonar). O HUD fica na camada 10.
 - **Sonar** (`SonarOverlay`, CanvasLayer 3): `ping` (recarga), `step` avança a onda e
   `_scan_ring` marca blocos de minério/baú e criaturas entre o raio anterior e o atual;
@@ -388,3 +388,19 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
 - **Onda de choque**: `ModuleSystem._step_wave` → `Drill.apply_external_ring` (anéis com o
   teto fixado no disparo).
 - **Subida**: `Drill._low_angle` (giro sempre por baixo) e `_supported` (só sobe apoiada).
+
+## 18. 0.14: catálogo, áudio, abertura e desempenho
+
+- **Abertura** (`SplashScreen`, CanvasLayer 40): criada por `main.gd` fora do autotest;
+  fica `MIN_SEC`..`MAX_SEC` (espera `Sfx.music_ready`) e se libera com fade.
+- **Laboratório**: `Garage._refresh_lab` com abas (`LabTab_*`); grades `_lab_grid`
+  (a de minerais chama-se `Catalog`) e fichas `_detail` (nó `LabDetail`).
+- **Transições** (`Transitions`): `slide_in`, `fade_in`, `pop_in`, `bump` com tweens que
+  rodam com o jogo pausado.
+- **Áudio**: `Sfx` gera a trilha numa tarefa do `WorkerThreadPool` (`_build_music_thread`);
+  `_process` a inicia quando a tarefa termina; `_exit_tree` espera a tarefa. Criaturas
+  tocam sons por `CreatureManager._maybe_sound` (distância, recarga aleatória).
+- **Baú**: `WorldModel.dig_cells` remove as 16 células do bloco de baú ao tocar em uma.
+- **Receitas**: `Recipes.materials` cresce a cada nível dentro do tier.
+- **Desempenho**: `OreGlow` redesenha a 30 Hz só na tela; `GameState.ship_look` em cache
+  (500 ms, invalidado em `set_look`).

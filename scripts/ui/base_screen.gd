@@ -46,6 +46,7 @@ func open() -> void:
 	_view.region = GameState.region()
 	_layout()
 	_refresh()
+	Transitions.fade_in(_root, 0.35)
 
 
 func close() -> void:
@@ -86,6 +87,8 @@ func has_badge(kind: StringName) -> bool:
 
 func press(kind: StringName) -> void:
 	Sfx.play(&"click")
+	if _buttons.has(kind):
+		Transitions.bump(_plates[kind])
 	station_requested.emit(kind)
 
 

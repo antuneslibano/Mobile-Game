@@ -46,6 +46,8 @@ var _rng := RandomNumberGenerator.new()
 var _carve_t: float = 0.0
 ## Toupeira: tempo restante escalando uma parede.
 var climbing: float = 0.0
+## Tempo até poder fazer som de novo (CreatureManager).
+var sound_cd: float = 0.0
 
 
 func _init(p_species: StringName, p_pos: Vector2, p_seed: int) -> void:

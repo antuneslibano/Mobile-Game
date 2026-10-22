@@ -66,6 +66,7 @@ func reset_profile() -> void:
 	pending_notice = ""
 	journal_seen = 0
 	looks = {}
+	_look_cache = {}
 	looks_seen = 0
 	creatures = {}
 	region_variant = {}
@@ -450,6 +451,7 @@ func apply_profile(d: Dictionary) -> void:
 			if Creature.DEFS.has(StringName(str(k))) and cr[k] is Dictionary:
 				creatures[StringName(str(k))] = {"seen": true, "defeated": maxi(0, int((cr[k] as Dictionary).get("defeated", 0)))}
 	looks = {}
+	_look_cache = {}
 	var lk: Variant = d.get("looks", {})
 	if lk is Dictionary:
 		for k: Variant in lk:
@@ -552,14 +554,24 @@ func defeat_creature(species: StringName, at: Vector2) -> void:
 
 
 ## Visual efetivo da nave (escolhas do Hangar + melhor opção liberada).
+## Guardado por meio segundo (desempenho: as telas pedem isto a cada quadro).
 func ship_look() -> Dictionary:
-	return ShipLooks.resolve(looks, economy, done)
+	var now: int = Time.get_ticks_msec()
+	if _look_cache.is_empty() or now - _look_at > 500:
+		_look_cache = ShipLooks.resolve(looks, economy, done)
+		_look_at = now
+	return _look_cache
+
+
+var _look_cache: Dictionary = {}
+var _look_at: int = 0
 
 
 func set_look(slot: StringName, option: StringName) -> bool:
 	for o: Array in ShipLooks.OPTIONS.get(slot, []):
 		if o[0] == option and ShipLooks.is_unlocked(String(o[2]), economy, done):
 			looks[slot] = option
+			_look_cache = {}
 			EventBus.looks_changed.emit()
 			SaveService.mark_dirty()
 			return true

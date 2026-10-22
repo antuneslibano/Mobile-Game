@@ -20,6 +20,9 @@ var _wave_t: float = -1.0
 var _scanned: Dictionary = {}
 var _draw_node: Control
 var _beeps: int = 0
+## Tempo desde o fim da onda (para a luz e o anel apagarem devagar).
+var _fade_t: float = 99.0
+const FADE_SEC: float = 0.9
 
 
 func _ready() -> void:
@@ -50,6 +53,13 @@ func wave_active() -> bool:
 	return _wave_t >= 0.0
 
 
+## Luz da onda (1 durante a onda, caindo até 0 em FADE_SEC depois dela).
+func light_level() -> float:
+	if wave_active():
+		return 1.0
+	return clampf(1.0 - _fade_t / FADE_SEC, 0.0, 1.0)
+
+
 ## Dispara o sonar (se pronto). Retorna true se disparou.
 func ping() -> bool:
 	if not is_ready() or drill == null or world == null:
@@ -58,6 +68,7 @@ func ping() -> bool:
 	wave_center = drill.position
 	wave_radius = 0.0
 	_wave_t = 0.0
+	_fade_t = 99.0
 	_scanned.clear()
 	_beeps = 0
 	Sfx.play(&"sonar")
@@ -71,6 +82,7 @@ func step(delta: float) -> void:
 		b.t = float(b.t) + delta
 	blips = blips.filter(func(b: Dictionary) -> bool: return float(b.t) < Balance.SONAR_BLIP_SEC)
 	if _wave_t < 0.0:
+		_fade_t += delta
 		return
 	_wave_t += delta
 	var prev: float = wave_radius
@@ -79,6 +91,7 @@ func step(delta: float) -> void:
 	_scan_ring(prev, wave_radius)
 	if wave_radius >= max_r:
 		_wave_t = -1.0
+		_fade_t = 0.0
 
 
 ## Marca o que a onda alcançou entre r0 e r1 (por bloco: célula central do bloco).
@@ -141,7 +154,7 @@ func _beep(dist: float) -> void:
 
 
 func _process(_delta: float) -> void:
-	if wave_active() or not blips.is_empty():
+	if wave_active() or not blips.is_empty() or light_level() > 0.0:
 		_draw_node.queue_redraw()
 	elif _draw_node.get_meta("drawn", false):
 		_draw_node.set_meta("drawn", false)
@@ -154,15 +167,17 @@ func _on_draw() -> void:
 	var sc: float = xf.get_scale().x
 	var vp: Vector2 = _draw_node.get_viewport_rect().size
 	var now: float = Time.get_ticks_msec() / 1000.0
-	if wave_active():
+	if light_level() > 0.0:
 		var c: Vector2 = xf * wave_center
-		var a: float = 1.0 - wave_radius / (Balance.SONAR_RANGE_BLOCKS * Balance.BLOCK_PX)
+		var a: float = (1.0 - wave_radius / (Balance.SONAR_RANGE_BLOCKS * Balance.BLOCK_PX) * 0.7) * light_level()
 		_draw_node.draw_arc(c, wave_radius * sc, 0.0, TAU, 96, Color(0.4, 1.0, 0.8, 0.8 * a), 4.0)
 		_draw_node.draw_arc(c, wave_radius * sc - 10.0, 0.0, TAU, 96, Color(0.4, 1.0, 0.8, 0.25 * a), 10.0)
 	var margin: float = 46.0
 	var top: float = 300.0
 	for b in blips:
-		var k: float = 1.0 - float(b.t) / Balance.SONAR_BLIP_SEC
+		# Aparece rápido (0,25 s) e some devagar (último terço da vida).
+		var life: float = float(b.t) / Balance.SONAR_BLIP_SEC
+		var k: float = clampf(float(b.t) / 0.25, 0.0, 1.0) * clampf((1.0 - life) / 0.35, 0.0, 1.0)
 		var col: Color = b.color
 		var p: Vector2 = xf * (b.pos as Vector2)
 		var pulse: float = 0.5 + 0.5 * sin(now * 6.0 + p.x * 0.01)

@@ -25,6 +25,7 @@ func show_report(r: Dictionary) -> void:
 		_root.queue_free()
 	_build(r)
 	visible = true
+	Transitions.slide_in(_root)
 	get_tree().paused = true
 
 

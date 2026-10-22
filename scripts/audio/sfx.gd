@@ -17,6 +17,14 @@ var _drill_pitch: float = 1.0
 var _engine_on: bool = false
 var _last: Dictionary = {}             ## nome → último tempo tocado (limite de repetição)
 var enabled: bool = true
+var _music: AudioStreamPlayer
+## Trilha pronta (gerada numa thread na abertura).
+var music_ready: bool = false
+var _music_task: int = -1
+var _music_wav: AudioStreamWAV = null  ## Escrita pela thread; lida depois que ela termina.
+const MUSIC_RATE: int = 11025
+const MUSIC_SEC: float = 24.0
+const MUSIC_DB: float = -21.0
 
 
 func _ready() -> void:
@@ -28,6 +36,65 @@ func _ready() -> void:
 		_voices.append(p)
 	_drill = _loop_player(&"drill")
 	_engine = _loop_player(&"engine")
+	_music = AudioStreamPlayer.new()
+	_music.volume_db = -80.0
+	add_child(_music)
+	_music_task = WorkerThreadPool.add_task(_build_music_thread)
+
+
+## Trilha ambiente baixinha (24 s em loop): acordes lentos (Lá menor, Fá, Dó, Sol) e
+## notas de sino esparsas da pentatônica. Gerada em segundo plano.
+func _build_music_thread() -> void:
+	var n: int = int(MUSIC_SEC * MUSIC_RATE)
+	var data := PackedByteArray()
+	data.resize(n * 2)
+	var chords: Array = [[110.0, 130.81, 164.81], [87.31, 110.0, 130.81], [130.81, 164.81, 196.0], [98.0, 123.47, 146.83]]
+	var seg: float = MUSIC_SEC / chords.size()
+	var bells: Array[float] = [440.0, 523.25, 587.33, 659.25, 783.99]
+	var bell_seq: Array[int] = [0, 2, 4, 3, -1, 1, 0, -1, 2, 4, -1, 3, 1, -1, 0, 2]
+	var lp: float = 0.0
+	for i in n:
+		var t: float = float(i) / MUSIC_RATE
+		var v: float = 0.0
+		for c in chords.size():
+			# Envelope do acorde com sobreposição cíclica (loop sem emenda).
+			var dt: float = fposmod(t - c * seg + seg * 0.5, MUSIC_SEC) - seg * 0.5
+			var env: float = clampf(1.0 - absf(dt - seg * 0.5) / (seg * 0.75), 0.0, 1.0)
+			if env <= 0.0:
+				continue
+			env = env * env * (3.0 - 2.0 * env)
+			for f: float in chords[c]:
+				v += (sin(TAU * f * t) + 0.25 * sin(TAU * f * 2.0 * t + 0.5)) * env * 0.12
+		var step: float = MUSIC_SEC / bell_seq.size()
+		var k: int = int(t / step) % bell_seq.size()
+		if bell_seq[k] >= 0:
+			var bt: float = t - k * step
+			var bf: float = bells[bell_seq[k]]
+			v += (sin(TAU * bf * bt) + 0.3 * sin(TAU * bf * 3.01 * bt)) * exp(-bt * 2.2) * 0.07
+		lp += (v - lp) * 0.35
+		data.encode_s16(i * 2, clampi(int(lp * 0.8 * 32767.0), -32768, 32767))
+	var w := AudioStreamWAV.new()
+	w.format = AudioStreamWAV.FORMAT_16_BITS
+	w.mix_rate = MUSIC_RATE
+	w.stereo = false
+	w.data = data
+	w.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	w.loop_begin = 0
+	w.loop_end = n
+	_music_wav = w
+
+
+func _exit_tree() -> void:
+	# Ao fechar o jogo: espera a trilha terminar de ser gerada antes de liberar o nó.
+	if _music_task >= 0:
+		WorkerThreadPool.wait_for_task_completion(_music_task)
+		_music_task = -1
+
+
+func _start_music(w: AudioStreamWAV) -> void:
+	_music.stream = w
+	_music.play()
+	music_ready = true
 
 
 func _loop_player(name: StringName) -> AudioStreamPlayer:
@@ -66,6 +133,11 @@ func engine(active: bool) -> void:
 
 
 func _process(delta: float) -> void:
+	if _music_task >= 0 and WorkerThreadPool.is_task_completed(_music_task):
+		WorkerThreadPool.wait_for_task_completion(_music_task)
+		_music_task = -1
+		if _music_wav != null:
+			_start_music(_music_wav)
 	var paused: bool = get_tree().paused
 	var dt: float = clampf(delta * 8.0, 0.0, 1.0)
 	var dv: float = -6.0 if (_drill_on and not paused) else -60.0
@@ -73,6 +145,8 @@ func _process(delta: float) -> void:
 	_drill.pitch_scale = lerpf(_drill.pitch_scale, _drill_pitch, dt)
 	var ev: float = -16.0 if (_engine_on and not paused) else -60.0
 	_engine.volume_db = lerpf(_engine.volume_db, ev, dt)
+	if music_ready:
+		_music.volume_db = lerpf(_music.volume_db, MUSIC_DB if enabled else -80.0, clampf(delta * 0.8, 0.0, 1.0))
 
 
 # --- Síntese -------------------------------------------------------------------------
@@ -127,6 +201,22 @@ func _build_all() -> void:
 	# Sinal do sonar encontrando algo.
 	_streams[&"blip"] = _synth(0.09, false, func(t: float, _i: int) -> float:
 		return sin(TAU * 1600.0 * t) * exp(-t * 35.0), 0.45)
+	# Transição de tela: sopro de ar.
+	_streams[&"whoosh"] = _synth(0.28, false, func(t: float, _i: int) -> float:
+		return (rng.randf() * 2.0 - 1.0) * sin(PI * t / 0.28) * 0.5, 0.35)
+	# Criaturas.
+	_streams[&"firefly"] = _synth(0.22, false, func(t: float, _i: int) -> float:
+		var on: float = 1.0 if fposmod(t, 0.11) < 0.05 else 0.0
+		return sin(TAU * 2600.0 * t) * on * exp(-t * 6.0), 0.25)
+	_streams[&"mole"] = _synth(0.2, false, func(t: float, _i: int) -> float:
+		return _square(t * (800.0 + 2200.0 * t)) * 0.35 * sin(PI * t / 0.2), 0.4)
+	_streams[&"spider"] = _synth(0.45, false, func(t: float, _i: int) -> float:
+		var n: float = rng.randf() * 2.0 - 1.0
+		return (n - lerpf(0.0, n, 0.6)) * sin(PI * t / 0.45) + sin(TAU * 3200.0 * t) * 0.05, 0.6)
+	_streams[&"worm"] = _synth(0.8, false, func(t: float, _i: int) -> float:
+		return (_saw(t * (55.0 + 15.0 * sin(TAU * 3.0 * t))) * 0.6 + (rng.randf() * 2.0 - 1.0) * 0.3) * sin(PI * t / 0.8), 0.55)
+	_streams[&"bite"] = _synth(0.15, false, func(t: float, _i: int) -> float:
+		return ((rng.randf() * 2.0 - 1.0) * 0.7 + _square(t * 180.0) * 0.3) * exp(-t * 25.0), 0.7)
 	# Toque de interface.
 	_streams[&"click"] = _synth(0.05, false, func(t: float, _i: int) -> float:
 		return _square(t * 1200.0) * 0.3 * exp(-t * 70.0), 0.4)

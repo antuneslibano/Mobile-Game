@@ -43,12 +43,13 @@ static func materials(def: UpgradeDef, level: int) -> Dictionary:
 	var keys: Array = track[mini(t, track.size() - 1)]
 	var n: int
 	match t:
+		# Gradual (0.14): cada nível pede mais que o anterior dentro do tier.
 		0:
-			n = 1 + level / 2
+			n = 1 + level                                         # 1, 2, 3, 4
 		1:
-			n = 1 + (level - TIER_LEVELS[0]) / 2
+			n = 2 + (level - TIER_LEVELS[0])                      # 2, 3, 4, 5…
 		_:
-			n = 1 + (level - TIER_LEVELS[1]) / 3
+			n = 2 + (level - TIER_LEVELS[1]) * 3 / 4              # 2, 2, 3, 4, 5…
 	var out: Dictionary = {}
 	for i in keys.size():
 		out[keys[i]] = n if i == 0 else ceili(n * 0.5)
