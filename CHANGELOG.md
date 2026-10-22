@@ -3,6 +3,23 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.7.2] — Correções: minérios, transições e menus
+
+### Corrigido
+- **Minérios piscando**: a câmera agora anda em passos inteiros em pixels do jogo e do
+  aparelho (com escala fracionária, como 720 → 1080, cada pixel de arte mudava de largura
+  a cada quadro, inclusive durante o tremor).
+- **Minérios "colados"**: cada bloco de minério mostra um aglomerado recortado pela forma do
+  veio, com contorno virando sombra na rocha, halo mais suave e fragmentos no veio.
+- **Transições de terreno**: mistura por altura entre materiais, camadas e variações, com
+  fronteiras deformadas por ruído fractal — os torrões de um material avançam entre os do
+  outro, sem degraus nem emendas retas.
+
+### Alterado
+- Garagem e mapa maiores (textos, ícones, botões e cartões) e roláveis por arrasto em
+  qualquer ponto, com inércia; arrastar sobre um botão não compra nada.
+- Na garagem, toda a página (nave, carga, abas e cartões) rola; o cabeçalho fica fixo.
+
 ## [0.7.1] — Vale das Raízes mais fiel à referência
 
 ### Alterado

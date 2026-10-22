@@ -23,7 +23,7 @@ var _tab_upgrades: Button
 var _tab_modules: Button
 var _upgrades_page: VBoxContainer
 var _modules_page: VBoxContainer
-var _scroll: ScrollContainer
+var _scroll: TouchScroll
 var _toast: Label
 var _toast_t: float = 0.0
 var _cards: Array[UpgradeCard] = []
@@ -134,7 +134,7 @@ func _build() -> void:
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	for side: String in ["left", "right"]:
-		margin.add_theme_constant_override("margin_" + side, 8)
+		margin.add_theme_constant_override("margin_" + side, 4)
 	margin.add_theme_constant_override("margin_top", 10 + int(_safe_top()))
 	margin.add_theme_constant_override("margin_bottom", 10)
 	_root.add_child(margin)
@@ -177,10 +177,20 @@ func _build() -> void:
 	close_b.pressed.connect(close)
 	header.add_child(close_b)
 
+	# Corpo rolável (arraste em qualquer ponto): vitrine, carga, abas e cartões.
+	_scroll = TouchScroll.new()
+	_scroll.name = "Scroll"
+	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(_scroll)
+	var body := VBoxContainer.new()
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 12)
+	_scroll.add_child(body)
+
 	# Vitrine da nave + atributos.
 	var showcase := HBoxContainer.new()
 	showcase.add_theme_constant_override("separation", 10)
-	v.add_child(showcase)
+	body.add_child(showcase)
 	var preview := ShipPreview.new()
 	preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	showcase.add_child(preview)
@@ -193,8 +203,8 @@ func _build() -> void:
 	sv.alignment = BoxContainer.ALIGNMENT_CENTER
 	stats.add_child(sv)
 	for entry: Array in [[&"energy", "ENERGIA", UiTheme.BLUE], [&"speed", "VELOCIDADE", UiTheme.ORANGE], [&"power", "PODER DE MINERAÇÃO", Color("f04a3a")], [&"collect", "COLETA", Color("3fc45a")]]:
-		sv.add_child(UiTheme.label(entry[1], 19, UiTheme.TEXT_DIM, 600))
-		var bar := SegmentedBar.new(6, entry[2], 22.0)
+		sv.add_child(UiTheme.label(entry[1], 25, UiTheme.TEXT_DIM, 600))
+		var bar := SegmentedBar.new(6, entry[2], 26.0)
 		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		sv.add_child(bar)
 		_stat_bars[entry[0]] = bar
@@ -202,24 +212,24 @@ func _build() -> void:
 	# Carga e venda.
 	var cargo := PanelContainer.new()
 	cargo.add_theme_stylebox_override("panel", PixelArt.style(&"inset"))
-	v.add_child(cargo)
+	body.add_child(cargo)
 	var ch := HBoxContainer.new()
 	ch.add_theme_constant_override("separation", 10)
 	cargo.add_child(ch)
 	var cv := VBoxContainer.new()
 	cv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	ch.add_child(cv)
-	cv.add_child(UiTheme.label("CARGA", 20, UiTheme.ORANGE, 700))
-	_cargo_label = UiTheme.label("", 19, UiTheme.TEXT_DIM, 500)
+	cv.add_child(UiTheme.label("CARGA", 28, UiTheme.ORANGE, 700))
+	_cargo_label = UiTheme.label("", 25, UiTheme.TEXT_DIM, 500)
 	_cargo_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_cargo_label.custom_minimum_size = Vector2(200, 0)
 	cv.add_child(_cargo_label)
 	_sell = Button.new()
 	_sell.name = "SellButton"
-	_sell.custom_minimum_size = Vector2(230, 70)
+	_sell.custom_minimum_size = Vector2(250, 86)
 	_sell.icon = PixelArt.icon(&"coin")
-	_sell.add_theme_constant_override("icon_max_width", 30)
-	_sell.add_theme_font_size_override("font_size", UiTheme.font_size(24, 700))
+	_sell.add_theme_constant_override("icon_max_width", 38)
+	_sell.add_theme_font_size_override("font_size", UiTheme.font_size(30, 700))
 	_sell.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_sell.pressed.connect(func() -> void: sell_all())
 	ch.add_child(_sell)
@@ -227,44 +237,40 @@ func _build() -> void:
 	# Abas.
 	var tabs := HBoxContainer.new()
 	tabs.add_theme_constant_override("separation", 10)
-	v.add_child(tabs)
+	body.add_child(tabs)
 	_tab_upgrades = _tab_button("UPGRADES")
 	_tab_modules = _tab_button("MÓDULOS")
 	tabs.add_child(_tab_upgrades)
 	tabs.add_child(_tab_modules)
 
-	_scroll = ScrollContainer.new()
-	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	v.add_child(_scroll)
 	var pages := VBoxContainer.new()
 	pages.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_scroll.add_child(pages)
+	body.add_child(pages)
 
 	_upgrades_page = VBoxContainer.new()
-	_upgrades_page.add_theme_constant_override("separation", 8)
+	_upgrades_page.add_theme_constant_override("separation", 12)
 	_upgrades_page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pages.add_child(_upgrades_page)
 	for def in UpgradeRegistry.all():
 		if def.id in ModuleSystem.ALL:
 			continue
 		_add_card(def)
-	_upgrades_page.add_child(UiTheme.label("MÓDULOS", 24, UiTheme.ORANGE, 700))
+	_upgrades_page.add_child(UiTheme.label("MÓDULOS", 32, UiTheme.ORANGE, 700))
 	for id in ModuleSystem.ALL:
 		_add_card(UpgradeRegistry.get_def(id))
 
 	_modules_page = VBoxContainer.new()
-	_modules_page.add_theme_constant_override("separation", 8)
+	_modules_page.add_theme_constant_override("separation", 12)
 	_modules_page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pages.add_child(_modules_page)
-	_slots_label = UiTheme.label("", 26, UiTheme.ORANGE, 700)
+	_slots_label = UiTheme.label("", 32, UiTheme.ORANGE, 700)
 	_modules_page.add_child(_slots_label)
 	for id in ModuleSystem.ALL:
 		_modules_page.add_child(_module_card(id))
 	var syn := PanelContainer.new()
 	syn.add_theme_stylebox_override("panel", PixelArt.style(&"inset"))
 	_modules_page.add_child(syn)
-	_synergy_label = UiTheme.label("", 19, UiTheme.TEXT, 500)
+	_synergy_label = UiTheme.label("", 25, UiTheme.TEXT, 500)
 	_synergy_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_synergy_label.custom_minimum_size = Vector2(400, 0)
 	syn.add_child(_synergy_label)
@@ -293,25 +299,30 @@ func _module_card(id: StringName) -> PanelContainer:
 	var frame := PanelContainer.new()
 	frame.add_theme_stylebox_override("panel", PixelArt.style(&"icon_frame"))
 	frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	frame.add_child(UiTheme.icon_rect(id, 54))
+	frame.add_child(UiTheme.icon_rect(id, 80))
 	row.add_child(frame)
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	info.add_theme_constant_override("separation", 4)
 	row.add_child(info)
-	info.add_child(UiTheme.label(def.display_name.to_upper(), 24, UiTheme.TEXT, 700))
-	var bar := SegmentedBar.new(10, UiTheme.ORANGE, 21.0)
+	var mname := UiTheme.label(def.display_name.to_upper(), 32, UiTheme.TEXT, 700)
+	mname.clip_text = true
+	mname.custom_minimum_size = Vector2(120, 0)
+	info.add_child(mname)
+	var bar := SegmentedBar.new(10, UiTheme.ORANGE, 26.0)
 	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	info.add_child(bar)
 	_module_bars[id] = bar
-	var status := UiTheme.label("", 19, UiTheme.TEXT_DIM, 600)
+	var status := UiTheme.label("", 25, UiTheme.TEXT_DIM, 600)
+	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	status.custom_minimum_size = Vector2(120, 0)
 	info.add_child(status)
 	_module_status[id] = status
 	var b := Button.new()
 	b.name = "Toggle"
-	b.custom_minimum_size = Vector2(170, 70)
+	b.custom_minimum_size = Vector2(196, 86)
 	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	b.add_theme_font_size_override("font_size", UiTheme.font_size(22, 700))
+	b.add_theme_font_size_override("font_size", UiTheme.font_size(28, 700))
 	b.pressed.connect(func() -> void: toggle_module(id))
 	row.add_child(b)
 	_module_buttons[id] = b
@@ -321,8 +332,9 @@ func _module_card(id: StringName) -> PanelContainer:
 func _tab_button(text: String) -> Button:
 	var b := Button.new()
 	b.text = UiTheme.display_text(text)
-	b.custom_minimum_size = Vector2(0, 64)
+	b.custom_minimum_size = Vector2(0, 84)
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b.add_theme_font_size_override("font_size", UiTheme.font_size(30, 700))
 	b.pressed.connect(func() -> void: _show_tab(b == _tab_upgrades))
 	return b
 

@@ -32,6 +32,15 @@ func _touch(index: int, pos: Vector2, pressed: bool) -> void:
 	get_viewport().push_input(ev, true)
 
 
+func _mouse(pos: Vector2, pressed: bool) -> void:
+	var ev := InputEventMouseButton.new()
+	ev.button_index = MOUSE_BUTTON_LEFT
+	ev.pressed = pressed
+	ev.position = pos
+	ev.global_position = pos
+	get_viewport().push_input(ev, true)
+
+
 func _drag(index: int, pos: Vector2) -> void:
 	var ev := InputEventScreenDrag.new()
 	ev.index = index
@@ -148,6 +157,30 @@ func _run() -> void:
 	var dmg_before: float = game.drill.stats.damage
 	var card: UpgradeCard = garage.find_child("Card_damage", true, false)
 	_check(card != null, "cartão de upgrade de dano existe")
+	# Toque simples no preço compra; arrastar começando no mesmo botão só rola a lista.
+	garage.call("_refresh")
+	await _frames(2)
+	var scroll: TouchScroll = garage.find_child("Scroll", true, false)
+	var price: Button = garage.find_child("Card_speed", true, false).find_child("Price", true, false)
+	var pc: Vector2 = price.get_global_rect().get_center()
+	_mouse(pc, true)
+	_mouse(pc, false)
+	await _frames(2)
+	_check(econ.get_level(&"speed") == 1, "toque no preço compra (Turbina Nv. 1)")
+	var before: int = scroll.scroll_vertical
+	pc = price.get_global_rect().get_center()
+	_touch(0, pc, true)
+	_mouse(pc, true)
+	for k in 10:
+		_drag(0, pc - Vector2(0, 30.0 * (k + 1)))
+		await _frames(1)
+	_touch(0, pc - Vector2(0, 300), false)
+	_mouse(pc - Vector2(0, 300), false)
+	await _frames(2)
+	_check(scroll.scroll_vertical > before + 100, "arrastar sobre os cartões rola a lista (%d → %d)" % [before, scroll.scroll_vertical])
+	_check(econ.get_level(&"speed") == 1, "arrastar começando no botão não compra")
+	await _frames(30)
+	scroll.scroll_vertical = 0
 	var bought: bool = garage.buy(&"damage")
 	await _frames(1)
 	_check(bought and econ.get_level(&"damage") == 1, "comprou Dano nível 1")

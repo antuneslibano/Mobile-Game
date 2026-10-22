@@ -18,37 +18,39 @@ func _init(p_def: UpgradeDef) -> void:
 	name = "Card_" + String(def.id)
 	add_theme_stylebox_override("panel", PixelArt.style(&"inset"))
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
+	row.add_theme_constant_override("separation", 14)
 	add_child(row)
 
 	var frame := PanelContainer.new()
 	frame.add_theme_stylebox_override("panel", PixelArt.style(&"icon_frame"))
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	frame.add_child(UiTheme.icon_rect(def.id, 54))
+	frame.add_child(UiTheme.icon_rect(def.id, 80))
 	row.add_child(frame)
 
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	info.add_theme_constant_override("separation", 4)
+	info.add_theme_constant_override("separation", 6)
 	info.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(info)
 	var title := HBoxContainer.new()
 	info.add_child(title)
-	var name_l := UiTheme.label(def.display_name.to_upper(), 24, UiTheme.TEXT, 700)
+	var name_l := UiTheme.label(def.display_name.to_upper(), 32, UiTheme.TEXT, 700)
 	name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_l.clip_text = true
 	title.add_child(name_l)
-	_level_label = UiTheme.label("", 22, UiTheme.ORANGE, 700)
+	_level_label = UiTheme.label("", 28, UiTheme.ORANGE, 700)
 	title.add_child(_level_label)
-	_bar = SegmentedBar.new(10, UiTheme.ORANGE, 21.0)
+	_bar = SegmentedBar.new(10, UiTheme.ORANGE, 26.0)
 	_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	info.add_child(_bar)
-	var desc := UiTheme.label(def.description, 18, UiTheme.TEXT_DIM, 500)
+	var desc := UiTheme.label(def.description, 25, UiTheme.TEXT_DIM, 500)
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	desc.custom_minimum_size = Vector2(200, 0)
+	desc.custom_minimum_size = Vector2(120, 0)
 	info.add_child(desc)
-	_change = UiTheme.label("", 19, UiTheme.GREEN, 600)
+	_change = UiTheme.label("", 26, UiTheme.GREEN, 600)
+	_change.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_change.custom_minimum_size = Vector2(120, 0)
 	info.add_child(_change)
 
 	var buy := VBoxContainer.new()
@@ -57,18 +59,18 @@ func _init(p_def: UpgradeDef) -> void:
 	row.add_child(buy)
 	_price = Button.new()
 	_price.name = "Price"
-	_price.custom_minimum_size = Vector2(132, 58)
+	_price.custom_minimum_size = Vector2(172, 76)
 	_price.icon = PixelArt.icon(&"crystal" if def.currency == Economy.CRYSTALS else &"coin")
-	_price.add_theme_constant_override("icon_max_width", 30)
-	_price.add_theme_font_size_override("font_size", UiTheme.font_size(24, 700))
+	_price.add_theme_constant_override("icon_max_width", 38)
+	_price.add_theme_font_size_override("font_size", UiTheme.font_size(30, 700))
 	_price.pressed.connect(func() -> void: buy_requested.emit(def.id))
 	buy.add_child(_price)
 	_arrow = Button.new()
 	_arrow.name = "Buy"
-	_arrow.custom_minimum_size = Vector2(132, 52)
+	_arrow.custom_minimum_size = Vector2(172, 66)
 	_arrow.icon = PixelArt.icon(&"arrow_up")
 	_arrow.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_arrow.add_theme_constant_override("icon_max_width", 34)
+	_arrow.add_theme_constant_override("icon_max_width", 42)
 	_arrow.pressed.connect(func() -> void: buy_requested.emit(def.id))
 	buy.add_child(_arrow)
 

@@ -177,3 +177,15 @@ func test_cave_decor_only_in_natural_caves() -> void:
 	dunas.get_chunk(index)
 	check(CaveDecor.plan(dunas, index, RegionRegistry.DUNAS).is_empty(), "Dunas sem vegetação de caverna")
 	dunas.shutdown()
+
+
+## Câmera anti-cintilação: passo inteiro em pixels do jogo e do aparelho.
+func test_camera_snap_step() -> void:
+	check_eq(DepthCamera.step_for_scale(1.0), 1.0, "escala 1×: passo de 1 px")
+	check_eq(DepthCamera.step_for_scale(1.5), 2.0, "720 → 1080 (1,5×): passo de 2 px = 3 px reais")
+	check_eq(DepthCamera.step_for_scale(2.25), 4.0, "2,25×: passo de 4 px = 9 px reais")
+	check_eq(DepthCamera.step_for_scale(2.0), 1.0, "2×: passo de 1 px")
+	for sc: float in [1.5, 2.25, 1.0 + 1.0 / 3.0, 0.75]:
+		var st: float = DepthCamera.step_for_scale(sc)
+		var dev: float = st * sc
+		check(absf(dev - roundf(dev)) < 0.02 or st == 1.0, "escala %.3f: passo %.0f inteiro no aparelho" % [sc, st])

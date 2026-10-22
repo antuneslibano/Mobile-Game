@@ -12,7 +12,7 @@ signal closed
 var _root: Control
 var _carousel: RegionCarousel
 var _info: VBoxContainer
-var _scroll: ScrollContainer
+var _scroll: TouchScroll
 var _explore: Button
 var _close: Button
 var _credits: Label
@@ -100,7 +100,7 @@ func _build() -> void:
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	for side: String in ["left", "right"]:
-		margin.add_theme_constant_override("margin_" + side, 8)
+		margin.add_theme_constant_override("margin_" + side, 4)
 	margin.add_theme_constant_override("margin_top", 10 + int(_safe_top()))
 	margin.add_theme_constant_override("margin_bottom", 10)
 	_root.add_child(margin)
@@ -145,18 +145,18 @@ func _build() -> void:
 	# Carrossel.
 	_carousel = RegionCarousel.new()
 	_carousel.name = "Carousel"
-	_carousel.custom_minimum_size = Vector2(0, 470)
+	_carousel.custom_minimum_size = Vector2(0, 420)
 	_carousel.page_changed.connect(func(_i: int) -> void: _refresh())
 	v.add_child(_carousel)
 
 	# Painel de informações (rolável).
-	_scroll = ScrollContainer.new()
+	_scroll = TouchScroll.new()
+	_scroll.name = "Scroll"
 	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	v.add_child(_scroll)
 	_info = VBoxContainer.new()
 	_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_info.add_theme_constant_override("separation", 8)
+	_info.add_theme_constant_override("separation", 12)
 	_scroll.add_child(_info)
 
 	# Botão principal.
@@ -175,17 +175,17 @@ func _panel(title: String) -> VBoxContainer:
 	p.add_theme_stylebox_override("panel", PixelArt.style(&"inset"))
 	_info.add_child(p)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
+	box.add_theme_constant_override("separation", 10)
 	p.add_child(box)
 	if title != "":
-		box.add_child(UiTheme.label(title, 22, UiTheme.ORANGE, 700))
+		box.add_child(UiTheme.label(title, 30, UiTheme.ORANGE, 700))
 	return box
 
 
 func _tile(icon: Texture2D, caption: String, frame_style: StringName, caption_color: Color = UiTheme.TEXT_DIM) -> VBoxContainer:
 	var t := VBoxContainer.new()
 	t.add_theme_constant_override("separation", 2)
-	t.custom_minimum_size = Vector2(112, 0)
+	t.custom_minimum_size = Vector2(150, 0)
 	var frame := PanelContainer.new()
 	frame.add_theme_stylebox_override("panel", PixelArt.style(frame_style))
 	frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -193,13 +193,13 @@ func _tile(icon: Texture2D, caption: String, frame_style: StringName, caption_co
 	r.texture = icon
 	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	r.custom_minimum_size = Vector2(54, 54)
+	r.custom_minimum_size = Vector2(76, 76)
 	frame.add_child(r)
 	t.add_child(frame)
-	var l := UiTheme.label(caption, 16, caption_color, 500)
+	var l := UiTheme.label(caption, 23, caption_color, 500)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.custom_minimum_size = Vector2(112, 0)
+	l.custom_minimum_size = Vector2(150, 0)
 	t.add_child(l)
 	return t
 
@@ -215,7 +215,7 @@ func _refresh() -> void:
 	var head := _panel("")
 	var row := HBoxContainer.new()
 	head.add_child(row)
-	var name := UiTheme.label(r.display_name.to_upper(), 30, r.ui_color, 700)
+	var name := UiTheme.label(r.display_name.to_upper(), 38, r.ui_color, 700)
 	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(name)
 	var status: String = "BLOQUEADO"
@@ -225,16 +225,16 @@ func _refresh() -> void:
 		status_col = UiTheme.GREEN
 	var badge := PanelContainer.new()
 	badge.add_theme_stylebox_override("panel", PixelArt.style(&"slot"))
-	badge.add_child(UiTheme.label(status, 18, status_col, 700))
+	badge.add_child(UiTheme.label(status, 24, status_col, 700))
 	row.add_child(badge)
 	var diff := HBoxContainer.new()
 	diff.add_theme_constant_override("separation", 4)
 	head.add_child(diff)
-	diff.add_child(UiTheme.label("DIFICULDADE", 18, UiTheme.TEXT_DIM, 700))
+	diff.add_child(UiTheme.label("DIFICULDADE", 24, UiTheme.TEXT_DIM, 700))
 	for i in 5:
-		diff.add_child(UiTheme.icon_rect(&"star" if i < r.difficulty else &"star_empty", 30))
-	diff.add_child(UiTheme.label("  " + RegionRegistry.DIFFICULTY_NAMES[r.difficulty], 20, UiTheme.TEXT, 600))
-	var desc := UiTheme.label(r.description, 20, UiTheme.TEXT, 500)
+		diff.add_child(UiTheme.icon_rect(&"star" if i < r.difficulty else &"star_empty", 38))
+	diff.add_child(UiTheme.label("  " + RegionRegistry.DIFFICULTY_NAMES[r.difficulty], 27, UiTheme.TEXT, 600))
+	var desc := UiTheme.label(r.description, 27, UiTheme.TEXT, 500)
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.custom_minimum_size = Vector2(300, 0)
 	head.add_child(desc)
@@ -242,26 +242,26 @@ func _refresh() -> void:
 	# Progresso / desbloqueio.
 	var prog := _panel("PROGRESSO" if unlocked else "DESBLOQUEIO")
 	if unlocked:
-		var bar := SegmentedBar.new(10, PixelArt.GOLD, 26.0)
+		var bar := SegmentedBar.new(10, PixelArt.GOLD, 32.0)
 		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		bar.value = RegionRegistry.progress_ratio(r, depth)
 		prog.add_child(bar)
-		prog.add_child(UiTheme.label("%d%% explorado · recorde %d m de %d m" % [int(bar.value * 100.0), depth, r.target_depth_m], 19, UiTheme.TEXT_DIM, 500))
+		prog.add_child(UiTheme.label("%d%% explorado · recorde %d m de %d m" % [int(bar.value * 100.0), depth, r.target_depth_m], 25, UiTheme.TEXT_DIM, 500))
 	else:
 		var lr := HBoxContainer.new()
 		lr.add_theme_constant_override("separation", 10)
 		prog.add_child(lr)
-		lr.add_child(UiTheme.icon_rect(&"lock", 34))
-		var req := UiTheme.label(RegionRegistry.requirement_text(r), 20, UiTheme.TEXT, 500)
+		lr.add_child(UiTheme.icon_rect(&"lock", 44))
+		var req := UiTheme.label(RegionRegistry.requirement_text(r), 27, UiTheme.TEXT, 500)
 		req.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		req.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		lr.add_child(req)
 		var have: int = GameState.region_depth(r.unlock_region)
-		var bar := SegmentedBar.new(10, UiTheme.RED, 22.0)
+		var bar := SegmentedBar.new(10, UiTheme.RED, 28.0)
 		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		bar.value = float(have) / float(maxi(1, r.unlock_depth_m))
 		prog.add_child(bar)
-		prog.add_child(UiTheme.label("Atual: %d / %d m em %s" % [have, r.unlock_depth_m, RegionRegistry.get_def(r.unlock_region).display_name], 18, UiTheme.TEXT_DIM, 500))
+		prog.add_child(UiTheme.label("Atual: %d / %d m em %s" % [have, r.unlock_depth_m, RegionRegistry.get_def(r.unlock_region).display_name], 24, UiTheme.TEXT_DIM, 500))
 
 	# Camadas de profundidade.
 	var layers := _panel("CAMADAS DE PROFUNDIDADE")
@@ -272,13 +272,13 @@ func _refresh() -> void:
 		var sw := TextureRect.new()
 		sw.texture = PixelArt.material_swatch(b.primary_block)
 		sw.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		sw.custom_minimum_size = Vector2(72, 32)
+		sw.custom_minimum_size = Vector2(96, 44)
 		lr.add_child(sw)
 		var range_txt: String = "%d - %d m" % [b.start_row, b.end_row] if b.end_row < Balance.MAX_DEPTH_ROWS else "%d m +" % b.start_row
-		var rl := UiTheme.label(range_txt, 19, UiTheme.TEXT, 600)
-		rl.custom_minimum_size = Vector2(130, 0)
+		var rl := UiTheme.label(range_txt, 25, UiTheme.TEXT, 600)
+		rl.custom_minimum_size = Vector2(160, 0)
 		lr.add_child(rl)
-		var dl := UiTheme.label(b.description, 19, UiTheme.TEXT_DIM, 500)
+		var dl := UiTheme.label(b.description, 25, UiTheme.TEXT_DIM, 500)
 		dl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		dl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		lr.add_child(dl)
@@ -300,7 +300,7 @@ func _refresh() -> void:
 	for h in r.hazards:
 		hg.add_child(_tile(PixelArt.icon(h), RegionRegistry.HAZARDS.get(h, String(h)), &"red_pressed", Color("ffb0a0")))
 	if r.hazards.has(&"heat"):
-		var hn := UiTheme.label("Calor a partir de %d m: reduz a velocidade de perfuração (use Refrigeração)." % r.heat_start_m, 17, UiTheme.TEXT_DIM, 500)
+		var hn := UiTheme.label("Calor a partir de %d m: reduz a velocidade de perfuração (use Refrigeração)." % r.heat_start_m, 24, UiTheme.TEXT_DIM, 500)
 		hn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		hn.custom_minimum_size = Vector2(300, 0)
 		haz.add_child(hn)

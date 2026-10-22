@@ -85,6 +85,7 @@ shaders/terrain.gdshader   terreno orgânico (campo contínuo sobre a grade)
   ui/world_map.gd          WorldMap – tela do mapa mundial (carrossel + painel de informações, pausa)
   ui/region_carousel.gd    RegionCarousel – deslizar horizontal com encaixe, setas e indicadores
   ui/region_art.gd         RegionArt – ilustração procedural (ilha flutuante) por região
+  ui/touch_scroll.gd       TouchScroll – rolagem por arrasto com inércia (cancela o toque no botão)
   gameplay/ship_art.gd     ShipArt – sprite procedural da nave (quadros da broca)
 assets/fonts/              Press Start 2P e Jersey 10 (OFL 1.1, licenças incluídas)
 assets/environment/        terrain/ ores/ vegetation/ decorations/ – PNGs (importados como Image)
@@ -265,9 +266,22 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
   até 4 texturas) e `decor_tex` (camada → decoração embutida por faixa de sorteio +
   densidade). `GameState.apply_region` chama `TerrainTextures.apply_region`.
 - **Shader** (mesma geometria, mesmas bordas): `surface_col` amostra a textura do material
-  por pixel de arte (`texelFetch`, sem filtro); sem pele usa o procedural antigo. Depósitos
-  são um sprite por sítio de 18 pixels de arte, decidido pela célula do centro (alfa < 1 =
-  halo de brilho). Decorações embutidas: um sítio de 36 pixels de arte, só sobre terreno. Fósseis: sprite por bloco.
+  por pixel de arte (`texelFetch`, sem filtro); sem pele usa o procedural antigo.
+- **Transições (mistura por altura)**: o material de cada pixel vem de 4 células em volta de
+  uma grade deformada por ruído fractal (duas oitavas: `material_warp`, `material_warp2`).
+  Cada superfície (material + camada) soma seus pesos bilineares; as duas mais fortes se
+  misturam por altura (`height_pick`: vence a de relevo — brilho do torrão — mais alto somado
+  ao peso, `blend_height`). O mesmo vale para as variações dentro de um material (manchas
+  selecionadas por ruído com deformação de domínio). Escolha discreta: pixels nítidos.
+- **Depósitos**: um aglomerado 16×16 por bloco de minério (deslocamento, variação e espelho
+  por bloco), desenhado só onde o material é minério (e na faixa de transição) — recortado
+  pela forma do veio. Contorno vira sombra na rocha; halo com metade da força; veio com
+  fragmentos 2×2 do minério. Decorações embutidas: um sítio de 36 pixels de arte.
+- **Câmera anti-cintilação**: `DepthCamera` suaviza em ponto flutuante e desenha em passos
+  inteiros em pixels do jogo e do aparelho (`step_for_scale`: 1,5× → 2 px), tremor incluído.
+- **Listas roláveis**: `TouchScroll` (garagem, mapa) rola por arrasto em qualquer ponto, com
+  inércia; ao virar arrasto cancela o toque no botão de origem (move o "mouse" para longe e
+  solta lá), então rolar nunca compra. Fósseis: sprite por bloco.
 - **Cavernas**: `CaveDecor` (filho do `ChunkRenderer`) planeja, ao montar o chunk, plantas no
   chão e raízes no teto de cavernas naturais (`WorldModel.is_modified` exclui túneis) e as
   remove quando a célula de apoio é escavada. Sem colisão; desenho em um único CanvasItem.

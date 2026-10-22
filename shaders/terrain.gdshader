@@ -33,11 +33,12 @@ uniform sampler2D skin_tex : filter_nearest;       // (bloco, camada) → até 4
 uniform sampler2D decor_tex : filter_nearest;      // (sorteio 0..15 | densidade, camada) → decoração
 uniform int fossil_first = 21;
 uniform float terrain_value = 0.84;                // brilho do terreno texturizado
-uniform float terrain_saturation = 0.85;                     // primeira das 4 entradas de fóssil no atlas
+uniform float terrain_saturation = 0.85;
+uniform float blend_height = 0.55;                 // peso da altura na mistura de texturas
+uniform float material_warp2 = 0.65;               // segunda oitava da deformação dos materiais                     // primeira das 4 entradas de fóssil no atlas
 
 const int TILE = 64;
 const int ORE_PX = 16;
-const int ORE_SITE = 18;
 const int DECOR_CELL = 32;
 const int EMBED_SITE = 36;
 
@@ -173,8 +174,10 @@ vec3 deposit_col(int id, float art, vec3 host, vec2 q) {
 	if (art > 2.5 && art < 4.5 || art > 14.5) {
 		// Rocha hospedeira com raros fragmentos do minério; o depósito em si é um sprite
 		// desenhado em fragment(), decidido pela célula do seu centro.
-		if (cell_rand(ivec2(floor(q / art_px)) + ivec2(91, 17)).x > 0.965) { return acc_d; }
-		return host;
+		// Veio mineralizado: rocha um pouco mais escura com fragmentos (2×2) do minério.
+		vec4 fl = cell_rand(ivec2(floor(q / (art_px * 2.0))) + ivec2(91, 17));
+		if (fl.x > 0.93) { return fl.y > 0.5 ? acc : acc_d; }
+		return host * 0.9;
 	}
 	if (art > 13.5 && art < 14.5) {
 		// Rocha escura em placas com fissuras brilhantes (obsidiana, arcano, meteorito).
@@ -193,8 +196,29 @@ int idx_of(float v) {
 	return int(v * 255.0 + 0.5);
 }
 
+bool is_sprite_art(float a) {
+	return (a > 2.5 && a < 4.5) || a > 14.5;
+}
+
 bool is_terrain_art(float a) {
 	return (a > 0.5 && a < 2.5) || (a > 7.5 && a < 12.5);
+}
+
+// Terreno: textura do atlas (pele da camada) ou, sem pele, o desenho procedural.
+float lum(vec3 c) {
+	return dot(c, vec3(0.3, 0.55, 0.15));
+}
+
+vec3 tile_px(int t, ivec2 ap) {
+	ivec2 tp = ivec2(mod(vec2(ap), float(TILE)));
+	return texelFetch(terrain_atlas, ivec2((t % 8) * TILE, (t / 8) * TILE) + tp, 0).rgb;
+}
+
+// Mistura por altura (height blending): na faixa de transição vence a textura cujo relevo
+// (brilho do torrão) está mais alto somado ao seu peso; os torrões de uma avançam entre
+// os da outra, sem emenda reta nem pontilhado. Escolha discreta = pixels nítidos.
+vec3 height_pick(vec3 base, vec3 other, float w) {
+	return lum(other) + w * blend_height > lum(base) + (1.0 - w) * blend_height ? other : base;
 }
 
 // Terreno: textura do atlas (pele da camada) ou, sem pele, o desenho procedural.
@@ -207,20 +231,24 @@ vec3 surface_col(int id, int layer, ivec2 ap, vec2 q, vec4 n1, vec4 n2) {
 	int b = idx_of(sk.g);
 	int c = idx_of(sk.b);
 	int d = idx_of(sk.a);
-	// Borda pontilhada entre texturas (nada de emendas retas); hash aritmético, sem leitura.
-	float dith = (fract(sin(float(ap.x) * 12.9898 + float(ap.y) * 78.233) * 43758.5453) - 0.5) * 0.08;
-	// Uma leitura de ruído: g = manchas grandes (variação), b = manchas menores.
-	vec4 sel = nz(q, 1.8, vec2(0.17, 0.53));
-	int t = a;
-	if (b != 255 && sel.g + dith > 0.52) { t = b; }
-	float patch_n = sel.b + dith;
-	if (c != 255 && patch_n > 0.7) { t = c; }
-	if (d != 255 && patch_n < 0.3) { t = d; }
-	ivec2 tp = ivec2(mod(vec2(ap), float(TILE)));
-	vec3 col = texelFetch(terrain_atlas, ivec2((t % 8) * TILE, (t / 8) * TILE) + tp, 0).rgb;
+	// Seleção das variações por ruído com deformação de domínio (bordas fractais).
+	vec4 sel = nz(q + (n1.gb - 0.5) * 42.0, 1.8, vec2(0.17, 0.53));
+	vec3 col = tile_px(a, ap);
+	if (b != 255) {
+		float w = smoothstep(0.40, 0.64, sel.g);
+		if (w > 0.0) { col = w >= 1.0 ? tile_px(b, ap) : height_pick(col, tile_px(b, ap), w); }
+	}
+	if (c != 255) {
+		float w = smoothstep(0.64, 0.78, sel.b);
+		if (w > 0.0) { col = height_pick(col, tile_px(c, ap), w); }
+	}
+	if (d != 255) {
+		float w = 1.0 - smoothstep(0.22, 0.36, sel.b);
+		if (w > 0.0) { col = height_pick(col, tile_px(d, ap), w); }
+	}
 	// Terreno um pouco mais escuro e menos saturado que a arte crua: é o fundo destrutível,
 	// e minérios/nave precisam se destacar. Variação de tom larga quebra a repetição do tile.
-	col = mix(vec3(dot(col, vec3(0.3, 0.55, 0.15))), col, terrain_saturation) * terrain_value;
+	col = mix(vec3(lum(col)), col, terrain_saturation) * terrain_value;
 	return col * (0.94 + 0.12 * n1.g);
 }
 
@@ -253,13 +281,56 @@ void fragment() {
 	vec3 col;
 
 	if (s > 0.5) {
-		ivec2 mcc = ivec2(floor(cf + (n1.gb - 0.5) * material_warp));
-		vec4 mc = CELL(mcc);
-		if (mc.a < 0.5) { mc = home; mcc = ivec2(floor(cf)); }
+		// Materiais: 4 células em volta de uma grade deformada por ruído fractal (duas
+		// oitavas). Cada superfície (material + camada) soma os pesos bilineares das suas
+		// células; as duas mais fortes se misturam por altura na faixa de transição.
+		vec2 wv = (n1.gb - 0.5) * material_warp + (nz(q, 0.33, vec2(0.41, 0.13)).gb - 0.5) * material_warp2;
+		vec2 gm = cf + wv - 0.5;
+		ivec2 m0 = ivec2(floor(gm));
+		vec2 mf = gm - floor(gm);
+		vec4 mcs[4];
+		mcs[0] = CELL(m0);
+		mcs[1] = CELL(m0 + ivec2(1, 0));
+		mcs[2] = CELL(m0 + ivec2(0, 1));
+		mcs[3] = CELL(m0 + ivec2(1, 1));
+		float mw[4];
+		mw[0] = (1.0 - mf.x) * (1.0 - mf.y);
+		mw[1] = mf.x * (1.0 - mf.y);
+		mw[2] = (1.0 - mf.x) * mf.y;
+		mw[3] = mf.x * mf.y;
+		int mk[4];
+		for (int i = 0; i < 4; i++) {
+			mk[i] = mcs[i].a > 0.5 ? idx_of(mcs[i].r) * 8 + min(idx_of(mcs[i].b), 7) : -1;
+		}
+		float sum[4];
+		for (int i = 0; i < 4; i++) {
+			sum[i] = 0.0;
+			for (int j = 0; j < 4; j++) {
+				if (mk[i] >= 0 && mk[j] == mk[i]) { sum[i] += mw[j]; }
+			}
+		}
+		int pa = 0;
+		for (int i = 1; i < 4; i++) { if (sum[i] > sum[pa]) { pa = i; } }
+		int pb = -1;
+		for (int i = 0; i < 4; i++) {
+			if (mk[i] >= 0 && mk[i] != mk[pa] && (pb < 0 || sum[i] > sum[pb])) { pb = i; }
+		}
+		vec4 mc = mcs[pa];
+		ivec2 mcc = m0 + ivec2(pa % 2, pa / 2);
+		if (mk[pa] < 0) { mc = home; mcc = ivec2(floor(cf)); }
 		if (mc.a < 0.5) { mc = ca.a > 0.5 ? ca : (cb.a > 0.5 ? cb : (cc.a > 0.5 ? cc : cd)); }
 		int id = int(mc.r * 255.0 + 0.5);
 		float art = art_of(id);
 		int lay = min(idx_of(mc.b), 5);
+		// Segunda superfície (para a mistura) e seu peso relativo, com ruído na fronteira.
+		int id2 = -1;
+		int lay2 = 0;
+		float w2 = 0.0;
+		if (pb >= 0) {
+			id2 = idx_of(mcs[pb].r);
+			lay2 = min(idx_of(mcs[pb].b), 5);
+			w2 = clamp(sum[pb] / (sum[pa] + sum[pb]) + (n2.r - 0.5) * 0.3, 0.0, 1.0);
+		}
 		bool dep = (art > 2.5 && art < 4.5) || (art > 12.5 && art < 13.5) || art > 14.5;
 		if (dep || (art > 13.5 && art < 14.5)) {
 			// Rocha hospedeira: material de terreno vizinho mais próximo.
@@ -272,10 +343,14 @@ void fragment() {
 				float ha = art_of(hid);
 				if (hc.a > 0.5 && (ha < 2.5 || (ha > 4.5 && ha < 5.5) || (ha > 7.5 && ha < 12.5))) { host = hid; break; }
 			}
-			vec3 host_col = host == id ? pal(1, id) : surface_col(host, lay, ap, q, n1, n2);
+			if (id2 >= 0 && is_terrain_art(art_of(id2))) { host = id2; }
+			vec3 host_col = host == id ? pal(1, id) : surface_col(host, host == id2 ? lay2 : lay, ap, q, n1, n2);
 			col = deposit_col(id, art, host_col, q);
 		} else {
 			col = surface_col(id, lay, ap, q, n1, n2);
+			if (id2 >= 0 && is_terrain_art(art_of(id2)) && w2 > 0.0) {
+				col = height_pick(col, surface_col(id2, lay2, ap, q, n1, n2), w2);
+			}
 			// Decorações embutidas (raízes, pedrinhas): só sobre terreno, cortadas pelos túneis.
 			ivec2 es = ivec2(floor(vec2(ap) / float(EMBED_SITE)));
 			vec4 er = cell_rand(es + ivec2(57, 211));
@@ -294,25 +369,29 @@ void fragment() {
 			}
 		}
 
-		// Depósitos: no máximo um sprite por sítio de 18 pixels de arte. O sprite pertence à
-		// célula do seu centro: inteiro (não é recortado pela borda ondulada do material),
-		// só os túneis o cortam. Variação e espelhamento por sítio.
-		ivec2 os = ivec2(floor(vec2(ap) / float(ORE_SITE)));
-		vec4 orr = cell_rand(os + ivec2(311, 173));
-		if (orr.x > 0.2) {
-			ivec2 oorg = os * ORE_SITE + ivec2(orr.yz * 2.99);
-			ivec2 lp = ap - oorg;
-			if (lp.x >= 0 && lp.y >= 0 && lp.x < ORE_PX && lp.y < ORE_PX) {
-				vec4 oc = CELL(ivec2(floor(((vec2(oorg) + 8.0) * art_px - origin) / cell_px)));
-				int oid = idx_of(oc.r);
-				int row = idx_of(pal(8, oid).r);
-				if (oc.a > 0.5 && row != 255) {
-					if (fract(orr.w * 7.0) > 0.5) { lp.x = ORE_PX - 1 - lp.x; }
-					vec4 op = texelFetch(ore_atlas, ivec2(int(orr.w * 2.99) * ORE_PX + lp.x, row * ORE_PX + lp.y), 0);
-					if (op.a > 0.02) {
-						col = mix(col, op.rgb, op.a);  // alfa < 1 = halo de brilho
-					} else if (pal(7, oid).r > 0.5 && length(vec2(lp) - 7.5) < 9.0) {
-						col = mix(col, pal(3, oid), 0.22);  // brilho próprio (urânio, cristal roxo)
+
+		// Depósito: um aglomerado por bloco de minério, recortado pela forma do veio (aparece
+		// onde o material é minério e avança só na faixa de transição). O contorno vira sombra
+		// na rocha e o halo é discreto; variação, deslocamento e espelhamento por bloco.
+		int oid = -1;
+		if (is_sprite_art(art)) { oid = id; }
+		else if (id2 >= 0 && w2 > 0.2 && is_sprite_art(art_of(id2))) { oid = id2; }
+		if (oid >= 0) {
+			ivec2 wb = ivec2(floor(q / (cell_px * sub)));
+			ivec2 bl = ivec2(floor(mod(q, cell_px * sub) / art_px));
+			vec4 br = cell_rand(wb + ivec2(311, 173));
+			int row = idx_of(pal(8, oid).r);
+			if (row != 255 && br.x > 0.14) {
+				ivec2 lp = bl - ivec2(floor((br.yz - 0.5) * 4.99));
+				if (lp.x >= 0 && lp.y >= 0 && lp.x < ORE_PX && lp.y < ORE_PX) {
+					if (br.w > 0.5) { lp.x = ORE_PX - 1 - lp.x; }
+					vec4 op = texelFetch(ore_atlas, ivec2(int(fract(br.w * 3.7) * 2.99) * ORE_PX + lp.x, row * ORE_PX + lp.y), 0);
+					if (op.a > 0.9 && lum(op.rgb) < 0.09) {
+						col *= 0.55;
+					} else if (op.a > 0.9) {
+						col = op.rgb * (0.86 + 0.12 * n1.g);
+					} else if (op.a > 0.02) {
+						col = mix(col, op.rgb, op.a * 0.45);
 					}
 				}
 			}
