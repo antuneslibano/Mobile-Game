@@ -48,6 +48,7 @@ var _boss_bar: SegmentedBar
 var _done_panel: PanelContainer
 var _done_text: Label
 var _hit_flash: float = 0.0
+var _combat: bool = false
 ## Perfuradora observada (somente leitura) para energia, impulso e calor.
 var drill: Drill
 ## Guardião da câmara final (somente leitura) para a barra de vida.
@@ -62,7 +63,8 @@ func _ready() -> void:
 	EventBus.overdrive_ready.connect(func() -> void: _show_banner("SOBRECARGA PRONTA", UiTheme.BLUE))
 	EventBus.objective_completed.connect(func(_r: StringName, _o: StringName, _t: String) -> void: _show_banner("OBJETIVO CONCLUÍDO!", PixelArt.GOLD))
 	EventBus.final_chamber_reached.connect(_on_final_chamber)
-	EventBus.guardian_pulse.connect(func(_d: float) -> void: _hit_flash = 1.0)
+	EventBus.guardian_hit.connect(func(_d: float) -> void: _hit_flash = 1.0)
+	EventBus.guardian_combat.connect(_on_combat)
 	EventBus.wallet_changed.connect(set_currencies)
 	EventBus.cargo_changed.connect(_on_cargo_changed)
 	get_viewport().size_changed.connect(_apply_layout)
@@ -426,8 +428,8 @@ func _on_biome_changed(biome_id: int) -> void:
 
 
 func _on_final_chamber(region_id: StringName, alive: bool) -> void:
-	var r: RegionDef = RegionRegistry.get_def(region_id)
-	_show_banner(("CÂMARA FINAL: " + r.final_name).to_upper(), UiTheme.RED if alive else PixelArt.GOLD)
+	if not alive:
+		_show_banner(("CÂMARA FINAL: " + RegionRegistry.get_def(region_id).final_name).to_upper(), PixelArt.GOLD)
 
 
 func _update_guardian() -> void:
@@ -436,7 +438,14 @@ func _update_guardian() -> void:
 	if show:
 		_boss_name.text = UiTheme.display_text(guardian.region.guardian_name.to_upper())
 		_boss_bar.value = guardian.hp_ratio()
-		_boss.modulate = Color(1.5, 1.5, 1.5) if guardian.warn_ratio() > 0.0 and int(Time.get_ticks_msec() / 90) % 2 == 0 else Color.WHITE
+		_boss.modulate = Color(1.4, 1.4, 1.4) if guardian.danger() and int(Time.get_ticks_msec() / 110) % 2 == 0 else Color.WHITE
+
+
+func _on_combat(active: bool) -> void:
+	_combat = active
+	if active:
+		_show_banner("COMBATE!", UiTheme.RED)
+		_hint.visible = false
 
 
 ## Guardião vencido: painel com a saída (extração com toda a carga) e o que foi liberado.
@@ -527,6 +536,10 @@ func _update_vitals(delta: float) -> void:
 		strength = 0.22 + 0.16 * (0.5 + 0.5 * sin(_t * 4.0))
 		text = "COMBUSTÍVEL BAIXO"
 		color = Color("ffc24a")
+	elif _combat:
+		# Modo de combate: bordas avermelhadas, pulsando devagar.
+		tint = Color(0.8, 0.05, 0.08)
+		strength = 0.16 + 0.06 * sin(_t * 3.0)
 	var mat := _vignette.material as ShaderMaterial
 	mat.set_shader_parameter("tint", tint)
 	mat.set_shader_parameter("strength", strength)

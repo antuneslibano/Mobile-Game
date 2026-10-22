@@ -72,6 +72,8 @@ func start_run(world_seed: int, start_row: int = -1, mods: Dictionary = {}, guar
 	rig.show_at(spawn, false)
 	_on_modules_changed(GameState.economy.equipped_modules)
 	camera.target = drill
+	camera.combat = false
+	camera.zoom = Vector2.ONE
 	camera.bottom_limit = (region.target_depth_m + 6) * Balance.BLOCK_PX
 	# Abertura: mostra o céu e a base; a câmera desce quando a nave começa a cavar.
 	camera.intro = start_row <= 0
@@ -84,6 +86,9 @@ func play_extraction(duration: float = 1.6) -> void:
 	if world == null or extracting:
 		return
 	extracting = true
+	if camera.combat:
+		camera.combat = false
+		EventBus.guardian_combat.emit(false)
 	rig.pull(drill, duration)
 	var tw := create_tween()
 	tw.tween_interval(0.35)
@@ -110,39 +115,60 @@ func _physics_process(delta: float) -> void:
 	_guardian_step(delta, intent)
 
 
-## Combate com o guardião: pulsos ferem o casco; a broca encostada o desgasta.
+## Combate com o guardião: dentro da arena a câmera entra em modo de combate; raízes que
+## sobem de baixo ferem o casco; andar por cima do corpo (movendo-se) o desgasta.
 func _guardian_step(delta: float, intent: DrillIntent) -> void:
+	var fighting: bool = guardian.alive and guardian.in_arena(drill.position) and not drill.disabled
+	if fighting != camera.combat:
+		camera.combat = fighting
+		camera.combat_anchor = Vector2(guardian.center.x, guardian.floor_y)
+		EventBus.guardian_combat.emit(fighting)
 	if not guardian.alive or drill.disabled:
 		return
-	var hit: float = guardian.step(delta, drill.position)
+	var hit: float = guardian.step(delta, drill.position, drill.radius)
 	if hit > 0.0:
 		drill.apply_hull_damage(hit)
-		camera.add_shake(0.5)
-		fx.emit_burst(drill.position, guardian.glow_color, 12, 260.0, 0.5, 4.0, 300.0)
-		EventBus.guardian_pulse.emit(hit)
+		camera.add_shake(0.7)
+		fx.emit_burst(drill.position, guardian.glow_color, 16, 300.0, 0.6, 4.0, 300.0)
+		fx.emit_burst(drill.position, Color("ff5a3a"), 10, 240.0, 0.5, 3.0, 300.0)
+		EventBus.guardian_hit.emit(hit)
 	var steering: bool = DrillIntent.sanitize(intent.aim).length() > 0.05
-	if not steering or not guardian.touches(drill.bit_center(), drill.bit_radius()):
+	if not steering or not guardian.on_body(drill.position, drill.radius):
 		return
 	var s: DrillStats = drill.stats
 	var dps: float = s.damage * s.hits_per_second * drill.speed_mult * (1.0 + s.crit_chance * (s.crit_mult - 1.0))
 	_spark_t -= delta
 	if _spark_t <= 0.0:
-		_spark_t = 0.09
-		var p: Vector2 = guardian.center + (drill.bit_center() - guardian.center).normalized() * guardian.radius
+		_spark_t = 0.08
+		var p := Vector2(drill.position.x, guardian.body_top)
 		fx.emit_burst(p, guardian.glow_color, 4, 220.0, 0.35, 3.0, 600.0)
-		camera.add_shake(0.06)
+		camera.add_shake(0.05)
 	if guardian.take_damage(dps * delta):
 		_on_guardian_defeated()
 
 
+## Células do corpo do guardião (para abrir o piso quando ele é vencido).
+static func guardian_body_cells(g: FinalGuardian) -> Rect2i:
+	var half: int = (Balance.FINAL_CHAMBER_HALF_WIDTH + 1) * Balance.CELL_SUB
+	var cx: int = floori(g.center.x / Balance.CELL_PX)
+	var x0: int = maxi(Balance.WALL_CELLS, cx - half)
+	var x1: int = mini(Balance.WORLD_CELLS_X - Balance.WALL_CELLS - 1, cx + half)
+	var y0: int = roundi(g.body_top / Balance.CELL_PX)
+	var y1: int = roundi(g.floor_y / Balance.CELL_PX)
+	return Rect2i(x0, y0, x1 - x0 + 1, y1 - y0)
+
+
 func _on_guardian_defeated() -> void:
-	var c: Vector2 = guardian.center
-	world.fill_circle(c, guardian.radius + 2.0, BlockRegistry.AIR)
-	fx.emit_burst(c, guardian.glow_color, 60, 520.0, 1.2, 5.0, 300.0)
-	fx.emit_burst(c, Color("fff2a8"), 30, 380.0, 1.0, 3.0, 150.0)
+	var c: Vector2 = guardian.center + Vector2(0, Balance.BLOCK_PX)
+	world.fill_cells(guardian_body_cells(guardian), BlockRegistry.AIR)
+	for i in 5:
+		fx.emit_burst(Vector2(lerpf(guardian.x0, guardian.x1, i / 4.0), guardian.body_top + 30.0), guardian.glow_color, 20, 420.0, 1.1, 5.0, 400.0)
+	fx.emit_burst(c, Color("fff2a8"), 40, 420.0, 1.0, 3.0, 150.0)
 	camera.add_shake(1.0)
+	camera.combat = false
+	EventBus.guardian_combat.emit(false)
 	var region: RegionDef = GameState.region()
-	GameState.collect_drops(c + Vector2(0, -40), {&"artifact": 1, &"crystal": Balance.GUARDIAN_REWARD_CRYSTALS * region.difficulty})
+	GameState.collect_drops(c + Vector2(0, -60), {&"artifact": 1, &"crystal": Balance.GUARDIAN_REWARD_CRYSTALS * region.difficulty})
 	guardian_defeated.emit(drill.vitals.hull_ratio())
 
 

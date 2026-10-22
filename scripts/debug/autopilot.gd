@@ -36,6 +36,9 @@ var _rises: int = 0
 var _last_y: float = -INF
 
 
+var _fight_dir: float = 1.0
+
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_rng.seed = 1234
@@ -61,9 +64,9 @@ func _physics_process(delta: float) -> void:
 	_last_y = game.drill.position.y
 	var g: FinalGuardian = game.guardian
 	if drive and g != null and g.alive and g.in_arena(game.drill.position):
-		# Na câmara final: vai até o guardião e o perfura.
-		var to: Vector2 = g.center - game.drill.position
-		_intent.aim = Vector2(signf(to.x), 1.0).normalized() if absf(to.x) > g.radius else Vector2.DOWN
+		# Na câmara final: anda por cima do guardião desviando das raízes avisadas.
+		_fight_dir = g.safe_dir(game.drill.position.x, _fight_dir, game.drill.radius)
+		_intent.aim = Vector2(_fight_dir, 0.35).normalized()
 		_intent.boost = true
 	elif drive:
 		_plan_left -= delta

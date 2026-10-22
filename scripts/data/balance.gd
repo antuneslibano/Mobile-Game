@@ -117,18 +117,20 @@ const HULL_BASE: float = 100.0
 const HEAT_SAFE_LEVEL: float = 1.0           ## Até este nível de calor o casco aguenta.
 const HEAT_HULL_DPS: float = 3.0             ## Dano/s por nível de calor acima do seguro.
 const RESCUE_KEEP_RATIO: float = 0.5         ## Resgate de emergência: fração da carga mantida.
-const FINAL_CHAMBER_ROWS: int = 10           ## Altura (blocos) da câmara final no fundo da região.
-const FINAL_CHAMBER_HALF_WIDTH: int = 8      ## Meia-largura (blocos) da câmara final.
+const FINAL_CHAMBER_ROWS: int = 12           ## Altura (blocos) da câmara final no fundo da região.
+const FINAL_CHAMBER_HALF_WIDTH: int = 10     ## Meia-largura (blocos) da câmara final.
 
-# --- Guardião da câmara final ---------------------------------------------------------
-## Núcleo sólido no piso da câmara: a broca o desgasta por contato (dano/s da broca) e ele
-## responde com pulsos que ferem o casco de quem estiver perto.
-const GUARDIAN_RADIUS_BLOCKS: float = 1.6
+# --- Guardião da câmara final (arena de combate) ---------------------------------------
+## O guardião é um corpo largo que cobre todo o piso da câmara: a nave anda por cima dele
+## (topo plano) e o desgasta enquanto se move; raízes/espinhos sobem de baixo, com aviso,
+## tentando acertar a nave. Três fases conforme a vida cai (ataques mais rápidos e densos).
+const GUARDIAN_BODY_ROWS: float = 2.5        ## Espessura do corpo (blocos) sobre o fundo.
+const GUARDIAN_ARENA_HALF_BLOCKS: int = 8    ## Meia-largura da arena plana (blocos).
 const GUARDIAN_HP: float = 4000.0            ## Vida no Vale (dificuldade 1)…
 const GUARDIAN_HP_PER_DIFFICULTY: float = 0.9  ## …+90% por nível de dificuldade acima de 1.
-const GUARDIAN_PULSE_INTERVAL: float = 2.4   ## Segundos entre pulsos (com aviso antes).
-const GUARDIAN_PULSE_WARN: float = 0.7       ## Brilho de aviso antes do pulso.
-const GUARDIAN_PULSE_RANGE_BLOCKS: float = 4.5
-const GUARDIAN_PULSE_DAMAGE: float = 8.0     ## Dano no casco por pulso no Vale…
-const GUARDIAN_PULSE_DAMAGE_PER_DIFFICULTY: float = 4.0  ## …+4 por nível de dificuldade.
+const GUARDIAN_HIT_DAMAGE: float = 22.0      ## Dano no casco por acerto no Vale…
+const GUARDIAN_HIT_DAMAGE_PER_DIFFICULTY: float = 8.0  ## …+8 por nível de dificuldade.
+const GUARDIAN_INVULN_SEC: float = 1.0       ## Casco sem novo dano logo após um acerto.
+const GUARDIAN_INTERVALS: Array[float] = [1.7, 1.3, 0.95]  ## Entre ataques, por fase.
+const GUARDIAN_WARNS: Array[float] = [0.85, 0.75, 0.65]    ## Aviso antes de subir, por fase.
 const GUARDIAN_REWARD_CRYSTALS: int = 8      ## Cristais (× dificuldade) + 1 Artefato ao vencê-lo.

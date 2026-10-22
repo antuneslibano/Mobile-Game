@@ -63,12 +63,17 @@ func test_region_bottom_and_final_chamber() -> void:
 			check_eq(g.generate_block(x, r.target_depth_m), BlockRegistry.BEDROCK, "%s: fundo é rocha-mãe" % r.id)
 		var mid: int = RegionRegistry.chamber_top(r) + Balance.FINAL_CHAMBER_ROWS / 2
 		check_eq(g.generate_block(cx, mid), BlockRegistry.AIR, "%s: câmara final aberta" % r.id)
-		var core: Vector2i = WorldModel.world_to_cell(RegionRegistry.guardian_center(r))
-		check_eq(g.generate_cell(core.x, core.y), BlockRegistry.BEDROCK, "%s: núcleo do guardião é sólido" % r.id)
-		var above := Vector2i(core.x, core.y - roundi(Balance.GUARDIAN_RADIUS_BLOCKS * Balance.CELL_SUB) - 3)
-		check_eq(g.generate_cell(above.x, above.y), BlockRegistry.AIR, "%s: ar acima do guardião" % r.id)
+		var gc: Vector2 = RegionRegistry.guardian_center(r)
+		# Corpo plano: rocha-mãe logo abaixo do topo e ar logo acima, em toda a arena.
+		var ok_flat: bool = true
+		for bx in range(-Balance.GUARDIAN_ARENA_HALF_BLOCKS + 1, Balance.GUARDIAN_ARENA_HALF_BLOCKS):
+			var c: Vector2i = WorldModel.world_to_cell(Vector2(gc.x + bx * Balance.BLOCK_PX, gc.y + 2.0))
+			if g.generate_cell(c.x, c.y) != BlockRegistry.BEDROCK or g.generate_cell(c.x, c.y - 2) != BlockRegistry.AIR:
+				ok_flat = false
+		check(ok_flat, "%s: corpo do guardião plano cobrindo a arena" % r.id)
+		var core: Vector2i = WorldModel.world_to_cell(gc + Vector2(0, 30.0))
 		g.guardian_alive = false
-		check_eq(g.generate_cell(core.x, core.y), BlockRegistry.AIR, "%s: guardião vencido abre o núcleo" % r.id)
+		check_eq(g.generate_cell(core.x, core.y), BlockRegistry.AIR, "%s: guardião vencido abre o piso" % r.id)
 		check(r.target_depth_m >= 600 and r.target_depth_m <= Balance.MAX_DEPTH_ROWS, "%s: região funda (%d m)" % [r.id, r.target_depth_m])
 		check(not r.guardian_name.is_empty(), "%s tem guardião" % r.id)
 

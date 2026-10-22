@@ -19,11 +19,13 @@ const CAVE_Y_SCALE: float = 1.45
 const CAVE_FADE_ROWS: int = 10
 
 var seed_value: int = 0
-## Núcleo do guardião (rocha-mãe sob o sprite) no piso da câmara final. Defina antes de
-## gerar qualquer chunk: false quando o guardião da região já foi vencido.
+## Corpo do guardião (rocha-mãe sob o sprite) cobrindo o piso da câmara final. Defina
+## antes de gerar qualquer chunk: false quando o guardião da região já foi vencido.
 var guardian_alive: bool = true
-var _core_c: Vector2 = Vector2.ZERO   ## Centro do núcleo em células.
-var _core_r2: float = 0.0
+var _body_top_cy: int = 0          ## Primeira linha (células) do corpo.
+var _body_cx0: int = 0             ## Faixa de colunas (células) do corpo.
+var _body_cx1: int = 0
+var _floor_cy: int = 0
 ## Região e camadas usadas por este gerador (cópia própria: seguro em threads).
 var region: RegionDef
 var _layers: Array[BiomeDef] = []
@@ -54,8 +56,12 @@ func _init(p_seed: int, p_region: RegionDef = null) -> void:
 	_prepare_tables()
 	_warp_x = _warp_table(p_seed + 404)
 	_warp_y = _warp_table(p_seed + 505)
-	_core_c = RegionRegistry.guardian_center(region) / Balance.CELL_PX
-	_core_r2 = pow(Balance.GUARDIAN_RADIUS_BLOCKS * Balance.CELL_SUB * 0.9, 2.0)
+	var gc: Vector2 = RegionRegistry.guardian_center(region)
+	_body_top_cy = roundi(gc.y / Balance.CELL_PX)
+	_floor_cy = region.target_depth_m * Balance.CELL_SUB
+	var half: int = (Balance.FINAL_CHAMBER_HALF_WIDTH + 1) * Balance.CELL_SUB
+	_body_cx0 = floori(gc.x / Balance.CELL_PX) - half
+	_body_cx1 = floori(gc.x / Balance.CELL_PX) + half
 
 
 static func _warp_table(p_seed: int) -> PackedByteArray:
@@ -153,6 +159,9 @@ func _cell(x: int, y: int, biome_id: int) -> int:
 		var wobble: float = _cave.get_noise_2d(float(x) * 1.7, float(y) * 1.7) * 0.25
 		if dx * dx + dy * dy <= 1.0 + wobble:
 			return BlockRegistry.AIR
+		# Arena: salão retangular sobre o guardião (piso plano para andar e desviar).
+		if y >= region.target_depth_m - 6 and absi(x - cx) <= Balance.GUARDIAN_ARENA_HALF_BLOCKS:
+			return BlockRegistry.AIR
 	var biome: BiomeDef = _layers[clampi(biome_id, 0, _layers.size() - 1)]
 
 	# Cavernas
@@ -211,12 +220,8 @@ func _forced_cell(cx: int, cy: int) -> int:
 	if cx < Balance.WALL_CELLS or cx >= Balance.WORLD_CELLS_X - Balance.WALL_CELLS \
 			or cy >= Balance.MAX_DEPTH_ROWS * Balance.CELL_SUB:
 		return BlockRegistry.BEDROCK
-	if guardian_alive:
-		var dy: float = cy + 0.5 - _core_c.y
-		if dy * dy <= _core_r2:
-			var dx: float = cx + 0.5 - _core_c.x
-			if dx * dx + dy * dy <= _core_r2:
-				return BlockRegistry.BEDROCK
+	if guardian_alive and cy >= _body_top_cy and cy < _floor_cy and cx >= _body_cx0 and cx <= _body_cx1:
+		return BlockRegistry.BEDROCK
 	return -1
 
 

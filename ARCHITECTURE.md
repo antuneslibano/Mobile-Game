@@ -310,13 +310,18 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
 - **Fundo da região**: `WorldGenerator._cell` devolve rocha-mãe a partir de
   `target_depth_m` e escava a câmara final (elipse com ruído, no centro).
   `GameState.check_final_chamber` só avisa a chegada (`final_chamber_reached`).
-- **Guardião** (`FinalGuardian`, filho de `Game`): núcleo de rocha-mãe gerado em
-  `WorldGenerator._forced_cell` enquanto `generator.guardian_alive` (falso quando a região já
-  foi concluída). `Game._guardian_step` aplica os pulsos no casco (`Drill.apply_hull_damage`)
-  e o dano/s da broca encostada; ao vencê-lo, abre o núcleo (`fill_circle`, salvo na
-  escavação), dá a recompensa e emite `guardian_defeated` → `GameState.complete_region`
-  (objetivo principal, estrela, próxima região) → painel do HUD (voltar à base/continuar).
-  A câmera não desce abaixo do fundo da região (`DepthCamera.bottom_limit`).
+- **Guardião** (`FinalGuardian`, filho de `Game`): corpo de rocha-mãe cobrindo o piso da
+  arena, gerado em `WorldGenerator._forced_cell` enquanto `generator.guardian_alive` (falso
+  quando a região já foi concluída); a arena plana é escavada em `_cell`. Regras puras em
+  `FinalGuardian.step` (agenda de ataques com RNG próprio, fases, acerto círculo × retângulo,
+  invulnerabilidade), `on_body` e `take_damage`; `safe_dir` é o desvio usado pelo bot e pela
+  simulação. `Game._guardian_step` liga o modo de combate da câmera
+  (`DepthCamera.combat`: zoom e enquadramento fixo; evento `guardian_combat`), aplica os
+  acertos no casco (`Drill.apply_hull_damage`, evento `guardian_hit`) e o dano/s da broca
+  enquanto a nave anda sobre o corpo; ao vencê-lo, abre o piso (`WorldModel.fill_cells`, salvo
+  na escavação), dá a recompensa e emite `guardian_defeated` → `GameState.complete_region` →
+  painel do HUD (voltar à base/continuar). Fora do combate a câmera não desce abaixo do
+  fundo da região (`DepthCamera.bottom_limit`).
 - **Persistência**: `profile_seed` → `region_seed(id)`; escavação por região codificada
   (índice local u16 + material u8, base64 por chunk); objetivos, estatísticas por
   região e a expedição em andamento (fechar o app no meio = resgate) vão no perfil.

@@ -24,7 +24,7 @@ static func run(strategy: StringName, minutes: float, world_seed: int = 2024, re
 	var e := Economy.new()
 	var d := Drill.new()
 	var stats: Dictionary = {"overdrives": 0, "first_full": -1.0, "ore_cells": 0, "terrain_cells": 0,
-			"expeditions": 0, "rescues": 0, "final_at": -1.0, "refuel": 0.0, "guardian_at": -1.0,
+			"expeditions": 0, "rescues": 0, "final_at": -1.0, "refuel": 0.0, "guardian_at": -1.0, "guardian_hits": 0,
 			"fuel_outs": 0, "first_trip_depth": 0}
 	var guardian := FinalGuardian.new()
 	guardian.setup(region, true)
@@ -47,6 +47,7 @@ static func run(strategy: StringName, minutes: float, world_seed: int = 2024, re
 	var t: float = 0.0
 	var marks: Dictionary = {}
 	var bought: int = 0
+	var fight_dir: float = 1.0
 	var max_depth: int = 0
 	var limit: float = minutes * 60.0
 	while t < limit:
@@ -64,10 +65,11 @@ static func run(strategy: StringName, minutes: float, world_seed: int = 2024, re
 		var next_scan: float = 0.0
 		while t < limit:
 			var aim := Vector2.DOWN
-			var in_chamber: bool = float(stats.final_at) >= 0.0 and guardian.alive and guardian.in_arena(d.position)
+			var in_chamber: bool = guardian.alive and guardian.in_arena(d.position)
 			if in_chamber:
-				var tg: Vector2 = guardian.center - d.position
-				aim = Vector2(signf(tg.x), 1.0).normalized() if absf(tg.x) > guardian.radius else Vector2.DOWN
+				# Combate: anda por cima do guardião desviando das raízes avisadas.
+				fight_dir = guardian.safe_dir(d.position.x, fight_dir, d.radius)
+				aim = Vector2(fight_dir, 0.35).normalized()
 			elif strategy == &"minerios":
 				var want_fuel: bool = d.vitals.fuel_ratio() < 0.5
 				var here: Vector2i = WorldModel.world_to_cell(d.position)
@@ -94,14 +96,15 @@ static func run(strategy: StringName, minutes: float, world_seed: int = 2024, re
 			if int(stats.expeditions) == 1:
 				stats.first_trip_depth = maxi(int(stats.first_trip_depth), depth)
 			if guardian.alive and not d.disabled:
-				var hit: float = guardian.step(dt, d.position)
+				var hit: float = guardian.step(dt, d.position, d.radius)
 				if hit > 0.0:
 					d.apply_hull_damage(hit)
-				if guardian.touches(d.bit_center(), d.bit_radius()):
+					stats.guardian_hits += 1
+				if guardian.on_body(d.position, d.radius):
 					var s: DrillStats = d.stats
 					if guardian.take_damage(s.damage * s.hits_per_second * d.speed_mult * (1.0 + s.crit_chance * (s.crit_mult - 1.0)) * dt):
 						stats.guardian_at = t
-						w.fill_circle(guardian.center, guardian.radius + 2.0, BlockRegistry.AIR)
+						w.fill_cells(Game.guardian_body_cells(guardian), BlockRegistry.AIR)
 			if float(stats.final_at) < 0.0 and depth >= RegionRegistry.chamber_top(region) + 1 \
 					and absi(floori(d.position.x / Balance.BLOCK_PX) - RegionRegistry.chamber_center_x()) <= Balance.FINAL_CHAMBER_HALF_WIDTH:
 				stats.final_at = t
@@ -150,7 +153,7 @@ static func run(strategy: StringName, minutes: float, world_seed: int = 2024, re
 		"ore_cells": stats.ore_cells, "terrain_cells": stats.terrain_cells,
 		"expeditions": stats.expeditions, "rescues": stats.rescues, "final_at": stats.final_at,
 		"refuel": stats.refuel, "guardian_at": stats.guardian_at, "fuel_outs": stats.fuel_outs,
-		"first_trip_depth": stats.first_trip_depth, "guardian_hp": guardian.hp_ratio(),
+		"first_trip_depth": stats.first_trip_depth, "guardian_hp": guardian.hp_ratio(), "guardian_hits": stats.guardian_hits,
 	}
 	d.free()
 	guardian.free()
@@ -191,5 +194,5 @@ static func summary(r: Dictionary) -> String:
 	return "%d m, ganhou %d créditos, %d upgrades, %d expedições (%d resgates, %d no limite do combustível), 1ª expedição até %d m, câmara final %s, guardião %s, combustível de carvão %.0f, Sobrecargas %d (1ª %.0fs), marcos %s" % [
 		r.depth, r.earned, r.bought, r.expeditions, r.rescues, r.fuel_outs, r.first_trip_depth,
 		("%.0fs" % float(r.final_at)) if float(r.final_at) >= 0.0 else "não",
-		("vencido %.0fs" % float(r.guardian_at)) if float(r.guardian_at) >= 0.0 else ("vida %.0f%%" % (float(r.guardian_hp) * 100.0)),
+		("vencido %.0fs, %d acertos na nave" % [float(r.guardian_at), int(r.guardian_hits)]) if float(r.guardian_at) >= 0.0 else ("vida %.0f%%, %d acertos" % [float(r.guardian_hp) * 100.0, int(r.guardian_hits)]),
 		float(r.refuel), r.overdrives, r.first_full, ", ".join(parts)]

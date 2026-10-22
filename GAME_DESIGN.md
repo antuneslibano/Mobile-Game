@@ -293,8 +293,8 @@ resiste > 5 s; ≥3 expedições; 1ª expedição não passa da metade; combust�
 | Partida | sempre da superfície; cair por túneis antigos não gasta combustível |
 | Casco | 100; Blindagem +20/nível; calor acima de 1,0 tira 3/s por nível (−refrigeração) |
 | Resgate | mantém 50% da carga ganha na expedição |
-| Câmara final | 10 blocos de altura e 17 de largura no fundo, centro do mapa |
-| Guardião | vida 4000 no Vale (+90%/dificuldade); pulso a cada 2,4 s (aviso 0,7 s) com alcance de 4,5 blocos: 8 de casco no Vale (+4/dificuldade); a broca encostada causa o dano/s da perfuração; vencido: 1 Artefato + 8 Cristais × dificuldade, região concluída |
+| Câmara final | 12 blocos de altura e 21 de largura no fundo, centro do mapa; arena plana de 16 blocos |
+| Guardião | corpo cobrindo o piso (2,5 blocos); vida 4000 no Vale (+90%/dificuldade); a nave andando por cima causa o dano/s da broca; ataques de baixo com aviso (0,85 → 0,65 s por fase), intervalos 1,7/1,3/0,95 s; acerto: 22 de casco no Vale (+8/dificuldade), 1 s de invulnerabilidade; vencido: 1 Artefato + 8 Cristais × dificuldade, região concluída |
 
 ### 7.3 Módulos (Fase 3 — implementado)
 **2 slots** `[T] MODULE_SLOTS` (um 3º slot é candidato a melhoria permanente de prestígio).

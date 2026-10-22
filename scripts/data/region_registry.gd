@@ -85,18 +85,22 @@ static func chamber_center_x() -> int:
 	return Balance.WORLD_WIDTH / 2
 
 
-## Centro (px) do guardião: no piso da câmara final, no meio.
+## Topo do corpo do guardião (px): plano, GUARDIAN_BODY_ROWS acima do fundo.
+static func guardian_body_top(r: RegionDef) -> float:
+	return (r.target_depth_m - Balance.GUARDIAN_BODY_ROWS) * Balance.BLOCK_PX
+
+
+## Centro (px) do topo do corpo do guardião (meio da arena).
 static func guardian_center(r: RegionDef) -> Vector2:
-	var radius: float = Balance.GUARDIAN_RADIUS_BLOCKS * Balance.BLOCK_PX
-	return Vector2((chamber_center_x() + 0.5) * Balance.BLOCK_PX, r.target_depth_m * Balance.BLOCK_PX - radius * 0.85)
+	return Vector2((chamber_center_x() + 0.5) * Balance.BLOCK_PX, guardian_body_top(r))
 
 
 static func guardian_hp(r: RegionDef) -> float:
 	return Balance.GUARDIAN_HP * (1.0 + Balance.GUARDIAN_HP_PER_DIFFICULTY * (r.difficulty - 1))
 
 
-static func guardian_pulse_damage(r: RegionDef) -> float:
-	return Balance.GUARDIAN_PULSE_DAMAGE + Balance.GUARDIAN_PULSE_DAMAGE_PER_DIFFICULTY * (r.difficulty - 1)
+static func guardian_hit_damage(r: RegionDef) -> float:
+	return Balance.GUARDIAN_HIT_DAMAGE + Balance.GUARDIAN_HIT_DAMAGE_PER_DIFFICULTY * (r.difficulty - 1)
 
 
 static func objective(r: RegionDef, obj_id: StringName) -> Dictionary:

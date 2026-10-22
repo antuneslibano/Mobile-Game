@@ -3,6 +3,21 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.9.2] — Combate contra o guardião
+
+### Alterado
+- **Guardião em modo de combate**: o corpo dele cobre todo o piso da câmara final (topo
+  plano); a nave anda por cima e o desgasta enquanto se move.
+- **Raízes/espinhos que sobem de baixo**: aviso no ponto de saída (rachadura brilhando,
+  coluna vermelha e setas), sobem, ficam e descem; acertar a nave tira muito casco
+  (22 no Vale, +8 por dificuldade) com 1 s de invulnerabilidade depois.
+- **Três fases** conforme a vida cai: ataques mais rápidos, duplos/triplos, pancadas largas
+  e ondas de um lado ao outro com uma brecha para escapar.
+- **Câmera de combate**: ao entrar na arena a câmera se afasta (zoom 0,75), fica fixa na
+  arena, bordas avermelhadas e aviso "COMBATE!". Volta ao normal ao vencer ou sair.
+- Câmara final maior (12 × 21 blocos) com arena plana de 16 blocos.
+- Vencido, o corpo se desfaz e o piso abre.
+
 ## [0.9.1] — Guardiões e mapas fundos
 
 ### Adicionado

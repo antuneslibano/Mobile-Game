@@ -223,6 +223,18 @@ func set_cell(c: Vector2i, id: int) -> void:
 		cells_changed.emit(changed)
 
 
+## Preenche um retângulo de células com um material (ex.: corpo do guardião vencido).
+func fill_cells(rect: Rect2i, id: int) -> void:
+	var changed: Array[Vector2i] = []
+	for y in range(rect.position.y, rect.end.y):
+		for x in range(rect.position.x, rect.end.x):
+			var c := Vector2i(x, y)
+			if _set_raw(c, id):
+				changed.append(c)
+	if not changed.is_empty():
+		cells_changed.emit(changed)
+
+
 ## Preenche um círculo com um material (debug/testes: abrir bolsões).
 func fill_circle(center: Vector2, radius: float, id: int) -> void:
 	var changed: Array[Vector2i] = []

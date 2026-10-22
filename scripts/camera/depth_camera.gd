@@ -15,6 +15,12 @@ var intro: bool = false
 ## Limite inferior (px do mundo) que a câmera pode mostrar: o fundo da região, para a
 ## câmara final ficar enquadrada em vez de mostrar rocha-mãe. INF = sem limite.
 var bottom_limit: float = INF
+## Modo de combate (arena do guardião): a câmera se afasta (zoom) e fica fixa na arena,
+## com o piso (combat_anchor.y) na parte de baixo da tela.
+var combat: bool = false
+var combat_anchor: Vector2 = Vector2.ZERO
+const COMBAT_ZOOM: float = 0.75
+const COMBAT_FLOOR_SCREEN_Y: float = 0.8
 var _ease_t: float = 0.0
 var _trauma: float = 0.0
 var _pos: Vector2 = Vector2.ZERO
@@ -50,6 +56,10 @@ func _process(delta: float) -> void:
 		# Saída da abertura: desce suave antes de voltar ao acompanhamento normal.
 		_ease_t = maxf(0.0, _ease_t - delta)
 		speed = lerpf(Balance.CAMERA_FOLLOW_SPEED, 1.6, _ease_t / INTRO_EASE_SEC)
+	var zt: float = COMBAT_ZOOM if combat else 1.0
+	if not is_equal_approx(zoom.x, zt):
+		zoom = Vector2.ONE * move_toward(zoom.x, zt, delta * 0.5)
+		speed = minf(speed, 4.0)
 	var k: float = 1.0 - exp(-speed * delta)
 	_pos = _pos.lerp(_desired(), k)
 	_shake = Vector2.ZERO
@@ -80,6 +90,8 @@ func _desired() -> Vector2:
 	var p: Vector2 = target.global_position + Vector2(0.0, view.y * Balance.CAMERA_LOOK_AHEAD_RATIO)
 	if intro:
 		p.y = -view.y * (INTRO_SURFACE_SCREEN_Y - 0.5)
+	if combat:
+		return Vector2(combat_anchor.x, combat_anchor.y - view.y * (COMBAT_FLOOR_SCREEN_Y - 0.5))
 	var world_w: float = float(Balance.WORLD_WIDTH * Balance.BLOCK_PX)
 	if view.x >= world_w:
 		p.x = world_w * 0.5

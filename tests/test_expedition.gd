@@ -35,35 +35,51 @@ func test_vitals_rules() -> void:
 	check(ended and v.is_out_of_fuel(), "sem combustível encerra a expedição")
 
 
-## Guardião da câmara final: pulsos só na arena e no alcance; a broca o vence.
+## Guardião da câmara final: arena, ataques avisados que sobem de baixo, invulnerabilidade
+## após o acerto, desvio funciona, fases e vitória.
 func test_guardian_rules() -> void:
 	var vale: RegionDef = RegionRegistry.get_def(RegionRegistry.VALE)
+	var b: float = Balance.BLOCK_PX
 	var g := FinalGuardian.new()
 	g.setup(vale, true)
 	check(g.alive and is_equal_approx(g.hp, RegionRegistry.guardian_hp(vale)), "guardião começa com vida cheia")
-	check(g.center.y < vale.target_depth_m * Balance.BLOCK_PX and g.center.y > RegionRegistry.chamber_top(vale) * Balance.BLOCK_PX, "guardião no piso da câmara final")
-	var far: Vector2 = g.center + Vector2(0, -40 * Balance.BLOCK_PX)
+	check(g.x1 - g.x0 >= 14.0 * b, "arena larga (%.0f blocos)" % ((g.x1 - g.x0) / b))
+	var r: float = Balance.DRILL_RADIUS_PX
+	var standing := Vector2(g.center.x, g.body_top - r)
+	check(g.on_body(standing, r), "nave apoiada no corpo")
+	check(not g.on_body(standing + Vector2(0, -3.0 * b), r), "no ar acima do corpo não conta")
+	var far := Vector2(g.center.x, g.body_top - 40.0 * b)
 	var total: float = 0.0
 	for i in 600:
-		total += g.step(1.0 / 60.0, far)
-	check_eq(total, 0.0, "longe da arena não há pulsos")
-	var near: Vector2 = g.center + Vector2(Balance.BLOCK_PX * 2.5, 0)
-	total = 0.0
-	for i in 60 * 10:
-		total += g.step(1.0 / 60.0, near)
-	var pulses: int = int(10.0 / Balance.GUARDIAN_PULSE_INTERVAL)
-	check(is_equal_approx(total, pulses * RegionRegistry.guardian_pulse_damage(vale)), "pulsos ferem quem está perto (%.0f em 10 s)" % total)
-	var edge: Vector2 = g.center + Vector2(Balance.BLOCK_PX * (Balance.GUARDIAN_PULSE_RANGE_BLOCKS + 1.0), 0)
-	total = 0.0
-	for i in 60 * 10:
-		total += g.step(1.0 / 60.0, edge)
-	check_eq(total, 0.0, "fora do alcance do pulso não há dano (dá para se proteger)")
-	check(g.touches(g.center + Vector2(g.radius + 10.0, 0), Balance.BIT_RADIUS_PX), "broca encostada no coração")
-	check(not g.take_damage(g.max_hp * 0.5) and g.alive, "meia vida: ainda vivo")
-	check(g.take_damage(g.max_hp) and not g.alive, "vida zerada: guardião vencido")
+		total += g.step(1.0 / 60.0, far, r)
+	check(total == 0.0 and g.attacks.is_empty(), "fora da arena não há ataques")
+	# Parada no meio: os ataques miram a nave e acertam (com invulnerabilidade entre acertos).
+	var hits_still: int = 0
+	for i in 60 * 20:
+		if g.step(1.0 / 60.0, standing, r) > 0.0:
+			hits_still += 1
+	check(hits_still >= 4, "parada, a nave é acertada (%d acertos em 20 s)" % hits_still)
+	check(hits_still <= int(20.0 / Balance.GUARDIAN_INVULN_SEC), "invulnerabilidade entre acertos")
+	# Desviando (velocidade real da nave): bem menos acertos.
+	g.setup(vale, true)
+	var x: float = g.center.x
+	var dir: float = 1.0
+	var hits_dodge: int = 0
+	var speed: float = Balance.DRILL_MOVE_SPEED_BLOCKS * b
+	for i in 60 * 20:
+		dir = g.safe_dir(x, dir, r)
+		x = clampf(x + dir * speed / 60.0, g.x0 + r, g.x1 - r)
+		if g.step(1.0 / 60.0, Vector2(x, g.body_top - r), r) > 0.0:
+			hits_dodge += 1
+	check(hits_dodge * 3 <= hits_still, "desviando, acertos caem a ≤ 1/3 (%d × %d)" % [hits_dodge, hits_still])
+	check_eq(g.phase(), 0, "fase 1 com vida cheia")
+	g.take_damage(g.max_hp * 0.5)
+	check_eq(g.phase(), 1, "fase 2 com meia vida")
+	check(not g.take_damage(g.max_hp * 0.2) and g.phase() == 2, "fase 3 no fim")
+	check(g.take_damage(g.max_hp) and not g.alive and g.attacks.is_empty(), "vida zerada: guardião vencido")
 	check(not g.take_damage(10.0), "vencido não morre de novo")
 	var abismo: RegionDef = RegionRegistry.get_def(RegionRegistry.ABISMO)
-	check(RegionRegistry.guardian_hp(abismo) > RegionRegistry.guardian_hp(vale) and RegionRegistry.guardian_pulse_damage(abismo) > RegionRegistry.guardian_pulse_damage(vale),
+	check(RegionRegistry.guardian_hp(abismo) > RegionRegistry.guardian_hp(vale) and RegionRegistry.guardian_hit_damage(abismo) > RegionRegistry.guardian_hit_damage(vale),
 			"guardiões mais fortes nas regiões difíceis")
 	g.free()
 
