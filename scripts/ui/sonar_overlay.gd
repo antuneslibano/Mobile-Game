@@ -62,6 +62,7 @@ func light_level() -> float:
 
 ## Dispara o sonar (se pronto). Retorna true se disparou.
 func ping() -> bool:
+	Guard.mark("sonar")
 	if not is_ready() or drill == null or world == null:
 		return false
 	cooldown = Balance.SONAR_COOLDOWN

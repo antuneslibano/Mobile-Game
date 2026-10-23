@@ -460,6 +460,7 @@ func _on_depth_changed(depth_m: int, max_depth_m: int) -> void:
 func _on_biome_changed(biome_id: int) -> void:
 	var was: String = _biome_label.text
 	_set_biome(biome_id)
+	Guard.mark("camada " + _biome_label.text)
 	if was != "" and was != _biome_label.text and GameState.depth_m > 0:
 		_show_banner(_biome_label.text.to_upper(), BiomeRegistry.get_def(biome_id).ui_color)
 

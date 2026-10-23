@@ -16,7 +16,8 @@ static func report(vp: Viewport) -> String:
 	lines.append("Processador: %s (%d núcleos)" % [OS.get_processor_name(), OS.get_processor_count()])
 	var mem: Dictionary = OS.get_memory_info()
 	lines.append("Memória: %s livre de %s" % [_mb(int(mem.get("available", -1))), _mb(int(mem.get("physical", -1)))])
-	lines.append("Memória do jogo: %s (pico %s)" % [_mb(OS.get_static_memory_usage()), _mb(OS.get_static_memory_peak_usage())])
+	lines.append("Memória do jogo: %s (pico %s) · nativa %s" % [_mb(OS.get_static_memory_usage()), _mb(OS.get_static_memory_peak_usage()),
+			"%d MB" % Guard.mem_mb if Guard.mem_mb >= 0 else "?"])
 	lines.append("GPU: %s · %s" % [RenderingServer.get_video_adapter_vendor(), RenderingServer.get_video_adapter_name()])
 	lines.append("API gráfica: %s" % RenderingServer.get_video_adapter_api_version())
 	lines.append("Tela: %s · janela %s · jogo %s · escala %.2f" % [
@@ -28,6 +29,8 @@ static func report(vp: Viewport) -> String:
 	if Guard.crashed_last_time:
 		lines.append("FECHOU SOZINHO na última vez, em: %s (seguidas: %d)" % [Guard.last_step, Guard.crash_count])
 		lines.append("Modo de compatibilidade naquela sessão: %s" % ("nível %d" % Guard.last_level if Guard.last_level > 0 else "desligado"))
+		if Guard.last_mem_mb >= 0:
+			lines.append("Memória nativa pouco antes de fechar: %d MB" % Guard.last_mem_mb)
 		if not Guard.last_history.is_empty():
 			lines.append("Etapas antes de fechar: %s" % " > ".join(Guard.last_history))
 	else:
@@ -124,11 +127,36 @@ static func android_exit_reasons(limit: int = 3) -> String:
 	var n: int = _int(list.call("size"))
 	if n <= 0:
 		return "(nenhum registro)"
+	# 0.19.2: List.get(int) pode voltar vazio pela ponte Java; tenta toArray e iterator.
+	_android_step = "lendo itens"
+	var items: Array = []
 	for i in n:
-		_android_step = "registro %d: get" % (i + 1)
-		var info: Object = list.call("get", i)
-		if info == null:
-			continue
+		var it: Variant = list.call("get", i)
+		if it is Object and it != null:
+			items.append(it)
+	var how: String = "get"
+	if items.is_empty():
+		how = "toArray"
+		var arr: Variant = list.call("toArray")
+		if arr is Array:
+			for it: Variant in arr:
+				if it is Object and it != null:
+					items.append(it)
+	if items.is_empty():
+		how = "iterator"
+		var iter: Variant = list.call("iterator")
+		if iter is Object and iter != null:
+			var guard: int = 0
+			while bool(iter.call("hasNext")) and guard < limit:
+				guard += 1
+				var it: Variant = iter.call("next")
+				if it is Object and it != null:
+					items.append(it)
+	if items.is_empty():
+		return "(%d registros, mas a ponte Java não entregou nenhum)" % n
+	_android_out.append("(%d registros, lidos por %s)" % [n, how])
+	for i in items.size():
+		var info: Object = items[i]
 		# Cada campo separado e convertido com segurança (alguns vêm vazios/nulos); o que
 		# já foi lido fica em _android_out mesmo se um passo seguinte falhar.
 		_android_step = "registro %d: motivo" % (i + 1)

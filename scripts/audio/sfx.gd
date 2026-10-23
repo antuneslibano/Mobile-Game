@@ -89,6 +89,8 @@ func _build_boss_thread() -> void:
 
 ## Liga/desliga o tema do guardião (a troca é um crossfade de ~2 s).
 func set_boss_mode(on: bool) -> void:
+	if on:
+		Guard.mark("tema do guardião")
 	boss_mode = on
 
 
@@ -180,6 +182,7 @@ func _exit_tree() -> void:
 
 
 func _start_music(w: AudioStreamWAV) -> void:
+	Guard.mark("trilha")
 	_music.stream = w
 	_music.play()
 	music_ready = true
@@ -201,6 +204,8 @@ func play(name: StringName, pitch: float = 1.0, volume_db: float = 0.0, min_gap:
 	var now: float = Time.get_ticks_msec() / 1000.0
 	if min_gap > 0.0 and now - float(_last.get(name, -99.0)) < min_gap:
 		return
+	if not _last.has(name):
+		Guard.mark("som " + String(name))  # diagnóstico: primeira vez de cada som
 	_last[name] = now
 	var p: AudioStreamPlayer = _voices[_next]
 	_next = (_next + 1) % _voices.size()

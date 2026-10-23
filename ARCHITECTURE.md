@@ -498,6 +498,9 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
   expedição usa `main.admin_jump`, que chama `Game.start_run` com `start_x`.
 - **Prévia**: `Garage._thumb` (miniatura por visual, cacheada) e `_float_preview`
   (`ShipPreview` no canto, visível quando a vitrine saiu da tela).
+- **Guard.mark(chave)** (0.19.2): marco "primeira vez nesta sessão" no histórico
+  (14 etapas); `mem_mb` (android.os.Debug.getNativeHeapAllocatedSize) gravado com o
+  estado. Escolha manual com 2+ fechamentos seguidos volta ao automático.
 - **Sprites de relíquias**: `tools/gen_relic_art.py` → `assets/environment/ores/relic_*`,
   linhas novas em `TerrainSkins.ORES`.
 

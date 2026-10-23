@@ -130,6 +130,10 @@ func build(p_world: WorldModel, index: int) -> void:
 		for c: Vector2i in items.keys():
 			if is_bio(items[c]):
 				items.erase(c)
+	for c: Vector2i in items:
+		if is_bio(items[c]):
+			Guard.mark("plantas que brilham")
+			break
 	_update_bio()
 	queue_redraw()
 

@@ -44,6 +44,7 @@ func _process(delta: float) -> void:
 	if not _rect.visible:
 		return
 	_t += delta
+	Guard.mark("calor na tela")
 	_mat.set_shader_parameter("strength", 0.25 + 0.75 * _strength)
 	_mat.set_shader_parameter("time", _t)
 	_mat.set_shader_parameter("rect_size", _rect.get_viewport_rect().size)

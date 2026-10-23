@@ -3,6 +3,19 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.19.2] — Diagnóstico mais detalhado do fechamento
+
+### Alterado
+- O diagnóstico registra a primeira vez de cada coisa na sessão (cada criatura que nasce
+  ou chega perto, cada som, trilha, camada nova, plantas que brilham, sonar, calor na
+  tela), com a profundidade, e mostra até 14 etapas antes de fechar.
+- Memória nativa do jogo gravada a cada 5 s; o diagnóstico mostra quanto usava pouco
+  antes de fechar.
+- Motivos de saída do Android: quando a lista vem vazia pela ponte Java, tenta outros
+  dois jeitos de ler e diz quantos registros havia.
+- Modo de compatibilidade escolhido à mão que continua fechando: depois de 2
+  fechamentos seguidos ele volta a subir sozinho.
+
 ## [0.19.1] — Modo teste, relíquias com desenho próprio e prévia da nave
 
 ### Adicionado

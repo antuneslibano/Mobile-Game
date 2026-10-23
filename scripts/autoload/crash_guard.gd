@@ -42,6 +42,14 @@ var _state: Dictionary = {}
 var _foreground: bool = true
 var _write_t: float = 0.0
 var _extra: String = ""
+## Marcos já registrados nesta sessão (mark): só a primeira vez de cada um.
+var _marks: Dictionary = {}
+## Memória nativa do processo (MB) na última gravação; -1 = desconhecida.
+var mem_mb: int = -1
+## Memória na sessão que fechou sozinha (última gravação antes de fechar).
+var last_mem_mb: int = -1
+var _debug_class: Object = null
+const HISTORY: int = 14
 
 
 func _init() -> void:
@@ -93,7 +101,12 @@ func _load() -> void:
 			for e: Variant in h:
 				last_history.append(str(e))
 		crash_count += 1
+	last_mem_mb = int(_state.get("mem_mb", -1)) if crashed_last_time else -1
 	compat_level = _saved_level()
+	# Escolha manual que segue fechando (0.19.2): depois de 2 fechamentos seguidos o
+	# modo volta a subir sozinho.
+	if crashed_last_time and compat_manual and crash_count >= 2 and compat_level < MAX_LEVEL:
+		compat_manual = false
 	if crashed_last_time and not compat_manual:
 		compat_level = mini(MAX_LEVEL, compat_level + 1)
 
@@ -110,8 +123,21 @@ func step(name: String, extra: String = "") -> void:
 	step_name = name
 	_extra = extra
 	_history.append("%ds %s%s" % [Time.get_ticks_msec() / 1000, name, (" · " + extra) if extra != "" else ""])
-	if _history.size() > 8:
-		_history = _history.slice(_history.size() - 8)
+	if _history.size() > HISTORY:
+		_history = _history.slice(_history.size() - HISTORY)
+	_write(true)
+
+
+## Marco de diagnóstico (0.19.2): a primeira vez de algo nesta sessão (primeira aranha,
+## primeiro som de um tipo, efeito ligado...). Entra no histórico e grava na hora, sem
+## mudar a etapa atual.
+func mark(key: String) -> void:
+	if _marks.has(key) or not enabled:
+		return
+	_marks[key] = true
+	_history.append("%ds %s ·%s" % [Time.get_ticks_msec() / 1000, key, (" " + _extra) if _extra != "" else ""])
+	if _history.size() > HISTORY:
+		_history = _history.slice(_history.size() - HISTORY)
 	_write(true)
 
 
@@ -154,7 +180,9 @@ func _write(running: bool) -> void:
 		return
 	if Time.get_ticks_msec() > 180000:
 		crash_count = 0
+	mem_mb = _native_mem_mb()
 	var d: Dictionary = {
+		"mem_mb": mem_mb,
 		"running": running,
 		"step": step_name + ((" · " + _extra) if _extra != "" else ""),
 		"crash_count": crash_count,
@@ -168,3 +196,18 @@ func _write(running: bool) -> void:
 	if f != null:
 		f.store_string(JSON.stringify(d))
 		f.close()
+
+
+## Memória nativa alocada pelo processo (Android: android.os.Debug, barato). -1 fora do
+## Android ou se a leitura falhar.
+func _native_mem_mb() -> int:
+	if OS.get_name() != "Android":
+		var m: int = OS.get_static_memory_usage()
+		return m / 1048576 if m > 0 else -1
+	if _debug_class == null:
+		_debug_class = JavaClassWrapper.wrap("android.os.Debug")
+	if _debug_class == null:
+		return -1
+	var v: Variant = _debug_class.call("getNativeHeapAllocatedSize")
+	return int(v) / 1048576 if (v is int or v is float) else -1
+

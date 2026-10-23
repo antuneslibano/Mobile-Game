@@ -43,6 +43,7 @@ func setup(w: WorldModel, r: RegionDef, p_seed: int) -> void:
 
 func _on_chunk_loaded(index: int) -> void:
 	for e: Dictionary in plan(world, index, region, _seed):
+		Guard.mark("nasce " + String(e.species))
 		creatures.append(Creature.new(e.species, e.pos, hash([_seed, index, e.species])))
 
 
@@ -125,11 +126,13 @@ func step(delta: float, drill: Drill, steering: bool) -> void:
 			continue
 		var bite: float = c.step(delta, world, ship, drill.radius) if not drill.disabled else 0.0
 		if bite > 0.0:
+			Guard.mark("mordida " + String(c.species))
 			ship_bitten.emit(bite, c.species)
 			if Guard.compat_level < 2:
 				Sfx.play(&"bite", randf_range(0.9, 1.1))
 		_maybe_sound(c, delta, c.pos.distance_to(ship) / b)
 		if c.pos.distance_to(ship) < SEE_BLOCKS * b:
+			Guard.mark("perto " + String(c.species))
 			creature_seen.emit(c.species)
 		if steering:
 			for p in c.body_points():
