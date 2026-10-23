@@ -89,7 +89,8 @@ Executa, em modo headless:
 | `--sonar-at=T` | com `--autotest`, usa o sonar em T segundos |
 | `--settings-at=T` | com `--autotest`, abre as Configurações em T segundos (`--diag` abre o Diagnóstico) |
 | `--safe-area=T,B,L,R` | simula notch/cantos/barra de gestos (px do jogo; só depuração) |
-| `--compat` | força o modo de compatibilidade (só depuração) |
+| `--compat[=N]` | força o modo de compatibilidade, nível N de 1 a 3 (só depuração) |
+| `--real-bot=S` | fluxo real (abertura, base, mapa, EXPLORAR, salvamento e Guard) e piloto automático por S segundos (só depuração) |
 | `--guard` | com `--autotest`, liga a detecção de fechamento (normalmente desligada nos testes) |
 | `--splash` | com `--autotest`, mostra a tela de abertura |
 | `--ask-new-area` | abre o mapa com o aviso de "nova área" (só builds de depuração) |

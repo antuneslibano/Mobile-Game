@@ -134,6 +134,25 @@ func _ready() -> void:
 			splash.finished.connect(_show_crash_notice)
 	elif Guard.crashed_last_time:
 		_show_crash_notice()
+	if OS.is_debug_build() and args.has("real-bot"):
+		# Fluxo real do jogador (abertura, base, mapa, EXPLORAR) com salvamento e Guard
+		# ligados; depois o piloto automático cava. Reproduz o que o teste comum pula.
+		get_tree().create_timer(4.0).timeout.connect(func() -> void:
+			_on_station(&"map")
+			get_tree().create_timer(1.5).timeout.connect(func() -> void:
+				_on_explore(GameState.region_id)
+				var rb := Autopilot.new()
+				rb.name = "Autopilot"
+				rb.game = game
+				rb.duration = float(args["real-bot"])
+				rb.shop = false
+				rb.garage = garage
+				rb.world_map = world_map
+				for part: String in String(args.get("shots", "")).split(",", false):
+					var kv: PackedStringArray = part.split(":", true, 1)
+					if kv.size() == 2:
+						rb.shots.append([float(kv[0]), kv[1]])
+				add_child(rb)))
 	if testing:
 		var bot := Autopilot.new()
 		bot.name = "Autopilot"
@@ -289,7 +308,7 @@ func _show_crash_notice() -> void:
 	v.add_child(UiTheme.label(UiTheme.display_text("O JOGO FECHOU SOZINHO"), 30, UiTheme.ORANGE, 700))
 	var msg: String = "Da última vez o jogo fechou de repente (%s). Seu progresso salvo foi mantido." % Guard.last_step
 	if Guard.compat and not Guard.compat_manual:
-		msg += "\n\nLigamos o modo de compatibilidade, que é mais leve e estável. Dá para desligar nas Configurações."
+		msg += "\n\nLigamos o modo de compatibilidade (nível %d), que é mais leve e estável. Se fechar de novo, ele desliga mais coisas sozinho. Dá para mudar nas Configurações." % Guard.compat_level
 	msg += "\n\nSe continuar acontecendo, abra o Diagnóstico, toque em COPIAR e mande o texto para o desenvolvedor."
 	var l := UiTheme.label(msg, 22, UiTheme.TEXT, 500)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

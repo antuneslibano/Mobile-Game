@@ -441,9 +441,11 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
   ao abrir = fechou sozinho → `crashed_last_time`, `compat` automático e aviso em
   `main._show_crash_notice`. `Guard.step/detail` registram a etapa (base, estação, mapa,
   gerando mundo, expedição · profundidade, extraindo, relatório).
-- **Modo de compatibilidade** (`Guard.compat`): `WorldModel.threaded = false`, trilha por
+- **Modo de compatibilidade** (`Guard.compat_level`, 0.17.2; sobe um nível a cada
+  fechamento automático): nível 1 `WorldModel.threaded = false`, trilha por
   `MusicSynth.fill` por quadro (sem `WorkerThreadPool`), `FogLayer` com
-  `shaders/fog_lite.gdshader`.
+  `shaders/fog_lite.gdshader`; nível 2 sem trilha e sem sons de criaturas; nível 3 sem
+  criaturas (`CreatureManager.setup`), plantas bioluminescentes e `OreGlow`.
 - **Diagnóstico**: `Diagnostics.report` (aparelho, sistema, GPU, memória, tela, área segura,
   etapa, fim do log anterior em `user://logs`), mostrado em `SettingsScreen.show_diagnostics`.
 - **Shaders**: `terrain.gdshader` sem arrays locais com índice variável (`surf_key`,

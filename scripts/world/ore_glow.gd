@@ -54,7 +54,7 @@ static func plan(w: WorldModel, index: int) -> Dictionary:
 func build(p_world: WorldModel, index: int) -> void:
 	world = p_world
 	chunk_index = index
-	items = plan(world, index)
+	items = plan(world, index) if Guard.compat_level < 3 else {}  # nível 3: sem brilho
 	queue_redraw()
 
 

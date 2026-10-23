@@ -3,6 +3,16 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.17.2] — Modo de compatibilidade em níveis
+
+### Alterado
+- O modo de compatibilidade agora tem 3 níveis e sobe sozinho a cada novo fechamento
+  até o jogo parar de fechar: 1) mundo e trilha sem threads e névoa simples; 2) + sem
+  trilha sonora e sem sons das criaturas; 3) + sem criaturas, plantas que brilham e
+  brilho dos minérios. Nas Configurações o botão alterna entre os níveis.
+- Diagnóstico: quando não consegue ler os motivos de saída do Android, mostra em que
+  passo parou e o fim do log desta sessão (com o erro).
+
 ## [0.17.1] — Diagnóstico com o motivo do Android
 
 ### Adicionado

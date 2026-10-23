@@ -5,9 +5,12 @@ extends Node
 ##   normalmente, marca como encerrada. Se o jogo abrir e a sessão anterior ainda estava
 ##   "rodando" com o app na frente, ele fechou sozinho (crash ou o sistema matou).
 ## - Guarda a última etapa (step) antes do fechamento, para o diagnóstico.
-## - Depois de um fechamento, liga o modo de compatibilidade (compat): sem threads na
-##   geração do mundo e na trilha, névoa simples e menos efeitos. O jogador pode ligar ou
-##   desligar o modo nas Configurações.
+## - Depois de um fechamento, liga o modo de compatibilidade, que sobe um nível a cada
+##   novo fechamento (0.17.2) até o jogo parar de fechar; o nível em que parou aponta a
+##   causa. O jogador também pode escolher o nível nas Configurações.
+##     1: mundo e trilha sem threads, névoa simples;
+##     2: + sem trilha sonora e sem sons das criaturas;
+##     3: + sem criaturas, plantas que brilham e brilho dos minérios.
 
 const PATH: String = "user://session.json"
 
@@ -15,15 +18,20 @@ const PATH: String = "user://session.json"
 var crashed_last_time: bool = false
 ## Etapa em que estava quando fechou ("" se não fechou sozinha).
 var last_step: String = ""
-## Modo de compatibilidade estava ligado na sessão que fechou sozinha.
-var last_compat: bool = false
+## Nível do modo de compatibilidade na sessão que fechou sozinha.
+var last_level: int = 0
+const MAX_LEVEL: int = 3
 ## Últimas etapas da sessão que fechou (mais antiga primeiro).
 var last_history: PackedStringArray = []
 var _history: PackedStringArray = []
 ## Quantas vezes seguidas fechou sozinha (zera depois de uma sessão normal).
 var crash_count: int = 0
-## Modo de compatibilidade ligado (automático depois de um fechamento ou pelo jogador).
-var compat: bool = false
+## Nível do modo de compatibilidade (0 = desligado).
+var compat_level: int = 0
+## Modo de compatibilidade ligado (qualquer nível).
+var compat: bool:
+	get:
+		return compat_level >= 1
 ## O jogador escolheu o modo nas Configurações (não muda sozinho).
 var compat_manual: bool = false
 ## Desligado nos testes (não grava nada).
@@ -58,8 +66,12 @@ func _init() -> void:
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	if OS.is_debug_build() and OS.get_cmdline_user_args().has("--compat"):
-		compat = true
+	if OS.is_debug_build():
+		for a in OS.get_cmdline_user_args():
+			if a == "--compat":
+				compat_level = maxi(compat_level, 1)
+			elif a.begins_with("--compat="):
+				compat_level = clampi(int(a.trim_prefix("--compat=")), 0, MAX_LEVEL)
 	step("iniciando")
 
 
@@ -75,16 +87,22 @@ func _load() -> void:
 	if bool(_state.get("running", false)):
 		crashed_last_time = true
 		last_step = String(_state.get("step", "?"))
-		last_compat = bool(_state.get("compat", false))
+		last_level = _saved_level()
 		var h: Variant = _state.get("history", [])
 		if h is Array:
 			for e: Variant in h:
 				last_history.append(str(e))
 		crash_count += 1
-	if compat_manual:
-		compat = bool(_state.get("compat", false))
-	else:
-		compat = crashed_last_time or bool(_state.get("compat", false))
+	compat_level = _saved_level()
+	if crashed_last_time and not compat_manual:
+		compat_level = mini(MAX_LEVEL, compat_level + 1)
+
+
+## Nível gravado (arquivos da 0.17.0/0.17.1 só tinham "compat": true/false).
+func _saved_level() -> int:
+	if _state.has("level"):
+		return clampi(int(_state["level"]), 0, MAX_LEVEL)
+	return 1 if bool(_state.get("compat", false)) else 0
 
 
 ## Registra a etapa atual (grava na hora: é o que sobra se o app fechar).
@@ -102,8 +120,9 @@ func detail(extra: String) -> void:
 	_extra = extra
 
 
-func set_compat(on: bool) -> void:
-	compat = on
+## Escolha do jogador (vale ao reabrir o jogo; não sobe mais sozinho).
+func set_level(level: int) -> void:
+	compat_level = clampi(level, 0, MAX_LEVEL)
 	compat_manual = true
 	_write(true)
 
@@ -141,6 +160,7 @@ func _write(running: bool) -> void:
 		"crash_count": crash_count,
 		"history": Array(_history),
 		"compat": compat,
+		"level": compat_level,
 		"compat_manual": compat_manual,
 		"version": String(ProjectSettings.get_setting("application/config/version", "")),
 	}

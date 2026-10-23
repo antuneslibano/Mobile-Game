@@ -35,8 +35,8 @@ func setup(w: WorldModel, r: RegionDef, p_seed: int) -> void:
 	world = w
 	region = r
 	_seed = p_seed
-	if not SPAWNS.has(r.id):
-		return
+	if not SPAWNS.has(r.id) or Guard.compat_level >= 3:
+		return  # compatibilidade nível 3: sem criaturas
 	w.chunk_loaded.connect(_on_chunk_loaded)
 	w.chunk_unloaded.connect(_on_chunk_unloaded)
 
@@ -126,7 +126,8 @@ func step(delta: float, drill: Drill, steering: bool) -> void:
 		var bite: float = c.step(delta, world, ship, drill.radius) if not drill.disabled else 0.0
 		if bite > 0.0:
 			ship_bitten.emit(bite, c.species)
-			Sfx.play(&"bite", randf_range(0.9, 1.1))
+			if Guard.compat_level < 2:
+				Sfx.play(&"bite", randf_range(0.9, 1.1))
 		_maybe_sound(c, delta, c.pos.distance_to(ship) / b)
 		if c.pos.distance_to(ship) < SEE_BLOCKS * b:
 			creature_seen.emit(c.species)
@@ -143,8 +144,8 @@ func step(delta: float, drill: Drill, steering: bool) -> void:
 ## Sons das criaturas perto da nave (mais alto quanto mais perto), de tempos em tempos.
 func _maybe_sound(c: Creature, delta: float, dist_blocks: float) -> void:
 	c.sound_cd -= delta
-	if c.sound_cd > 0.0 or dist_blocks > 8.0:
-		return
+	if c.sound_cd > 0.0 or dist_blocks > 8.0 or Guard.compat_level >= 2:
+		return  # compatibilidade nível 2+: criaturas sem som
 	var vol: float = -4.0 - dist_blocks * 2.2
 	match c.species:
 		&"firefly":

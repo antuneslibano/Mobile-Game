@@ -125,6 +125,11 @@ func build(p_world: WorldModel, index: int) -> void:
 	world = p_world
 	chunk_index = index
 	items = plan(world, index, TerrainTextures.region_id)
+	if Guard.compat_level >= 3:
+		# Compatibilidade nível 3: sem plantas que brilham.
+		for c: Vector2i in items.keys():
+			if is_bio(items[c]):
+				items.erase(c)
 	_update_bio()
 	queue_redraw()
 

@@ -55,7 +55,10 @@ func _ready() -> void:
 	_music.volume_db = -80.0
 	_music.bus = BUS_NAMES[&"music"]
 	add_child(_music)
-	if Guard.compat:
+	if Guard.compat_level >= 2:
+		# Compatibilidade nível 2+: sem trilha sonora.
+		music_ready = true
+	elif Guard.compat:
 		# Modo de compatibilidade: sem threads; a trilha é gerada aos poucos, por quadro.
 		_music_synth = MusicSynth.new()
 	else:

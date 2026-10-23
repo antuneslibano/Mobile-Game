@@ -23,20 +23,27 @@ static func report(vp: Viewport) -> String:
 			str(DisplayServer.screen_get_size()), str(DisplayServer.window_get_size()),
 			str(vp.get_visible_rect().size if vp != null else Vector2.ZERO), DisplayServer.screen_get_scale()])
 	lines.append("Área segura: %s · margens %s" % [str(DisplayServer.get_display_safe_area()), str(SafeArea.insets(vp))])
-	lines.append("Modo de compatibilidade: %s%s" % ["ligado" if Guard.compat else "desligado", " (escolhido)" if Guard.compat_manual else ""])
+	lines.append("Modo de compatibilidade: %s%s" % ["nível %d" % Guard.compat_level if Guard.compat else "desligado", " (escolhido)" if Guard.compat_manual else " (automático)"])
 	lines.append("Etapa atual: %s" % Guard.step_name)
 	if Guard.crashed_last_time:
 		lines.append("FECHOU SOZINHO na última vez, em: %s (seguidas: %d)" % [Guard.last_step, Guard.crash_count])
-		lines.append("Modo de compatibilidade naquela sessão: %s" % ("ligado" if Guard.last_compat else "desligado"))
+		lines.append("Modo de compatibilidade naquela sessão: %s" % ("nível %d" % Guard.last_level if Guard.last_level > 0 else "desligado"))
 		if not Guard.last_history.is_empty():
 			lines.append("Etapas antes de fechar: %s" % " > ".join(Guard.last_history))
 	else:
 		lines.append("Última sessão terminou normalmente.")
+	_android_step = "início"
 	var exits: String = android_exit_reasons()
-	if exits != "":
+	if OS.get_name() == "Android":
 		lines.append("")
 		lines.append("--- motivos de saída registrados pelo Android ---")
-		lines.append(exits)
+		if exits != "":
+			lines.append(exits)
+		else:
+			# Erro de script em build de release interrompe a função e devolve vazio:
+			# mostra o último passo alcançado e o fim do log desta sessão (com o erro).
+			lines.append("(não foi possível ler; parou em: %s)" % _android_step)
+			lines.append(current_log_tail(15))
 	var tail: String = previous_log_tail()
 	if tail != "":
 		lines.append("")
@@ -66,6 +73,17 @@ static func previous_log_tail() -> String:
 	return "\n".join(all.slice(from))
 
 
+## Último passo alcançado na leitura do Android (para saber onde falhou).
+static var _android_step: String = ""
+
+
+## Últimas linhas do log desta sessão.
+static func current_log_tail(count: int) -> String:
+	var text: String = FileAccess.get_file_as_string("user://logs/godot.log")
+	var all: PackedStringArray = text.strip_edges().split("\n")
+	return "\n".join(all.slice(maxi(0, all.size() - count)))
+
+
 ## Motivos REASON_* de ApplicationExitInfo (Android 11+).
 const EXIT_REASONS: Dictionary = {
 	0: "desconhecido", 1: "o próprio app saiu", 2: "encerrado por sinal", 3: "pouca memória",
@@ -79,21 +97,33 @@ const EXIT_REASONS: Dictionary = {
 ## Últimos fechamentos do app segundo o Android (motivo, sinal, memória e, em crash
 ## nativo, as funções da pilha). Vazio fora do Android ou se a API não existir.
 static func android_exit_reasons(limit: int = 3) -> String:
-	if OS.get_name() != "Android" or not Engine.has_singleton("AndroidRuntime"):
+	if OS.get_name() != "Android":
 		return ""
+	_android_step = "plugin AndroidRuntime"
+	if not Engine.has_singleton("AndroidRuntime"):
+		return "(plugin AndroidRuntime indisponível)"
 	var rt: Object = Engine.get_singleton("AndroidRuntime")
+	_android_step = "getApplicationContext"
 	var ctx: Object = rt.call("getApplicationContext")
 	if ctx == null:
 		return "(sem contexto do Android)"
+	_android_step = "getSystemService"
 	var am: Object = ctx.call("getSystemService", "activity")
 	if am == null:
 		return "(sem ActivityManager)"
-	var list: Object = am.call("getHistoricalProcessExitReasons", String(ctx.call("getPackageName")), 0, limit)
+	_android_step = "getPackageName"
+	var pkg: String = str(ctx.call("getPackageName"))
+	_android_step = "getHistoricalProcessExitReasons(%s)" % pkg
+	var list: Object = am.call("getHistoricalProcessExitReasons", pkg, 0, limit)
 	if list == null:
 		return "(Android sem histórico de saídas)"
 	var out: PackedStringArray = []
+	_android_step = "List.size"
 	var n: int = int(list.call("size"))
+	if n == 0:
+		return "(nenhum registro)"
 	for i in n:
+		_android_step = "List.get(%d)" % i
 		var info: Object = list.call("get", i)
 		if info == null:
 			continue
@@ -102,6 +132,7 @@ static func android_exit_reasons(limit: int = 3) -> String:
 		out.append("%d) %s · %s · status %d · %s" % [i + 1, when, EXIT_REASONS.get(reason, str(reason)),
 				int(info.call("getStatus")), String(info.call("getDescription"))])
 		out.append("   memória: pss %d MB, rss %d MB" % [int(info.call("getPss")) / 1024, int(info.call("getRss")) / 1024])
+		_android_step = "pilha (%d)" % i
 		if reason == 5 or reason == 6:
 			var stack: String = _trace_summary(info.call("getTraceInputStream"), reason == 5)
 			if stack != "":

@@ -105,7 +105,7 @@ func _build() -> void:
 	sv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sh.add_child(sv)
 	sv.add_child(UiTheme.label("Modo de compatibilidade", 24, UiTheme.TEXT, 700))
-	var compat_hint := UiTheme.label("Mais leve e estável em celulares que fecham o jogo sozinhos. Vale ao reabrir o jogo.", 18, UiTheme.TEXT_DIM, 500)
+	var compat_hint := UiTheme.label("Mais leve e estável em celulares que fecham o jogo sozinhos (nível 1 a 3: cada um desliga mais coisas). Vale ao reabrir o jogo.", 18, UiTheme.TEXT_DIM, 500)
 	compat_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	compat_hint.custom_minimum_size = Vector2(300, 0)
 	sv.add_child(compat_hint)
@@ -115,7 +115,7 @@ func _build() -> void:
 	_compat.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_compat.add_theme_font_size_override("font_size", UiTheme.font_size(20, 700))
 	_compat.pressed.connect(func() -> void:
-		Guard.set_compat(not Guard.compat)
+		Guard.set_level((Guard.compat_level + 1) % (Guard.MAX_LEVEL + 1))
 		_update_compat())
 	sh.add_child(_compat)
 	_update_compat()
@@ -233,7 +233,7 @@ static func _grabber() -> ImageTexture:
 
 
 func _update_compat() -> void:
-	_compat.text = UiTheme.display_text("LIGADO" if Guard.compat else "DESLIGADO")
+	_compat.text = UiTheme.display_text("NÍVEL %d" % Guard.compat_level if Guard.compat else "DESLIGADO")
 	UiTheme.style_button(_compat, &"green" if Guard.compat else &"steel")
 
 
