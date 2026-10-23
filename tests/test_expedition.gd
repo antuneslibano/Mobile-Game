@@ -25,9 +25,8 @@ func test_vitals_rules() -> void:
 	check(absf((before - v.fuel) - Balance.FUEL_USE_PER_SEC * Balance.FUEL_BOOST_MULT) < 0.01, "Sobrecarga gasta mais")
 	v.refuel(10000.0)
 	check_eq(v.fuel, v.fuel_max, "abastecer não passa do tanque")
-	check_eq(ShipVitals.heat_dps(Balance.HEAT_SAFE_LEVEL, 0.0), 0.0, "calor até o nível seguro não fere")
-	check(ShipVitals.heat_dps(2.0, 0.0) > 0.0, "calor alto fere o casco")
-	check(ShipVitals.heat_dps(2.0, 0.5) < ShipVitals.heat_dps(2.0, 0.0), "refrigeração reduz o dano")
+	check_eq(ShipVitals.heat_dps(0.0), 0.0, "dentro do limite térmico não fere")
+	check(ShipVitals.heat_dps(20.0) > ShipVitals.heat_dps(5.0) and ShipVitals.heat_dps(5.0) > 0.0, "quanto mais acima do limite, mais dano")
 	v.reset(s)
 	var ended: bool = false
 	for i in 400:
@@ -127,14 +126,14 @@ func test_coal_refuels_and_drill_strands() -> void:
 
 func test_heat_damages_hull_in_abismo() -> void:
 	var abismo: RegionDef = RegionRegistry.get_def(RegionRegistry.ABISMO)
-	HeatRules.heat_start_m = abismo.heat_start_m
+	HeatRules.configure(abismo)
 	var w := WorldModel.new(9, abismo)
 	w.threaded = false
 	var pos := Vector2(400, 260.5 * Balance.BLOCK_PX)
 	w.fill_circle(pos, 40.0, BlockRegistry.AIR)
 	var d := _drill(w, pos)
-	var heat: float = HeatRules.heat_at(d.depth_m())
-	check(heat > Balance.HEAT_SAFE_LEVEL, "260 m no Abismo é quente (%.1f)" % heat)
+	var temp: float = HeatRules.temp_at(d.depth_m())
+	check(temp > d.stats.temp_limit + 20.0, "260 m no Abismo passa do limite da nave sem Refrigeração (%.0f °C)" % temp)
 	var reasons: Array[StringName] = []
 	d.stranded.connect(func(r: StringName) -> void: reasons.append(r))
 	var it := DrillIntent.new()
@@ -144,5 +143,5 @@ func test_heat_damages_hull_in_abismo() -> void:
 			break
 	check(d.vitals.hull_dps > 0.0 or d.disabled, "o casco sofre com o calor")
 	check(reasons.size() == 1 and reasons[0] == &"hull", "casco destruído pelo calor pede resgate")
-	HeatRules.heat_start_m = Balance.HEAT_START_M
+	HeatRules.configure(RegionRegistry.get_def(RegionRegistry.VALE))
 	d.free()

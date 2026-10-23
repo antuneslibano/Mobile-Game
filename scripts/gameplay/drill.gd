@@ -120,13 +120,13 @@ func physics_step(delta: float, intent: DrillIntent) -> void:
 	_dig_visual_t = maxf(0.0, _dig_visual_t - delta)
 	if energy.step(delta, stats, intent.boost):
 		boost_started.emit()
-	heat_penalty = HeatRules.penalty(depth_m(), stats.cooling)
+	heat_penalty = HeatRules.penalty(depth_m(), stats.temp_limit)
 	speed_mult = energy.speed_mult(stats) * (1.0 - heat_penalty)
 
 	var a: Vector2 = DrillIntent.sanitize(intent.aim) if not disabled else Vector2.ZERO
 	var throttle: float = a.length()
 	var steering: bool = throttle > 0.05
-	if not disabled and vitals.step(delta, stats, steering or digging, energy.is_boosting(), HeatRules.heat_at(depth_m())):
+	if not disabled and vitals.step(delta, stats, steering or digging, energy.is_boosting(), HeatRules.over(depth_m(), stats.temp_limit)):
 		disabled = true
 		stranded.emit(&"fuel" if vitals.is_out_of_fuel() else &"hull")
 	if steering:

@@ -173,7 +173,9 @@ static func from_dict(d: Dictionary) -> Economy:
 			var key := StringName(str(k))
 			var r: ResourceDef = ResourceRegistry.get_def(key)
 			if r != null and r.currency == &"" and int(cargo_in[k]) > 0:
-				e.cargo[key] = int(cargo_in[k])
+				if key == &"bio_sample":
+					key = &"leather"  # 0.18: amostras biológicas viraram couro
+				e.cargo[key] = int(e.cargo.get(key, 0)) + int(cargo_in[k])
 	var up_in: Variant = d.get("upgrades", {})
 	if up_in is Dictionary:
 		for k: Variant in up_in:
@@ -184,7 +186,7 @@ static func from_dict(d: Dictionary) -> Economy:
 	if disc_in is Array:
 		for k: Variant in disc_in:
 			if ResourceRegistry.get_def(StringName(str(k))) != null:
-				e.discovered[StringName(str(k))] = true
+				e.discovered[&"leather" if str(k) == "bio_sample" else StringName(str(k))] = true
 	for k: StringName in e.cargo:
 		e.discovered[k] = true
 	var bp_in: Variant = d.get("blueprints", [])

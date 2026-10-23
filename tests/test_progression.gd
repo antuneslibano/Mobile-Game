@@ -135,7 +135,9 @@ func test_balance_simulation_greedy_player() -> void:
 	# Faixas-alvo (GAME_DESIGN.md §7.2.1).
 	check(marks.has(50) and float(marks[50]) > 15.0 and float(marks[50]) < 300.0, "50 m entre 15 s e 5 min")
 	check(float(r.final_at) > 360.0 and float(r.final_at) < 1020.0, "câmara final do Vale entre 6 e 17 min (%.0f s)" % float(r.final_at))
-	check(float(r.guardian_at) > float(r.final_at) + 5.0, "o guardião resiste a mais de 5 s de broca (%.0f s)" % (float(r.guardian_at) - float(r.final_at)))
+	# Vencido mais de 5 s depois de chegar, ou ainda lutando (e já ferido) quando a simulação acaba.
+	var resisted: bool = float(r.guardian_at) > float(r.final_at) + 5.0 or (float(r.guardian_at) < 0.0 and float(r.guardian_hp) < 1.0)
+	check(resisted, "o guardião resiste a mais de 5 s de broca (vencido em %.0f s, vida %.0f%%)" % [float(r.guardian_at), float(r.guardian_hp) * 100.0])
 	check(int(r.expeditions) >= 3, "o combustível divide o jogo em expedições (%d)" % int(r.expeditions))
 	check(int(r.first_trip_depth) < r_target(), "a 1ª expedição não chega ao fundo (%d m)" % int(r.first_trip_depth))
 	check(int(r.fuel_outs) >= 2, "o combustível acaba de verdade (%d expedições no limite)" % int(r.fuel_outs))

@@ -430,11 +430,26 @@ static func _star(img: Image, c: Color, hi: Color) -> void:
 
 ## Ícone de catálogo de um recurso (estilo da referência de minérios): pepitas cúbicas para
 ## metais, lascas para gemas, osso, rocha com fissuras. Cores do material real.
+## Couro (0.18): pele esticada com costura.
+static func _leather_img() -> Image:
+	var img := new_img(20, 18)
+	poly(img, PackedVector2Array([Vector2(3, 4), Vector2(8, 2), Vector2(13, 3), Vector2(17, 2), Vector2(18, 8),
+			Vector2(16, 14), Vector2(11, 16), Vector2(6, 15), Vector2(2, 12), Vector2(3, 8)]), Color("8a5230"))
+	poly(img, PackedVector2Array([Vector2(5, 5), Vector2(9, 4), Vector2(14, 5), Vector2(15, 9), Vector2(13, 13),
+			Vector2(8, 13), Vector2(5, 11)]), Color("b9784a"))
+	for x in range(6, 15, 2):
+		rect(img, x, 9, 1, 1, Color("f1d9b0"))
+	rect(img, 6, 5, 3, 1, Color("d99a66"))
+	return img
+
+
 static func ore_icon(key: StringName) -> ImageTexture:
 	return texture(StringName("ore_" + String(key)), func() -> Image: return _ore_img(key))
 
 
 static func _ore_img(key: StringName) -> Image:
+	if key == &"leather":
+		return _leather_img()
 	# Mesmo sprite usado na mina (assets/environment), centralizado na tela do ícone.
 	var block: int = _block_for(key)
 	var sprite: String = TerrainSkins.ore_sprite_for(block)

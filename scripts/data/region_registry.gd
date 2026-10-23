@@ -156,6 +156,17 @@ static func _layers(spec: Array) -> Array[BiomeDef]:
 	return out
 
 
+## Calor (0.18): [°C na superfície, °C no fundo] de cada região.
+const TEMPS: Dictionary = {
+	&"vale": [25.0, 140.0],
+	&"dunas": [40.0, 190.0],
+	&"cordilheira": [25.0, 220.0],
+	&"pantano": [30.0, 240.0],
+	&"abismo": [90.0, 320.0],
+	&"vazio": [30.0, 300.0],
+}
+
+
 static func _region(id: StringName, name: String, theme: StringName, desc: String, diff: int,
 		target: int, heat: int, unlock: StringName, unlock_m: int, layers: Array[BiomeDef],
 		res: Array[StringName], haz: Array[StringName], rec: Array[StringName], sky: Array) -> RegionDef:
@@ -167,6 +178,9 @@ static func _region(id: StringName, name: String, theme: StringName, desc: Strin
 	r.difficulty = diff
 	r.target_depth_m = target
 	r.heat_start_m = heat
+	var temps: Array = TEMPS.get(id, [25.0, 140.0])
+	r.temp_surface = float(temps[0])
+	r.temp_bottom = float(temps[1])
 	r.unlock_region = unlock
 	r.unlock_depth_m = unlock_m
 	r.layers = layers

@@ -79,6 +79,7 @@ static func apply_upgrade(s: DrillStats, def: UpgradeDef, lvl: int) -> void:
 			s.energy_gain += Balance.ENERGY_GAIN_PER_LEVEL * lvl
 		&"cooling":
 			s.cooling = minf(MAX_COOLING, bonus / 100.0)
+			s.temp_limit = Balance.TEMP_LIMIT_BASE + Balance.TEMP_PER_COOLING * lvl
 		&"boost":
 			s.boost_level = lvl
 		&"fuel_tank":
@@ -105,7 +106,7 @@ static func stat_text(s: DrillStats, stat: StringName) -> String:
 		&"energy":
 			return "+%.0f%% carga" % ((s.energy_gain - 1.0) * 100.0)
 		&"cooling":
-			return "−%.0f%% calor" % (s.cooling * 100.0)
+			return "aguenta %.0f °C" % s.temp_limit
 		&"boost":
 			return "%.1fs ×%.1f" % [EnergySystem.boost_duration(s), EnergySystem.boost_mult(s)]
 		&"fuel_tank":

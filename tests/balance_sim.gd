@@ -18,14 +18,14 @@ const BASE_TIME: float = 8.0     ## Tempo gasto na base entre expedições (s).
 
 static func run(strategy: StringName, minutes: float, world_seed: int = 2024, region_id: StringName = RegionRegistry.VALE) -> Dictionary:
 	var region: RegionDef = RegionRegistry.get_def(region_id)
-	HeatRules.heat_start_m = region.heat_start_m
+	HeatRules.configure(region)
 	var w := WorldModel.new(world_seed, region)
 	w.threaded = false
 	var e := Economy.new()
 	var d := Drill.new()
 	var stats: Dictionary = {"overdrives": 0, "first_full": -1.0, "ore_cells": 0, "terrain_cells": 0,
 			"expeditions": 0, "rescues": 0, "final_at": -1.0, "refuel": 0.0, "guardian_at": -1.0, "guardian_hits": 0,
-			"fuel_outs": 0, "first_trip_depth": 0}
+			"fuel_outs": 0, "first_trip_depth": 0, "heat_returns": 0}
 	var guardian := FinalGuardian.new()
 	guardian.setup(region, true)
 	var clock: Array[float] = [0.0]   # lambdas capturam por valor: tempo compartilhado via array
@@ -49,6 +49,7 @@ static func run(strategy: StringName, minutes: float, world_seed: int = 2024, re
 	var bought: int = 0
 	var fight_dir: float = 1.0
 	var max_depth: int = 0
+	var hot: bool = false
 	var limit: float = minutes * 60.0
 	while t < limit:
 		# --- Nova expedição (sempre da superfície) ---
@@ -57,6 +58,7 @@ static func run(strategy: StringName, minutes: float, world_seed: int = 2024, re
 		d.modules.set_equipped(e.equipped_modules)
 		d.vitals.reset(d.stats)
 		var start_cargo: Dictionary = e.cargo.duplicate()
+		hot = false
 		stats.expeditions += 1
 		var stuck_t: float = 0.0
 		var last_depth: int = d.depth_m()
@@ -120,6 +122,11 @@ static func run(strategy: StringName, minutes: float, world_seed: int = 2024, re
 			if w.loaded_chunk_indices().size() > 8:
 				var ci: int = WorldModel.chunk_index_for_row(floori(d.position.y / Balance.CELL_PX))
 				w.unload_outside(ci - 2, ci + 3)
+			# Calor (0.18): como um jogador, volta quando o superaquecimento já feriu o casco.
+			if HeatRules.over(depth, d.stats.temp_limit) > 0.0 and d.vitals.hull_ratio() < 0.45:
+				hot = true
+				stats.heat_returns += 1
+				break
 			if d.disabled or d.vitals.fuel_ratio() <= EXTRACT_AT or float(stats.guardian_at) == t:
 				break
 		# --- Fim da expedição ---
@@ -136,9 +143,11 @@ static func run(strategy: StringName, minutes: float, world_seed: int = 2024, re
 			e.tech = 1
 		# Base (0.10): constrói o que der com materiais + moeda, vende só o excedente e
 		# constrói de novo com os Créditos.
-		bought += _build_all(e)
+		# Voltou por causa do calor: a Refrigeração vem antes de tudo.
+		var prefer: StringName = &"cooling" if hot else &""
+		bought += _build_all(e, prefer)
 		e.sell_surplus(Recipes.reserve(e.upgrade_levels))
-		bought += _build_all(e)
+		bought += _build_all(e, prefer)
 	var out: Dictionary = {
 		"depth": max_depth, "earned": e.lifetime_credits, "crystals": e.crystals, "bought": bought,
 		"marks": marks, "modules": e.equipped_modules.duplicate(), "levels": e.upgrade_levels.duplicate(),
@@ -146,7 +155,8 @@ static func run(strategy: StringName, minutes: float, world_seed: int = 2024, re
 		"ore_cells": stats.ore_cells, "terrain_cells": stats.terrain_cells,
 		"expeditions": stats.expeditions, "rescues": stats.rescues, "final_at": stats.final_at,
 		"refuel": stats.refuel, "guardian_at": stats.guardian_at, "fuel_outs": stats.fuel_outs,
-		"first_trip_depth": stats.first_trip_depth, "guardian_hp": guardian.hp_ratio(), "guardian_hits": stats.guardian_hits,
+		"first_trip_depth": stats.first_trip_depth, "heat_returns": stats.heat_returns,
+		"cooling": e.get_level(&"cooling"), "guardian_hp": guardian.hp_ratio(), "guardian_hits": stats.guardian_hits,
 	}
 	d.free()
 	guardian.free()
@@ -154,8 +164,12 @@ static func run(strategy: StringName, minutes: float, world_seed: int = 2024, re
 
 
 ## Constrói a peça mais barata disponível, repetidamente. Retorna quantas construiu.
-static func _build_all(e: Economy) -> int:
+static func _build_all(e: Economy, prefer: StringName = &"") -> int:
 	var n: int = 0
+	if prefer != &"":
+		var p: UpgradeDef = UpgradeRegistry.get_def(prefer)
+		if p != null and Progression.buy_status(e, p) == Progression.BuyStatus.OK and Progression.try_buy(e, p):
+			n += 1
 	while true:
 		var best: UpgradeDef = null
 		for u in UpgradeRegistry.all():
@@ -203,8 +217,8 @@ static func summary(r: Dictionary) -> String:
 	var parts: PackedStringArray = []
 	for m: int in r.marks:
 		parts.append("%dm@%.0fs" % [m, float(r.marks[m])])
-	return "%d m, ganhou %d créditos, %d upgrades, %d expedições (%d resgates, %d no limite do combustível), 1ª expedição até %d m, câmara final %s, guardião %s, combustível de carvão %.0f, Sobrecargas %d (1ª %.0fs), marcos %s" % [
+	return "%d m, ganhou %d créditos, %d upgrades, %d expedições (%d resgates, %d no limite do combustível), 1ª expedição até %d m, câmara final %s, guardião %s, combustível de carvão %.0f, Sobrecargas %d (1ª %.0fs), calor: %d voltas, Refrigeração nv %d, marcos %s" % [
 		r.depth, r.earned, r.bought, r.expeditions, r.rescues, r.fuel_outs, r.first_trip_depth,
 		("%.0fs" % float(r.final_at)) if float(r.final_at) >= 0.0 else "não",
 		("vencido %.0fs, %d acertos na nave" % [float(r.guardian_at), int(r.guardian_hits)]) if float(r.guardian_at) >= 0.0 else ("vida %.0f%%, %d acertos" % [float(r.guardian_hp) * 100.0, int(r.guardian_hits)]),
-		float(r.refuel), r.overdrives, r.first_full, ", ".join(parts)]
+		float(r.refuel), r.overdrives, r.first_full, int(r.heat_returns), int(r.cooling), ", ".join(parts)]

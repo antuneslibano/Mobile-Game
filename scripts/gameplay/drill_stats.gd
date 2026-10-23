@@ -16,6 +16,8 @@ var collect_mult: float = 1.0
 var energy_gain: float = 1.0
 ## Redução da penalidade de calor, 0..0.9 (Fase 3).
 var cooling: float = 0.0
+## Limite térmico (°C) da nave (0.18): Balance.TEMP_LIMIT_BASE + Refrigeração.
+var temp_limit: float = Balance.TEMP_LIMIT_BASE
 ## Nível do upgrade de impulso.
 var boost_level: int = 0
 ## Expedição (0.9): tanque, consumo (multiplicador) e casco.
@@ -43,6 +45,7 @@ func duplicate_stats() -> DrillStats:
 	s.collect_mult = collect_mult
 	s.energy_gain = energy_gain
 	s.cooling = cooling
+	s.temp_limit = temp_limit
 	s.boost_level = boost_level
 	s.fuel_max = fuel_max
 	s.fuel_use = fuel_use

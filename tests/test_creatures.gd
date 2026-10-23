@@ -89,7 +89,7 @@ func test_manager_damage_and_samples() -> void:
 	m.free()
 	check(Creature.DEFS[&"spider"].samples > 0 and Creature.DEFS[&"firefly"].samples == 0, "amostras: hostis rendem, vaga-lume só cataloga")
 	var drone: UpgradeDef = UpgradeRegistry.get_def(&"drone")
-	check(Recipes.materials(drone, 5).has(&"bio_sample"), "peças orgânicas pedem amostras biológicas")
+	check(Recipes.materials(drone, 5).has(&"leather"), "peças orgânicas pedem couro")
 
 
 func test_ship_looks() -> void:

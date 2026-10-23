@@ -6,10 +6,10 @@
 script = ExtResource("1_def")
 id = &"cooling"
 display_name = "Refrigeração"
-description = "Reduz a perda de eficiência pelo calor."
+description = "Aumenta a temperatura que a nave aguenta (+20 °C por nível). Quanto mais fundo, mais quente: sem ela, a nave superaquece."
 currency = &"credits"
-base_cost = 400.0
-cost_growth = 1.55
+base_cost = 250.0
+cost_growth = 1.5
 max_level = 15
 stat = &"cooling"
 step = 6.0

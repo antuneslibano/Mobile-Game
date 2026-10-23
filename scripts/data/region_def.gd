@@ -17,8 +17,11 @@ extends Resource
 @export var guardian_name: String = ""
 ## Objetivos: [{id, group (&"main"/&"research"/&"star"), kind, key, target, text}].
 @export var objectives: Array[Dictionary] = []
-## Profundidade a partir da qual o calor aparece (vulcânico: desde a superfície).
+## Profundidade a partir da qual o calor aparecia (regra antiga, até a 0.17).
 @export var heat_start_m: int = 300
+## Calor (0.18): temperatura na superfície e no fundo da região (°C).
+@export var temp_surface: float = 25.0
+@export var temp_bottom: float = 140.0
 @export var layers: Array[BiomeDef] = []
 ## Recursos principais (chaves do ResourceRegistry).
 @export var resources: Array[StringName] = []

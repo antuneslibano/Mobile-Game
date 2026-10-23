@@ -113,13 +113,21 @@ func test_overdrive_digs_faster_and_wider() -> void:
 
 
 func test_heat_rules() -> void:
-	HeatRules.heat_start_m = Balance.HEAT_START_M
-	check_eq(HeatRules.heat_at(299), 0.0, "sem calor antes de 300 m")
-	check(absf(HeatRules.heat_at(400) - 1.0) < 0.001, "calor 1 em 400 m")
-	check_eq(HeatRules.heat_at(2000), Balance.HEAT_MAX, "calor limitado")
-	check(absf(HeatRules.penalty(500, 0.0) - 0.2) < 0.001, "penalidade 20% em 500 m")
-	check(absf(HeatRules.penalty(900, 0.0) - Balance.HEAT_PENALTY_MAX) < 0.001, "penalidade máxima 30%")
-	check(HeatRules.penalty(500, 0.5) < HeatRules.penalty(500, 0.0), "refrigeração reduz a penalidade")
+	# 0.18: temperatura por profundidade e limite térmico da nave.
+	var vale: RegionDef = RegionRegistry.get_def(RegionRegistry.VALE)
+	HeatRules.configure(vale)
+	check_eq(HeatRules.temp_at(0), vale.temp_surface, "superfície na temperatura da região")
+	check_eq(HeatRules.temp_at(vale.target_depth_m), vale.temp_bottom, "fundo na temperatura máxima")
+	check(HeatRules.temp_at(300) > HeatRules.temp_at(100), "mais fundo, mais quente")
+	var base: DrillStats = Progression.build_stats({})
+	check_eq(base.temp_limit, Balance.TEMP_LIMIT_BASE, "nave nova aguenta o limite base")
+	check_eq(HeatRules.penalty(50, base.temp_limit), 0.0, "raso: sem penalidade")
+	check(HeatRules.penalty(vale.target_depth_m, base.temp_limit) > 0.0 and HeatRules.hull_dps(vale.target_depth_m, base.temp_limit) > 0.0, "sem Refrigeração o fundo do Vale superaquece")
+	check(HeatRules.penalty(5000, base.temp_limit) <= Balance.HEAT_PENALTY_MAX, "penalidade limitada")
+	var cooled: DrillStats = Progression.build_stats({&"cooling": 4})
+	check(cooled.temp_limit >= vale.temp_bottom, "4 níveis de Refrigeração aguentam o fundo do Vale (%.0f °C)" % cooled.temp_limit)
+	check(HeatRules.safe_depth(cooled.temp_limit) > HeatRules.safe_depth(base.temp_limit), "Refrigeração deixa descer mais")
+	note("Vale: nave nova aguenta até %d m; com 4 de Refrigeração, %d m" % [HeatRules.safe_depth(base.temp_limit), HeatRules.safe_depth(cooled.temp_limit)])
 
 
 func test_side_drill_widens_tunnel() -> void:

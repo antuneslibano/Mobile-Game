@@ -43,17 +43,18 @@ static func use_per_sec(s: DrillStats, boosting: bool) -> float:
 	return Balance.FUEL_USE_PER_SEC * s.fuel_use * (Balance.FUEL_BOOST_MULT if boosting else 1.0)
 
 
-## Dano de casco por segundo pelo calor (0 até o nível seguro).
-static func heat_dps(heat: float, cooling: float) -> float:
-	return maxf(0.0, heat - Balance.HEAT_SAFE_LEVEL) * Balance.HEAT_HULL_DPS * (1.0 - clampf(cooling, 0.0, 0.9))
+## Dano de casco por segundo pelo calor: °C acima do limite térmico (0.18).
+static func heat_dps(over_c: float) -> float:
+	return maxf(0.0, over_c) * Balance.HEAT_HULL_DPS_PER_C
 
 
 ## Avança um passo. Retorna true se algo acabou de zerar (fim da expedição).
-func step(delta: float, s: DrillStats, active: bool, boosting: bool, heat: float) -> bool:
+## over_c: graus acima do limite térmico da nave.
+func step(delta: float, s: DrillStats, active: bool, boosting: bool, over_c: float) -> bool:
 	var was_ok: bool = not is_out_of_fuel() and not is_destroyed()
 	if active:
 		fuel = maxf(0.0, fuel - use_per_sec(s, boosting) * delta)
-	hull_dps = heat_dps(heat, s.cooling)
+	hull_dps = heat_dps(over_c)
 	hull = maxf(0.0, hull - hull_dps * delta)
 	return was_ok and (is_out_of_fuel() or is_destroyed())
 

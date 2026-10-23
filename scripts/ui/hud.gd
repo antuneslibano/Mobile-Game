@@ -239,7 +239,7 @@ func _build() -> void:
 	vit.add_child(_heat_icon)
 	_heat_value = _label("0.0", UiTheme.FONT_SMALL, UiTheme.TEXT_DIM)
 	_heat_value.name = "HeatValue"
-	_heat_value.custom_minimum_size = Vector2(46, 0)
+	_heat_value.custom_minimum_size = Vector2(58, 0)
 	vit.add_child(_heat_value)
 
 	# Botão de impulso (canto inferior direito). O restante da tela é área do joystick.
@@ -522,11 +522,11 @@ func _set_biome(biome_id: int) -> void:
 	_biome_label.add_theme_color_override("font_color", biome.ui_color)
 
 
-func _set_heat(depth_m: int, penalty: float) -> void:
-	var heat: float = HeatRules.heat_at(depth_m)
-	_heat_label.visible = heat > 0.0
-	if heat > 0.0:
-		_heat_label.text = "calor %.1f · −%.0f%%" % [heat, penalty * 100.0]
+## Calor (0.18): a etiqueta só aparece superaquecendo (com a perda de velocidade).
+func _set_heat(_depth_m: int, penalty: float) -> void:
+	_heat_label.visible = penalty > 0.0
+	if penalty > 0.0:
+		_heat_label.text = "broca −%.0f%%" % (penalty * 100.0)
 	_heat_tint.color.a = penalty * 0.45
 
 
@@ -542,13 +542,23 @@ func _update_vitals(delta: float) -> void:
 	var fr: float = v.fuel_ratio()
 	_fuel_bar.value = fr
 	_fuel_label.text = "%d%%" % ceili(fr * 100.0)
+	# Sobrecarga gasta o dobro: o combustível mostra "×2" e pisca em laranja.
+	if drill.energy.is_boosting():
+		_fuel_label.text += " ×2"
+		_fuel_label.add_theme_color_override("font_color", Color("ffb347").lerp(UiTheme.RED, 0.5 + 0.5 * sin(_t * 12.0)))
+	else:
+		_fuel_label.add_theme_color_override("font_color", Color("ffb347"))
 	_hull_bar.value = v.hull_ratio()
 	_hull_bar.color = UiTheme.GREEN if v.hull_ratio() > 0.5 else (Color("ffb347") if v.hull_ratio() > 0.25 else UiTheme.RED)
-	var heat: float = HeatRules.heat_at(drill.depth_m())
-	_heat_value.text = "%.1f" % heat
-	var heat_col: Color = UiTheme.TEXT_DIM if heat <= 0.0 else (Color("ffb347") if heat <= Balance.HEAT_SAFE_LEVEL else UiTheme.RED)
+	# Termômetro em °C: cinza com folga, laranja perto do limite, vermelho acima.
+	var temp: float = HeatRules.temp_at(drill.depth_m())
+	var limit: float = drill.stats.temp_limit
+	var near: bool = temp >= limit - Balance.TEMP_WARN_MARGIN
+	var hot: bool = temp > limit
+	_heat_value.text = "%d°" % roundi(temp)
+	var heat_col: Color = UiTheme.RED if hot else (Color("ffb347") if near else UiTheme.TEXT_DIM)
 	_heat_value.add_theme_color_override("font_color", heat_col)
-	_heat_icon.modulate = Color.WHITE if heat > 0.0 else Color(1, 1, 1, 0.45)
+	_heat_icon.modulate = Color.WHITE if near else Color(1, 1, 1, 0.55)
 	var tint := Color.BLACK
 	var strength: float = 0.0
 	var text: String = ""
@@ -571,16 +581,17 @@ func _update_vitals(delta: float) -> void:
 	elif v.hull_dps > 0.0:
 		tint = Color(1.0, 0.12, 0.05)
 		strength = 0.35 + 0.25 * blink
-		text = "SUPERAQUECIMENTO  ·  CASCO −%.0f/s" % v.hull_dps
+		text = "SUPERAQUECENDO %d°/%d°  ·  CASCO −%.0f/s" % [roundi(temp), roundi(limit), v.hull_dps]
 	elif fr <= Balance.FUEL_CRITICAL_RATIO:
 		tint = Color(1.0, 0.12, 0.04)
 		strength = 0.45 + 0.35 * blink
 		text = "COMBUSTÍVEL CRÍTICO!"
 		color = Color("ff8a3a")
-	elif heat > 0.0:
+	elif near:
+		# Perto do limite térmico: aviso antes de começar a ferir o casco.
 		tint = Color(1.0, 0.45, 0.1)
-		strength = 0.08 + 0.06 * heat + 0.05 * sin(_t * 2.0)
-		text = "CALOR %.1f" % heat if heat > Balance.HEAT_SAFE_LEVEL * 0.7 else ""
+		strength = 0.12 + 0.05 * sin(_t * 2.0)
+		text = "QUENTE %d° · LIMITE %d°" % [roundi(temp), roundi(limit)]
 		color = Color("ffb347")
 	elif fr <= Balance.FUEL_LOW_RATIO:
 		tint = Color(1.0, 0.65, 0.1)

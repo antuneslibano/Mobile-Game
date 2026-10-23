@@ -324,8 +324,10 @@ func _refresh() -> void:
 	haz.add_child(hg)
 	for h in r.hazards:
 		hg.add_child(_tile(PixelArt.icon(h), RegionRegistry.HAZARDS.get(h, String(h)), &"red_pressed", Color("ffb0a0")))
-	if r.hazards.has(&"heat"):
-		var hn := UiTheme.label("Calor a partir de %d m: reduz a velocidade de perfuração (use Refrigeração)." % r.heat_start_m, 24, UiTheme.TEXT_DIM, 500)
+	if true:
+		# Calor (0.18): toda região esquenta com a profundidade.
+		var limit: float = GameState.stats.temp_limit
+		var hn := UiTheme.label("Calor: %.0f °C na superfície, %.0f °C no fundo. Sua nave aguenta %.0f °C (melhore a Refrigeração para descer mais)." % [r.temp_surface, r.temp_bottom, limit], 24, UiTheme.TEXT_DIM, 500)
 		hn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		hn.custom_minimum_size = Vector2(300, 0)
 		haz.add_child(hn)

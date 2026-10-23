@@ -47,7 +47,7 @@ var _looks_box: VBoxContainer
 var _lab_tab: StringName = &"minerals"
 const TITLES: Dictionary = {&"bench": "BANCADA", &"hangar": "HANGAR", &"market": "MERCADO", &"lab": "LABORATÓRIO"}
 ## Minerais do catálogo (sem os materiais antigos de entulho).
-const CATALOG_SKIP: Array[StringName] = [&"dirt", &"stone", &"basalt", &"abyss_stone", &"bio_sample"]
+const CATALOG_SKIP: Array[StringName] = [&"dirt", &"stone", &"basalt", &"abyss_stone", &"bio_sample", &"leather"]
 
 
 func _ready() -> void:
@@ -704,7 +704,7 @@ func _creature_card(sp: StringName, known: bool) -> void:
 		if String(e[1]) == "creature:" + String(sp):
 			lines.append(String(e[3]))
 	lines.append("Hostil: morde (%d de casco)." % int(d.dmg) if bool(d.hostile) else "Inofensiva.")
-	lines.append("Vida: %d  ·  Amostras: %d" % [int(d.hp), int(d.samples)])
+	lines.append("Vida: %d  ·  Couro: %d" % [int(d.hp), int(d.samples)])
 	lines.append("Profundidade: a partir de %d m." % int(CreatureManager.SPAWNS[&"vale"][sp]))
 	lines.append("Vencidas: %d." % int(GameState.creatures[sp].defeated))
 	_detail(String(d.name), CreatureManager.sprite(&"worm_head" if sp == &"worm" else sp, 0), lines, Color("9bff5a"))

@@ -106,7 +106,7 @@ func region() -> RegionDef:
 func apply_region() -> void:
 	var r: RegionDef = region()
 	BiomeRegistry.set_layers(r.layers)
-	HeatRules.heat_start_m = r.heat_start_m
+	HeatRules.configure(r)
 	TerrainTextures.apply_region(r)
 
 
@@ -543,13 +543,13 @@ func see_creature(species: StringName) -> bool:
 	return true
 
 
-## Criatura vencida: conta no catálogo e rende amostras biológicas.
+## Criatura vencida: conta no catálogo e rende couro (vendável, usado em peças orgânicas).
 func defeat_creature(species: StringName, at: Vector2) -> void:
 	see_creature(species)
 	creatures[species].defeated = int(creatures[species].defeated) + 1
 	var n: int = int(Creature.DEFS[species].samples)
 	if n > 0:
-		collect_drops(at, {&"bio_sample": float(n)})
+		collect_drops(at, {&"leather": float(n)})
 	EventBus.creature_defeated.emit(species)
 
 

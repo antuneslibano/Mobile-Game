@@ -10,7 +10,10 @@ func test_resource_registry_covers_all_drops() -> void:
 		check(r.sell_value >= 0, "%s valor >= 0" % key)
 		if r.currency == &"" and key != &"bio_sample":
 			check(r.sell_value > 0, "minério %s vendável" % key)
-	check_eq(ResourceRegistry.get_def(&"bio_sample").sell_value, 0, "amostra biológica não é vendida (serve à pesquisa)")
+	# 0.18: criaturas rendem couro, que vende; amostras de salvamentos antigos viram couro.
+	check(ResourceRegistry.get_def(&"leather").sell_value > 0, "couro tem valor de venda")
+	var old := Economy.from_dict({"cargo": {"bio_sample": 3, "leather": 1}, "discovered": ["bio_sample"]})
+	check(int(old.cargo.get(&"leather", 0)) == 4 and not old.cargo.has(&"bio_sample") and old.discovered.has(&"leather"), "amostras antigas viram couro")
 
 
 func test_collect_cargo_and_crystals() -> void:

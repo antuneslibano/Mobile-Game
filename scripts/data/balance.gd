@@ -57,11 +57,13 @@ const OVERDRIVE_MOVE_MULT: float = 1.35
 const OVERDRIVE_BIT_MULT: float = 1.3        ## Túnel mais largo durante a Sobrecarga.
 
 # --- Calor (Fase 3) -------------------------------------------------------------------
-const HEAT_START_M: int = 300
-const HEAT_PER_M: float = 0.01               ## +1 de calor a cada 100 m.
-const HEAT_MAX: float = 3.0
-const HEAT_PENALTY_PER_LEVEL: float = 0.1    ## −10% de golpes/s por nível de calor.
-const HEAT_PENALTY_MAX: float = 0.3
+## Calor (0.18): temperatura por profundidade e limite térmico da nave (HeatRules).
+const TEMP_LIMIT_BASE: float = 70.0           ## °C que a nave aguenta sem Refrigeração.
+const TEMP_PER_COOLING: float = 20.0          ## +°C de limite por nível de Refrigeração.
+const TEMP_WARN_MARGIN: float = 10.0          ## Aviso "perto do limite" a esta distância.
+const HEAT_OVER_SPAN_C: float = 40.0          ## °C acima do limite para a perda máxima.
+const HEAT_PENALTY_MAX: float = 0.5           ## Perda máxima de golpes/s superaquecendo.
+const HEAT_HULL_DPS_PER_C: float = 0.35       ## Dano/s no casco por °C acima do limite.
 
 # --- Módulos (Fase 3) -----------------------------------------------------------------
 const MODULE_SLOTS: int = 2
@@ -110,12 +112,10 @@ const UPGRADE_CREDIT_COST_MULT: float = 2.5
 # --- Expedições (0.9) ---------------------------------------------------------------
 const FUEL_BASE: float = 120.0               ## Tanque inicial (≈ segundos de atividade).
 const FUEL_USE_PER_SEC: float = 1.0          ## Gasto por segundo movendo ou cavando.
-const FUEL_BOOST_MULT: float = 1.5           ## Sobrecarga gasta mais.
+const FUEL_BOOST_MULT: float = 2.0           ## Sobrecarga gasta o dobro (0.18: era 1,5×).
 const FUEL_LOW_RATIO: float = 0.25           ## Alerta de combustível baixo…
 const FUEL_CRITICAL_RATIO: float = 0.10      ## …e crítico.
 const HULL_BASE: float = 100.0
-const HEAT_SAFE_LEVEL: float = 1.0           ## Até este nível de calor o casco aguenta.
-const HEAT_HULL_DPS: float = 3.0             ## Dano/s por nível de calor acima do seguro.
 const RESCUE_KEEP_RATIO: float = 0.5         ## Resgate de emergência: fração da carga mantida.
 const FINAL_CHAMBER_ROWS: int = 12           ## Altura (blocos) da câmara final no fundo da região.
 const FINAL_CHAMBER_HALF_WIDTH: int = 10     ## Meia-largura (blocos) da câmara final.
