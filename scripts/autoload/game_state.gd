@@ -43,6 +43,8 @@ var journal_seen: int = 0
 var tutorial_done: bool = false
 ## Desgaste da nave (0.19, WearRules): sujeira, ferrugem e amassados (0..1).
 var wear: Dictionary = WearRules.fresh()
+## Região a refazer ao fim desta expedição (o guardião dela foi vencido, 0.19).
+var reset_on_end: StringName = &""
 ## Visual escolhido no Hangar ({encaixe: opção}; vazio = automático) e quantas opções o
 ## jogador já viu liberadas (alerta do Hangar).
 var looks: Dictionary = {}
@@ -71,6 +73,7 @@ func reset_profile() -> void:
 	journal_seen = 0
 	tutorial_done = false
 	wear = WearRules.fresh()
+	reset_on_end = &""
 	looks = {}
 	_look_cache = {}
 	looks_seen = 0
@@ -219,7 +222,12 @@ func check_final_chamber(block_x: int, depth: int) -> void:
 ## hull_ratio = casco restante (estrela "guardian" com mais da metade).
 func complete_region(hull_ratio: float) -> void:
 	var r: RegionDef = region()
+	# 0.19: o guardião volta (a região é refeita); vencê-lo de novo ainda conta o
+	# objetivo de vencer com mais da metade do casco.
+	reset_on_end = r.id
 	if done.has(r.id):
+		if hull_ratio >= 0.5:
+			complete_objective(r.id, &"guardian")
 		return
 	done[r.id] = true
 	economy.tech = done.size()
@@ -266,11 +274,19 @@ func end_expedition(rescued: bool, reason: StringName = &"extract", mods: Dictio
 				complete_objective(r.id, &"haul")
 	if not mods.is_empty():
 		world_mods[region_id] = encode_mods(mods)
+	# Guardião vencido nesta expedição: a região é refeita (mundo novo, guardião de volta).
+	var reset: bool = reset_on_end == region_id
+	if reset:
+		new_area(region_id)
+	reset_on_end = &""
 	var report: Dictionary = {
 		"region": region_id, "rescued": rescued, "reason": reason, "kept": kept, "lost": lost,
 		"value_kept": value_kept, "value_lost": value_lost, "depth": max_depth_m,
 		"events": expedition_events.duplicate(),
 		"wear": WearRules.to_dict(wear),
+		"guardian_returns": true,
+		"reset_on_end": String(reset_on_end),
+		"reset": reset,
 	}
 	expedition_active = false
 	expedition_start_cargo = {}
@@ -434,6 +450,18 @@ func apply_profile(d: Dictionary) -> void:
 	expedition_active = false
 	pending_notice = ""
 	var exp: Variant = d.get("expedition", {})
+	region_variant = {}
+	var rv: Variant = d.get("variants", {})
+	if rv is Dictionary:
+		for k: Variant in rv:
+			if _valid_region(k):
+				region_variant[StringName(str(k))] = maxi(0, int(rv[k]))
+	reset_on_end = StringName(str(d.get("reset_on_end", "")))
+	if not d.has("guardian_returns"):
+		# Salvamentos anteriores à 0.19: o guardião vencido ficava morto. Agora ele volta,
+		# então as regiões concluídas recomeçam com mundo novo.
+		for k: StringName in done:
+			new_area(k)
 	if exp is Dictionary and bool((exp as Dictionary).get("active", false)):
 		expedition_active = true
 		expedition_start_cargo = {}
@@ -450,12 +478,6 @@ func apply_profile(d: Dictionary) -> void:
 	tutorial_done = bool(d.get("tutorial_done", true))
 	wear = WearRules.from_dict(d.get("wear", {}))
 	looks_seen = maxi(0, int(d.get("looks_seen", 0)))
-	region_variant = {}
-	var rv: Variant = d.get("variants", {})
-	if rv is Dictionary:
-		for k: Variant in rv:
-			if _valid_region(k):
-				region_variant[StringName(str(k))] = maxi(0, int(rv[k]))
 	creatures = {}
 	var cr: Variant = d.get("creatures", {})
 	if cr is Dictionary:

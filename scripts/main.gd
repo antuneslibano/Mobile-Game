@@ -18,6 +18,7 @@ extends Node
 ##   --grant-ores=N      (debug) N de cada minério comum no armazém
 ##   --safe-area=T,B,L,R simula notch/cantos/barra de gestos (px do jogo)
 ##   --tutorial          (com --autotest) mostra o tutorial por cima da expedição
+##   --upgrade=id:n,...  níveis de peça (ex.: cooling:5)
 ##   --wear=F            nave com desgaste F (0..1) em sujeira, ferrugem e amassados
 ##   --settings-at=T     (com --autotest) abre as Configurações em T segundos
 ##   --splash            (com --autotest) mostra a tela de abertura
@@ -33,6 +34,8 @@ var world_map: WorldMap
 var base: BaseScreen
 var report: ExpeditionReport
 var settings: SettingsScreen
+## Escolhido na tela de vitória: abrir o mapa nesta região depois do relatório (0.19).
+var _next_region_after_report: StringName = &""
 var _rescue: bool = false
 var _rescue_reason: StringName = &""
 var _debug_seed: int = -1
@@ -46,6 +49,13 @@ func _ready() -> void:
 	Guard.step("carregando perfil")
 	if not SaveService.load_profile():
 		GameState.reset_profile()
+	if OS.is_debug_build() and args.has("upgrade"):
+		# Depuração: --upgrade=cooling:5,damage:3 (níveis de peça).
+		for part: String in String(args["upgrade"]).split(","):
+			var kv: PackedStringArray = part.split(":")
+			if kv.size() == 2 and UpgradeRegistry.get_def(StringName(kv[0])) != null:
+				GameState.economy.upgrade_levels[StringName(kv[0])] = int(kv[1])
+		GameState._refresh_stats()
 	if OS.is_debug_build() and args.has("unlock-all"):
 		SaveService.enabled = false  # progresso artificial nunca vai para o perfil do jogador
 		for r in RegionRegistry.all():
@@ -117,7 +127,7 @@ func _ready() -> void:
 		if args.has("extract-at"):
 			get_tree().create_timer(float(args["extract-at"])).timeout.connect(extract)
 	else:
-		game.start_run(GameState.world_seed, -1, GameState.region_mods(GameState.region_id), GameState.done.has(GameState.region_id))
+		game.start_run(GameState.world_seed, -1, GameState.region_mods(GameState.region_id), false)
 	if OS.is_debug_build() and args.has("grant-ores"):
 		var n: float = float(args["grant-ores"])
 		GameState.collect_drops(Vector2.ZERO, {&"copper": n, &"iron": n, &"quartz": n, &"silver": n * 0.5, &"gold": n * 0.3, &"fossil": 2.0, &"amethyst": 3.0})
@@ -226,7 +236,7 @@ func _on_explore(region_id: StringName) -> void:
 func _start_expedition(region_id: StringName, start_row: int = 0) -> void:
 	Guard.step("gerando mundo", String(region_id))
 	GameState.start_dive(region_id, _debug_seed)
-	game.start_run(GameState.world_seed, start_row, GameState.region_mods(region_id), GameState.done.has(region_id))
+	game.start_run(GameState.world_seed, start_row, GameState.region_mods(region_id), false)
 	GameState.begin_expedition()
 	Guard.step("expedição", String(region_id))
 	_rescue = false
@@ -260,7 +270,26 @@ func _on_guardian_defeated(hull_ratio: float) -> void:
 		if GameState.unlocked.has(r.id) and not before.has(r.id):
 			unlocked_name = r.display_name
 	SaveService.mark_dirty()
-	hud.show_region_complete(GameState.region(), unlocked_name)
+	# 0.19: tela de vitória ("...mas ele retornará"), contagem e escolha.
+	var next: StringName = &""
+	for r in RegionRegistry.all():
+		if r.unlock_region == GameState.region_id and GameState.is_region_unlocked(r.id):
+			next = r.id
+	var v := VictoryScreen.new()
+	v.name = "Victory"
+	v.guardian_name = GameState.region().guardian_name
+	v.unlocked_name = unlocked_name
+	v.next_region = next
+	v.chosen.connect(_after_victory)
+	add_child(v)
+	Guard.step("vitória", String(GameState.region_id))
+
+
+## Depois da vitória: a cápsula leva a nave com toda a carga; no fim do relatório vai à
+## base ou ao mapa já na próxima região.
+func _after_victory(next_region: StringName) -> void:
+	_next_region_after_report = next_region
+	extract()
 
 
 func _on_extraction_finished() -> void:
@@ -272,6 +301,13 @@ func _on_extraction_finished() -> void:
 
 func _back_to_base() -> void:
 	Guard.step("base")
+	if _next_region_after_report != &"":
+		var nr: StringName = _next_region_after_report
+		_next_region_after_report = &""
+		base.open()
+		world_map.open()
+		world_map.go_to_page(RegionRegistry.index_of(nr), true)
+		return
 	base.open()
 
 

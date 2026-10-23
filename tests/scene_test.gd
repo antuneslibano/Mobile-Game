@@ -419,6 +419,9 @@ func _run() -> void:
 	_check(GameState.is_objective_done(RegionRegistry.VALE, &"res_copper"), "pesquisa: coletar cobre conclui o objetivo")
 	GameState.collect_drops(Vector2.ZERO, {&"diamond": 3.0})
 	var rep2: Dictionary = GameState.end_expedition(false)
+	# 0.19: vencido o guardião, a expedição termina refazendo a região (o progresso zera).
+	_check(bool(rep2.get("reset", false)) and GameState.region_depth(RegionRegistry.VALE) == 0, "vencer o guardião refaz o Vale ao fim da expedição")
+	vale_progress = 0
 	_check(GameState.is_objective_done(RegionRegistry.VALE, &"guardian"), "estrela: guardião vencido com mais da metade do casco")
 	_check(GameState.is_objective_done(RegionRegistry.VALE, &"haul") == (int(rep2.value_kept) >= int(RegionRegistry.objective(vale_def, &"haul").target)), "estrela: carga grande")
 	_check(GameState.stars(RegionRegistry.VALE) >= 1 and GameState.region_completion(RegionRegistry.VALE) > 0.3, "estrelas e conclusão da região")
@@ -451,6 +454,33 @@ func _run() -> void:
 	GameState.apply_profile(prof)
 	_check(GameState.region_id == RegionRegistry.DUNAS and GameState.region_depth(RegionRegistry.VALE) == vale_progress,
 			"perfil restaura região e progresso")
+
+	# Vitória (0.19): "ele retornará", próxima região e a região refeita.
+	GameState.region_id = RegionRegistry.VALE
+	main.call("_start_expedition", RegionRegistry.VALE, 0)
+	await _frames(3)
+	var variant_before: int = int(GameState.region_variant.get(RegionRegistry.VALE, 0))
+	main.call("_on_guardian_defeated", 0.8)
+	await _frames(2)
+	var vic: Node = main.get_node_or_null("Victory")
+	_check(vic != null and get_tree().paused, "vitória abre a tela e pausa o jogo")
+	var vf: int = 0
+	while vic != null and is_instance_valid(vic) and (vic.find_child("NextRegionButton", true, false) as Button).disabled and vf < 600:
+		await _frames(1)
+		vf += 1
+	_check(String(vic.find_child("VictoryOmen", true, false).text).contains("retornar"), "aparece \"...mas ele retornará\"")
+	(vic.find_child("NextRegionButton", true, false) as Button).pressed.emit()
+	var vrep: ExpeditionReport = main.get("report")
+	var rf: int = 0
+	while not vrep.is_open() and rf < 600:
+		await _frames(1)
+		rf += 1
+	_check(vrep.is_open(), "depois da escolha: extração e relatório")
+	_check(int(GameState.region_variant.get(RegionRegistry.VALE, 0)) == variant_before + 1 and not GameState.world_mods.has(RegionRegistry.VALE), "a região do guardião foi refeita")
+	(vrep.find_child("BaseButton", true, false) as Button).pressed.emit()
+	await _frames(3)
+	_check(world_map.is_open() and world_map.current_region().id == RegionRegistry.DUNAS, "PRÓXIMA REGIÃO abre o mapa nas Dunas")
+	world_map.close()
 
 	print("")
 	print("%d verificações, %d falhas" % [_checks, _fail])

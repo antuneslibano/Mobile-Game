@@ -46,6 +46,25 @@ static func frame(i: int, look: Dictionary = {}) -> ImageTexture:
 	return (_cache[k] as Array[ImageTexture])[posmod(i, FRAMES)]
 
 
+## Formato da broca (0.19): se o pixel (t = 0 na base, 1 na ponta; dy = distância do eixo)
+## faz parte da broca.
+static func drill_has(shape: StringName, t: float, dy: float, x: int, y: int) -> bool:
+	match shape:
+		&"needle":
+			return absf(dy) <= lerpf(3.4, 0.4, t)
+		&"fat":
+			return absf(dy) <= 7.4 * (1.0 - pow(t, 1.8)) + 0.8
+		&"twin":
+			var h: float = lerpf(3.2, 0.4, t)
+			return absf(dy + 4.0) <= h or absf(dy - 4.0) <= h
+		&"crown":
+			# Coroa: larga e reta, com dentes na ponta.
+			if absf(dy) > lerpf(6.4, 4.8, t):
+				return false
+			return t < 0.72 or posmod(y + x, 3) != 0
+	return absf(dy) <= lerpf(5.6, 0.6, t)
+
+
 static func build(phase: int, look: Dictionary = {}) -> Image:
 	var drill_kind: StringName = look.get(&"drill", &"steel")
 	var hull_kind: StringName = look.get(&"hull", &"standard")
@@ -135,13 +154,16 @@ static func build(phase: int, look: Dictionary = {}) -> Image:
 	PixelArt.rect(img, 22, 4, 1, 12, YELLOW)
 	PixelArt.rect(img, 22, 4, 1, 1, YELLOW_HI)
 	# Cone da broca com espiral (deslocada por quadro).
+	var shape: StringName = look.get(&"shape", &"cone")
 	for x in range(23, W - 1):
 		var t: float = float(x - 23) / float(W - 2 - 23)
-		var half: float = lerpf(5.6, 0.6, t)
 		for y in H:
 			var dy: float = (y + 0.5) - 10.0
-			if absf(dy) > half:
+			if not drill_has(shape, t, dy, x, y):
 				continue
+			# Na broca dupla, cada ponta tem o próprio sombreado.
+			if shape == &"twin":
+				dy = dy + 4.0 if dy < 0.0 else dy - 4.0
 			var stripe: bool = posmod(x + int(floor(dy)) + phase, 3) == 0
 			var c: Color = dc[0] if dy < -0.5 else (dc[1] if dy < 1.5 else dc[2])
 			if stripe:

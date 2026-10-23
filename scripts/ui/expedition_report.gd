@@ -92,6 +92,8 @@ func _build(r: Dictionary) -> void:
 		for k: Variant in lost:
 			_item(StringName(k), int(lost[k]), UiTheme.RED, "−")
 		_box.add_child(UiTheme.label("−%d créditos" % int(r.get("value_lost", 0)), 25, UiTheme.RED, 700))
+	if bool(r.get("reset", false)):
+		v.add_child(_wrap("O guardião foi vencido... mas ele retornará. A região foi refeita: novo mundo, novos minérios.", 22, Color("ff7a6a")))
 	# Desgaste (0.19): avisa quando a nave voltou precisando de cuidado.
 	var wear: Dictionary = WearRules.from_dict(r.get("wear", {}))
 	if WearRules.needs_care(wear):

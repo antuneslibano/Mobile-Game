@@ -5,12 +5,20 @@ extends RefCounted
 ## jogador escolhe no Hangar. Sem escolha, usa a melhor opção liberada (a nave "cresce"
 ## sozinha). Só visual: não altera atributos.
 
-const SLOTS: Array[StringName] = [&"drill", &"hull", &"engine", &"paint"]
-const SLOT_NAMES: Dictionary = {&"drill": "BROCA", &"hull": "CASCO", &"engine": "MOTORES", &"paint": "PINTURA"}
+const SLOTS: Array[StringName] = [&"shape", &"drill", &"hull", &"engine", &"paint"]
+const SLOT_NAMES: Dictionary = {&"shape": "FORMATO DA BROCA", &"drill": "MATERIAL DA BROCA", &"hull": "CASCO", &"engine": "MOTORES", &"paint": "PINTURA"}
 
 ## slot → [[id, nome, requisito]]; requisito: "" (sempre), "lvl:<peça>:<n>",
 ## "res:<recurso>" ou "guardian:<região>". Ordem = do básico ao mais avançado.
 const OPTIONS: Dictionary = {
+	# Formato da broca (0.19): muda o desenho de verdade (não só a cor).
+	&"shape": [
+		[&"cone", "Padrão", ""],
+		[&"needle", "Agulha", "lvl:speed:3"],
+		[&"fat", "Robusta", "lvl:damage:3"],
+		[&"twin", "Dupla", "lvl:damage:7"],
+		[&"crown", "Coroa", "guardian:vale"],
+	],
 	&"drill": [
 		[&"steel", "Aço", ""],
 		[&"gold", "Dourada", "lvl:damage:4"],
@@ -101,7 +109,7 @@ static func resolve(chosen: Dictionary, econ: Economy, done: Dictionary) -> Dict
 		var pick_ok: bool = false
 		for o: Array in OPTIONS[slot]:
 			if is_unlocked(String(o[2]), econ, done):
-				if slot != &"paint" and not String(o[2]).begins_with("bp:"):
+				if slot not in [&"paint", &"shape"] and not String(o[2]).begins_with("bp:"):
 					best = o[0]
 				if o[0] == pick:
 					pick_ok = true
