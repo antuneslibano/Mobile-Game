@@ -437,6 +437,11 @@ func _process(delta: float) -> void:
 			_hint.visible = false
 
 
+## Esconde a dica de "arraste o dedo" (o tutorial explica do jeito dele).
+func hide_hint() -> void:
+	_hint.visible = false
+
+
 func _dismiss_hint() -> void:
 	if _hint.visible and _hint_time <= 0.0 and GameState.blocks_broken >= 3:
 		_hint_time = 0.6

@@ -53,6 +53,7 @@ func _run() -> void:
 	# Não toca no salvamento real do jogador; começa de um perfil novo.
 	SaveService.enabled = false
 	GameState.reset_profile()
+	Tutorial.enabled = false  # o tutorial tem o próprio teste (tutorial_test)
 	var main: Node = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	add_child(main)
 	await _frames(10)

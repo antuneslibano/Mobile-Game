@@ -17,6 +17,7 @@ extends Node
 ##   --guardian-hp=F     (debug) vida inicial do guardião da câmara final (fração)
 ##   --grant-ores=N      (debug) N de cada minério comum no armazém
 ##   --safe-area=T,B,L,R simula notch/cantos/barra de gestos (px do jogo)
+##   --tutorial          (com --autotest) mostra o tutorial por cima da expedição
 ##   --settings-at=T     (com --autotest) abre as Configurações em T segundos
 ##   --splash            (com --autotest) mostra a tela de abertura
 ##   --creatures         (debug) caverna com uma criatura de cada espécie à frente da nave
@@ -123,8 +124,14 @@ func _ready() -> void:
 		GameState.economy.credits += int(args.get("grant-credits", "0"))
 		GameState.economy.crystals += int(args.get("grant-crystals", "0"))
 		GameState._emit_economy()
-	if not testing and not args.has("no-map"):
+	var tutorial: bool = Tutorial.enabled and not GameState.tutorial_done and not testing and not args.has("no-map")
+	if tutorial:
+		# Primeira vez (0.18): começa direto na expedição guiada do tutorial, no Vale.
+		_start_tutorial()
+	elif not testing and not args.has("no-map"):
 		base.open()
+	if OS.is_debug_build() and testing and args.has("tutorial"):
+		_start_tutorial(false)
 	if not testing or args.has("splash"):
 		# Tela de abertura (0.14) por cima da base enquanto o jogo termina de carregar.
 		var splash := SplashScreen.new()
@@ -276,6 +283,19 @@ func _on_station(kind: StringName) -> void:
 		Transitions.shutter(get_tree(), func() -> void: garage.open_station(kind))
 	else:
 		garage.open_station(kind)
+
+
+## Tutorial jogável: expedição no Vale com cobre e carvão plantados logo abaixo.
+func _start_tutorial(start_run: bool = true) -> void:
+	if start_run:
+		GameState.region_id = RegionRegistry.VALE
+		_start_expedition(RegionRegistry.VALE)
+	Tutorial.plant_resources(game.world)
+	var t := Tutorial.new()
+	t.name = "Tutorial"
+	t.main = self
+	add_child(t)
+	Guard.step("tutorial")
 
 
 ## Aviso depois de um fechamento inesperado: conta o que aconteceu, diz se o modo de

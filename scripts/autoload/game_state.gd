@@ -39,6 +39,8 @@ var expedition_reached_final: bool = false
 var pending_notice: String = ""
 ## Entradas do diário já vistas no Laboratório (o resto aparece como novidade na base).
 var journal_seen: int = 0
+## Tutorial jogável (0.18) concluído ou pulado. Perfil novo começa por ele.
+var tutorial_done: bool = false
 ## Visual escolhido no Hangar ({encaixe: opção}; vazio = automático) e quantas opções o
 ## jogador já viu liberadas (alerta do Hangar).
 var looks: Dictionary = {}
@@ -65,6 +67,7 @@ func reset_profile() -> void:
 	expedition_active = false
 	pending_notice = ""
 	journal_seen = 0
+	tutorial_done = false
 	looks = {}
 	_look_cache = {}
 	looks_seen = 0
@@ -347,6 +350,7 @@ func to_profile() -> Dictionary:
 		"worlds": _string_keys(world_mods),
 		"expedition": exp,
 		"journal_seen": journal_seen,
+		"tutorial_done": tutorial_done,
 		"looks": _string_keys(looks),
 		"looks_seen": looks_seen,
 		"creatures": _string_keys(creatures),
@@ -437,6 +441,8 @@ func apply_profile(d: Dictionary) -> void:
 			pending_notice = "Expedição interrompida: resgate de emergência (−%d créditos em carga)." % int(report.value_lost)
 	economy.tech = done.size()
 	journal_seen = maxi(0, int(d.get("journal_seen", 0)))
+	# Salvamentos anteriores à 0.18 são de quem já jogava: o tutorial conta como feito.
+	tutorial_done = bool(d.get("tutorial_done", true))
 	looks_seen = maxi(0, int(d.get("looks_seen", 0)))
 	region_variant = {}
 	var rv: Variant = d.get("variants", {})
