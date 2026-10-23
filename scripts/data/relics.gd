@@ -6,20 +6,20 @@ extends RefCounted
 ## refeita (guardião vencido), uma nova relíquia aparece em outro lugar.
 
 ## região → [chave do recurso, nome, descrição, valor, atributo do bônus, quantidade,
-##           texto do bônus, cor, sprite do depósito]
+##           texto do bônus, cor, sprite do depósito (assets/environment/ores)]
 const DEFS: Dictionary = {
 	&"vale": [&"relic_seed", "Semente Primordial", "Uma semente viva das primeiras raízes do mundo. Pulsa como um coração pequeno.",
-		6000, &"collect", 0.15, "+15% de recursos coletados", Color("7dff7a"), "cristal_verde"],
+		6000, &"collect", 0.15, "+15% de recursos coletados", Color("7dff7a"), "relic_seed"],
 	&"dunas": [&"relic_amber", "Âmbar Solar", "Âmbar que guardou a luz de um sol antigo. Esquenta a mão mesmo no escuro.",
-		8000, &"fuel_tank", 0.20, "+20% de tanque de combustível", Color("ffb43a"), "ouro"],
+		8000, &"fuel_tank", 0.20, "+20% de tanque de combustível", Color("ffb43a"), "relic_amber"],
 	&"cordilheira": [&"relic_heart", "Coração de Ferro", "Um núcleo de metal vivo, arrancado do centro da montanha.",
-		10000, &"hull", 25.0, "+25 de casco", Color("c8d4e4"), "titanio"],
+		10000, &"hull", 25.0, "+25 de casco", Color("c8d4e4"), "relic_heart"],
 	&"pantano": [&"relic_pearl", "Pérola do Brejo", "Formada em séculos de lama e silêncio. Nada gruda nela.",
-		12000, &"speed", 0.10, "+10% de golpes por segundo", Color("8fe3ff"), "cristal_azul"],
+		12000, &"speed", 0.10, "+10% de golpes por segundo", Color("8fe3ff"), "relic_pearl"],
 	&"abismo": [&"relic_magma", "Lágrima de Magma", "Uma gota do Núcleo que esfriou por fora e nunca por dentro.",
-		15000, &"temp_limit", 40.0, "+40 °C de limite térmico", Color("ff5a2a"), "cristal_vermelho"],
+		15000, &"temp_limit", 40.0, "+40 °C de limite térmico", Color("ff5a2a"), "relic_magma"],
 	&"vazio": [&"relic_prism", "Prisma Eterno", "Um cristal que reflete lugares que ainda não existem.",
-		20000, &"crit", 0.10, "+10% de chance de crítico", Color("ff9ff3"), "cristal_roxo"],
+		20000, &"crit", 0.10, "+10% de chance de crítico", Color("ff9ff3"), "relic_prism"],
 }
 const REGION_ORDER: Array[StringName] = [&"vale", &"dunas", &"cordilheira", &"pantano", &"abismo", &"vazio"]
 ## Primeiro id de bloco das relíquias (BlockRegistry): um bloco por região, nesta ordem.

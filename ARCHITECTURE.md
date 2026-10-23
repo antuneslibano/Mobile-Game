@@ -492,3 +492,12 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
   `Relics.apply` soma o bônus em `_refresh_stats`. Relíquias ficam fora de `sell_all` e
   `cargo_value`.
 
+### 0.19.1
+- **Modo teste** (`AdminPanel`, aberto por `SettingsScreen.show_admin`): `run(id)` aplica
+  cada atalho; `ShipVitals.invincible` (estático) zera consumo e dano; pular na
+  expedição usa `main.admin_jump`, que chama `Game.start_run` com `start_x`.
+- **Prévia**: `Garage._thumb` (miniatura por visual, cacheada) e `_float_preview`
+  (`ShipPreview` no canto, visível quando a vitrine saiu da tela).
+- **Sprites de relíquias**: `tools/gen_relic_art.py` → `assets/environment/ores/relic_*`,
+  linhas novas em `TerrainSkins.ORES`.
+

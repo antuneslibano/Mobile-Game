@@ -45,6 +45,10 @@ var _care: ShipCarePanel
 var _lab_page: VBoxContainer
 var _lab_box: VBoxContainer
 var _looks_box: VBoxContainer
+## Prévia flutuante da nave (0.19.1): aparece no canto quando a vitrine do topo saiu da
+## tela e o jogador está na parte de visual ou de cuidados.
+var _float_preview: ShipPreview
+var _thumbs: Dictionary = {}             ## chave do visual → textura da miniatura
 var _lab_tab: StringName = &"minerals"
 const TITLES: Dictionary = {&"bench": "BANCADA", &"hangar": "HANGAR", &"market": "MERCADO", &"lab": "LABORATÓRIO"}
 ## Minerais do catálogo (sem os materiais antigos de entulho).
@@ -124,9 +128,43 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	_update_float_preview()
 	if _toast_t > 0.0:
 		_toast_t -= delta
 		_toast.modulate.a = clampf(_toast_t / 0.4, 0.0, 1.0)
+
+
+func _update_float_preview() -> void:
+	if _float_preview == null:
+		return
+	var show: bool = visible and _kind == &"hangar" and _showcase.is_visible_in_tree()
+	if show:
+		var view: Rect2 = _scroll.get_global_rect()
+		show = _showcase.get_global_rect().end.y < view.position.y + 40.0 \
+				and _looks_box.get_global_rect().position.y < view.end.y
+	if show:
+		var vp: Vector2 = _root.size
+		var sz: Vector2 = _float_preview.size
+		_float_preview.position = Vector2(vp.x - sz.x - 22.0, vp.y - sz.y - 22.0 - SafeArea.bottom(get_viewport()))
+	if show != _float_preview.visible:
+		_float_preview.visible = show
+		if show:
+			Transitions.pop_in(_float_preview)
+
+
+## Depuração: rola o corpo até a seção (-1 = visual da nave) ou N pixels.
+func debug_scroll(px: int) -> void:
+	if px < 0:
+		px = int(_looks_box.position.y + _modules_page.position.y)
+	_scroll.scroll_vertical = px
+
+
+## Miniatura da nave com uma opção de visual aplicada (cacheada).
+func _thumb(look: Dictionary) -> Texture2D:
+	var k: String = ShipLooks.key(look)
+	if not _thumbs.has(k):
+		_thumbs[k] = ImageTexture.create_from_image(ShipArt.build(0, look))
+	return _thumbs[k]
 
 
 # --- Ações ------------------------------------------------------------------------
@@ -313,6 +351,13 @@ func _build() -> void:
 	_synergy_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_synergy_label.custom_minimum_size = Vector2(400, 0)
 	syn.add_child(_synergy_label)
+
+	_float_preview = ShipPreview.new()
+	_float_preview.name = "FloatPreview"
+	_float_preview.custom_minimum_size = Vector2(220, 165)
+	_float_preview.size = Vector2(220, 165)
+	_float_preview.visible = false
+	_root.add_child(_float_preview)
 
 	# Mercado: armazém, vender excedente/tudo e por recurso.
 	_market_page = VBoxContainer.new()
@@ -835,13 +880,26 @@ func _refresh_looks(econ: Economy) -> void:
 			var b := Button.new()
 			b.name = "Look_%s_%s" % [slot, id]
 			b.text = UiTheme.display_text(String(o[1]).to_upper())
-			b.custom_minimum_size = Vector2(196, 62)
+			b.custom_minimum_size = Vector2(196, 128)
 			b.add_theme_font_size_override("font_size", UiTheme.font_size(17, 700))
+			# Miniatura: a nave como fica com esta opção (0.19.1).
+			var try_look: Dictionary = look.duplicate()
+			try_look[slot] = id
+			b.icon = _thumb(try_look)
+			b.expand_icon = true
+			b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+			b.add_theme_constant_override("icon_max_width", 140)
+			if not ok:
+				b.modulate = Color(1, 1, 1, 0.55)
 			UiTheme.style_button(b, &"green" if look.get(slot) == id else &"steel")
 			b.disabled = not ok
 			b.pressed.connect(func() -> void:
 				GameState.set_look(slot, id)
-				_refresh())
+				Sfx.play(&"click")
+				_refresh()
+				if _float_preview.visible:
+					Transitions.bump(_float_preview))
 			cell.add_child(b)
 			if not ok:
 				# Requisito em fonte de texto (legível), embaixo do botão.

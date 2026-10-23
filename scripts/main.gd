@@ -104,8 +104,7 @@ func _ready() -> void:
 		_start_expedition(GameState.region_id, maxi(0, start_row))
 		if OS.is_debug_build() and args.has("near-relic"):
 			# Depuração: recomeça logo acima da relíquia da região.
-			var rb: Vector2i = game.world.generator.relic_block
-			game.start_run(GameState.world_seed, maxi(0, rb.y - 5), GameState.region_mods(GameState.region_id), false)
+			admin_jump(&"jump_relic")
 		if OS.is_debug_build() and args.has("relic-choice-at"):
 			get_tree().create_timer(float(args["relic-choice-at"])).timeout.connect(func() -> void:
 				var key: StringName = Relics.for_region(GameState.region_id)[0]
@@ -126,7 +125,9 @@ func _ready() -> void:
 			get_tree().create_timer(float(args["settings-at"])).timeout.connect(func() -> void:
 				settings.open()
 				if args.has("diag"):
-					settings.show_diagnostics())
+					settings.show_diagnostics()
+				elif args.has("admin"):
+					settings.show_admin())
 		if args.has("sonar-at"):
 			get_tree().create_timer(float(args["sonar-at"])).timeout.connect(func() -> void: game.sonar.ping())
 		if args.has("base-at"):
@@ -134,7 +135,10 @@ func _ready() -> void:
 			get_tree().create_timer(float(args["base-at"])).timeout.connect(func() -> void:
 				base.open()
 				if st != &"":
-					_on_station(st))
+					_on_station(st)
+				if args.has("garage-scroll"):
+					get_tree().create_timer(0.6).timeout.connect(func() -> void:
+						garage.debug_scroll(int(args["garage-scroll"]))))
 		if args.has("extract-at"):
 			get_tree().create_timer(float(args["extract-at"])).timeout.connect(extract)
 	else:
@@ -410,6 +414,24 @@ func _show_crash_notice() -> void:
 	ok.pressed.connect(layer.queue_free)
 	row.add_child(ok)
 	Transitions.pop_in(panel)
+
+
+## Modo teste (AdminPanel): pula para perto da relíquia ou do guardião, ou enche tanque
+## e casco. Só durante uma expedição.
+func admin_jump(target: StringName) -> bool:
+	if not GameState.expedition_active or game.extracting:
+		return false
+	if target == &"refill":
+		game.drill.vitals.fuel = game.drill.vitals.fuel_max
+		game.drill.vitals.hull = game.drill.vitals.hull_max
+		return true
+	var row: int = game.world.generator.relic_block.y - 4
+	var col: int = game.world.generator.relic_block.x
+	if target == &"jump_guardian":
+		row = RegionRegistry.chamber_top(GameState.region()) - 6
+		col = -1
+	game.start_run(GameState.world_seed, maxi(0, row), game.world.export_modifications(), false, col)
+	return true
 
 
 ## Relíquia trazida (0.19): instalar (bônus para sempre) ou vender (muitos créditos).

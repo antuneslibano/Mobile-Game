@@ -90,7 +90,7 @@ func _ready() -> void:
 ## Começa uma expedição: mundo fixo da região (com a escavação salva) e a nave na
 ## superfície (start_row > 0 só em testes). mods vazio = mundo intocado.
 ## guardian_defeated: o guardião da câmara final já foi vencido (núcleo aberto).
-func start_run(world_seed: int, start_row: int = -1, mods: Dictionary = {}, guardian_defeated: bool = false) -> void:
+func start_run(world_seed: int, start_row: int = -1, mods: Dictionary = {}, guardian_defeated: bool = false, start_x: int = -1) -> void:
 	if world != null:
 		world.shutdown()
 	extracting = false
@@ -110,6 +110,8 @@ func start_run(world_seed: int, start_row: int = -1, mods: Dictionary = {}, guar
 	var spawn: Vector2 = Drill.surface_spawn()
 	if start_row > 0:
 		spawn.y = (start_row + 0.5) * Balance.BLOCK_PX
+		if start_x > 0:
+			spawn.x = (start_x + 0.5) * Balance.BLOCK_PX
 		world.fill_circle(spawn, Balance.BIT_RADIUS_PX + 6.0, BlockRegistry.AIR)
 	_apply_stats()
 	drill.setup(world, spawn, world_seed)

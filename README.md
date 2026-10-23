@@ -90,6 +90,8 @@ Executa, em modo headless:
 | `--tutorial` | com `--autotest`, mostra o tutorial por cima da expedição |
 | `--wear=F` | nave desgastada (sujeira, ferrugem e amassados em F; só depuração) |
 | `--upgrade=id:n,...` | níveis de melhorias ao iniciar (ex.: `cooling:5`; só depuração) |
+| `--admin` | com `--settings-at`, abre o Modo teste |
+| `--garage-scroll=N` | com `--base-at`/`--station`, rola a estação (-1 = visual da nave) |
 | `--near-relic` | com `--autotest`, começa logo acima da relíquia da região |
 | `--relic-choice-at=T` | com `--autotest`, abre a escolha da relíquia na base em T segundos |
 | `--settings-at=T` | com `--autotest`, abre as Configurações em T segundos (`--diag` abre o Diagnóstico) |

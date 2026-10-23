@@ -126,7 +126,20 @@ func _build() -> void:
 	diag.add_theme_font_size_override("font_size", UiTheme.font_size(22, 700))
 	UiTheme.style_button(diag, &"steel")
 	diag.pressed.connect(show_diagnostics)
-	v.add_child(diag)
+	var test_row := HBoxContainer.new()
+	test_row.add_theme_constant_override("separation", 12)
+	v.add_child(test_row)
+	diag.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	test_row.add_child(diag)
+	var admin := Button.new()
+	admin.name = "AdminButton"
+	admin.text = UiTheme.display_text("MODO TESTE")
+	admin.custom_minimum_size = Vector2(0, 64)
+	admin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	admin.add_theme_font_size_override("font_size", UiTheme.font_size(22, 700))
+	UiTheme.style_button(admin, &"gold")
+	admin.pressed.connect(show_admin)
+	test_row.add_child(admin)
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 12)
 	v.add_child(buttons)
@@ -235,6 +248,17 @@ static func _grabber() -> ImageTexture:
 func _update_compat() -> void:
 	_compat.text = UiTheme.display_text("NÍVEL %d" % Guard.compat_level if Guard.compat else "DESLIGADO")
 	UiTheme.style_button(_compat, &"green" if Guard.compat else &"steel")
+
+
+## Modo teste por cima das configurações. Pular na expedição fecha as configurações.
+func show_admin() -> AdminPanel:
+	var old: Node = _root.get_node_or_null("AdminPanel")
+	if old != null:
+		old.free()
+	var p := AdminPanel.new()
+	p.jumped.connect(close)
+	_root.add_child(p)
+	return p
 
 
 ## Relatório de diagnóstico por cima das configurações, com botão de copiar.

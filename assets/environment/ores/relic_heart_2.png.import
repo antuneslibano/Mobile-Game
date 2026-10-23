@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://0f0jq774m83l"
+path="res://.godot/imported/relic_heart_2.png-426695a9b76e9768484b748c1402922f.image"
+
+[deps]
+
+source_file="res://assets/environment/ores/relic_heart_2.png"
+dest_files=["res://.godot/imported/relic_heart_2.png-426695a9b76e9768484b748c1402922f.image"]
+
+[params]
+

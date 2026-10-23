@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://cdic4nidw50ln"
+path="res://.godot/imported/relic_seed_2.png-546d6748ea0f4a788977ea05083d702c.image"
+
+[deps]
+
+source_file="res://assets/environment/ores/relic_seed_2.png"
+dest_files=["res://.godot/imported/relic_seed_2.png-546d6748ea0f4a788977ea05083d702c.image"]
+
+[params]
+

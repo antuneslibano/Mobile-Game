@@ -14,6 +14,9 @@ var hull_max: float = Balance.HULL_BASE
 var hull_dps: float = 0.0
 
 
+## Modo teste (AdminPanel): sem gastar combustível e sem dano.
+static var invincible: bool = false
+
 func reset(s: DrillStats, fuel_ratio: float = 1.0) -> void:
 	fuel_max = s.fuel_max
 	fuel = fuel_max * clampf(fuel_ratio, 0.0, 1.0)
@@ -52,6 +55,9 @@ static func heat_dps(over_c: float) -> float:
 ## over_c: graus acima do limite térmico da nave.
 func step(delta: float, s: DrillStats, active: bool, boosting: bool, over_c: float) -> bool:
 	var was_ok: bool = not is_out_of_fuel() and not is_destroyed()
+	if invincible:
+		hull_dps = 0.0
+		return false
 	if active:
 		fuel = maxf(0.0, fuel - use_per_sec(s, boosting) * delta)
 	hull_dps = heat_dps(over_c)
@@ -64,6 +70,8 @@ func refuel(amount: float) -> void:
 
 
 func damage(amount: float) -> bool:
+	if invincible:
+		return false
 	var was_ok: bool = hull > 0.0
 	hull = maxf(0.0, hull - maxf(0.0, amount))
 	return was_ok and hull <= 0.0

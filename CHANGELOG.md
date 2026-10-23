@@ -3,6 +3,21 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.19.1] — Modo teste, relíquias com desenho próprio e prévia da nave
+
+### Adicionado
+- **Modo teste** (Configurações › MODO TESTE): +10.000 créditos, +100 cristais, +50 de
+  cada recurso, todas as relíquias, liberar regiões, melhorias no máximo, sujar/limpar
+  a nave, nave invencível (sem gastar combustível e sem dano) e, durante a expedição,
+  ir até a relíquia, ir ao guardião ou encher tanque e casco.
+- **Prévia da nave no visual**: cada opção mostra a miniatura da nave com aquela peça,
+  e uma prévia animada fica no canto da tela enquanto você rola pela customização.
+
+### Alterado
+- As seis relíquias ganharam desenhos próprios (semente com broto, gota de âmbar com
+  inseto, coração de metal, pérola na concha, gota de magma e prisma com arco-íris), no
+  mundo e nos ícones. Antes usavam o sprite de cristais e minérios.
+
 ## [0.19.0] — Nave que desgasta, relíquias e "ele retornará"
 
 ### Adicionado

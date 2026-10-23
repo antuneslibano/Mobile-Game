@@ -19,6 +19,8 @@ const TILES: Array[String] = [
 const ORES: Array[String] = [
 	"cobre", "ferro", "prata", "ouro", "carvao", "titanio", "uranio", "quartzo", "cristal_azul",
 	"ametista", "cristal_verde", "diamante", "cristal_vermelho", "cristal_roxo", "topazio", "bau",
+	# Relíquias (0.19.1, tools/gen_relic_art.py).
+	"relic_seed", "relic_amber", "relic_heart", "relic_pearl", "relic_magma", "relic_prism",
 ]
 const ORE_VARIANTS: int = 3
 
