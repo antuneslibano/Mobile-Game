@@ -450,3 +450,21 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
   etapa, fim do log anterior em `user://logs`), mostrado em `SettingsScreen.show_diagnostics`.
 - **Shaders**: `terrain.gdshader` sem arrays locais com índice variável (`surf_key`,
   `surf_sum`, `host_offset`); `fog.gdshader` sem `break` dependente de uniform.
+
+## 22. 0.18: tutorial, calor, tema do guardião e couro
+
+- **Tutorial** (`Tutorial`, CanvasLayer 37): criado por `main._start_tutorial` quando
+  `GameState.tutorial_done` é falso (perfil novo; salvamentos antigos contam como feito).
+  `plant_resources` põe cobre e carvão abaixo do início. `_steps`: texto, `target` (rect
+  na tela: controle por nome ou bloco do mundo pela câmera), `enter`, `done`, `block`
+  (quatro ColorRect em volta do alvo bloqueiam o resto) e `ok`. `_go` troca de passo e
+  roda `enter` no mesmo quadro. Se a expedição acabar antes, pula para o resumo/base.
+  Pular: `SkipConfirm`. `Tutorial.enabled = false` nos testes de cena; `tests/tutorial_test`
+  percorre todos os passos.
+- **Calor** (`HeatRules`): `configure(região)`, `temp_at`, `over`, `penalty`, `hull_dps`,
+  `safe_depth`; `RegionDef.temp_surface/temp_bottom` (`RegionRegistry.TEMPS`);
+  `DrillStats.temp_limit` = `TEMP_LIMIT_BASE` + `TEMP_PER_COOLING` × Refrigeração.
+- **Música**: `MusicSynth._sample` virtual; `BossSynth` (16 s) gerado junto com a trilha
+  (thread ou por quadro no modo de compatibilidade); `Sfx.set_boss_mode` faz o crossfade.
+  `Game._update_boss_music` liga a `BOSS_MUSIC_RANGE_M` da câmara final.
+- **Couro**: recurso `leather`; `Economy.from_dict` converte `bio_sample`.

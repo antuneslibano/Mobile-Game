@@ -3,6 +3,31 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.18.0] — Tutorial, calor, tema do guardião e couro
+
+### Adicionado
+- **Tutorial jogável** na primeira vez que o jogo abre: uma expedição guiada no Vale (com
+  cobre e carvão logo abaixo) e depois a base. Cada passo tem um texto curto e uma seta
+  animada em cima do que tocar, e só avança quando o jogador faz a ação: cavar, coletar
+  minério, pegar carvão, usar a Sobrecarga, o sonar, ver o termômetro, extrair, vender no
+  Mercado, construir na Bancada e explorar no mapa. Nos menus, o resto da tela fica
+  escurecido e bloqueado. **PULAR TUTORIAL** pede confirmação. Quem já tinha salvamento
+  não vê o tutorial.
+- **Tema do guardião**: música tensa (ostinato frígio, batida de coração, acorde
+  dissonante) que entra em crossfade 50 m antes da câmara final, antes de ver o
+  guardião, e sai ao subir, vencer ou extrair.
+- **Couro**: as criaturas rendem couro (70 créditos), que vende no Mercado e entra nas
+  peças orgânicas da Bancada. Amostras biológicas de salvamentos antigos viram couro.
+
+### Alterado
+- **Calor por profundidade**: a temperatura sobe da superfície ao fundo de cada região
+  (Vale 25→140 °C; Abismo 90→320 °C). A nave aguenta 70 °C, +20 °C por nível de
+  **Refrigeração** (agora mais barata). Acima do limite a broca perde até 50% de
+  velocidade e o casco sofre dano. HUD em °C, com aviso "QUENTE" perto do limite e
+  "SUPERAQUECENDO" acima; o mapa mostra a faixa de cada região.
+- **Sobrecarga** gasta o dobro de combustível (antes 1,5×), com "×2" piscando no
+  combustível enquanto dura.
+
 ## [0.17.3] — Leitura do Android à prova de campos vazios
 
 ### Corrigido
