@@ -16,6 +16,7 @@ extends Node
 ##   --extract-at=T      (com --autotest) chama a extração em T segundos
 ##   --guardian-hp=F     (debug) vida inicial do guardião da câmara final (fração)
 ##   --grant-ores=N      (debug) N de cada minério comum no armazém
+##   --safe-area=T,B,L,R simula notch/cantos/barra de gestos (px do jogo)
 ##   --settings-at=T     (com --autotest) abre as Configurações em T segundos
 ##   --splash            (com --autotest) mostra a tela de abertura
 ##   --creatures         (debug) caverna com uma criatura de cada espécie à frente da nave
@@ -40,6 +41,7 @@ func _ready() -> void:
 	var world_seed: int = int(args.get("seed", "-1"))
 	var testing: bool = args.has("autotest")
 	SaveService.enabled = SaveService.enabled and not testing
+	Guard.step("carregando perfil")
 	if not SaveService.load_profile():
 		GameState.reset_profile()
 	if OS.is_debug_build() and args.has("unlock-all"):
@@ -98,7 +100,10 @@ func _ready() -> void:
 				world_map.open()
 				world_map.ask_new_area(world_map.current_region()))
 		if args.has("settings-at"):
-			get_tree().create_timer(float(args["settings-at"])).timeout.connect(settings.open)
+			get_tree().create_timer(float(args["settings-at"])).timeout.connect(func() -> void:
+				settings.open()
+				if args.has("diag"):
+					settings.show_diagnostics())
 		if args.has("sonar-at"):
 			get_tree().create_timer(float(args["sonar-at"])).timeout.connect(func() -> void: game.sonar.ping())
 		if args.has("base-at"):
@@ -125,6 +130,10 @@ func _ready() -> void:
 		var splash := SplashScreen.new()
 		splash.name = "Splash"
 		add_child(splash)
+		if Guard.crashed_last_time:
+			splash.finished.connect(_show_crash_notice)
+	elif Guard.crashed_last_time:
+		_show_crash_notice()
 	if testing:
 		var bot := Autopilot.new()
 		bot.name = "Autopilot"
@@ -184,9 +193,11 @@ func _on_explore(region_id: StringName) -> void:
 
 ## start_row > 0 só em testes/depuração (--start-row).
 func _start_expedition(region_id: StringName, start_row: int = 0) -> void:
+	Guard.step("gerando mundo", String(region_id))
 	GameState.start_dive(region_id, _debug_seed)
 	game.start_run(GameState.world_seed, start_row, GameState.region_mods(region_id), GameState.done.has(region_id))
 	GameState.begin_expedition()
+	Guard.step("expedição", String(region_id))
 	_rescue = false
 	SaveService.mark_dirty()
 
@@ -222,12 +233,14 @@ func _on_guardian_defeated(hull_ratio: float) -> void:
 
 
 func _on_extraction_finished() -> void:
+	Guard.step("relatório")
 	var r: Dictionary = GameState.end_expedition(_rescue, _rescue_reason if _rescue else &"extract", game.world.export_modifications())
 	SaveService.save_now()
 	report.show_report(r)
 
 
 func _back_to_base() -> void:
+	Guard.step("base")
 	base.open()
 
 
@@ -235,6 +248,7 @@ func _back_to_base() -> void:
 ## Só o Laboratório abre pela porta de metal (Transitions.shutter); as outras estações
 ## entram deslizando.
 func _on_station(kind: StringName) -> void:
+	Guard.step("estação", String(kind))
 	if Transitions.shutter_busy():
 		return
 	if kind == &"map":
@@ -243,3 +257,63 @@ func _on_station(kind: StringName) -> void:
 		Transitions.shutter(get_tree(), func() -> void: garage.open_station(kind))
 	else:
 		garage.open_station(kind)
+
+
+## Aviso depois de um fechamento inesperado: conta o que aconteceu, diz se o modo de
+## compatibilidade foi ligado e leva ao diagnóstico.
+func _show_crash_notice() -> void:
+	var layer := CanvasLayer.new()
+	layer.name = "CrashNotice"
+	layer.layer = 36
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(layer)
+	var root := Control.new()
+	root.theme = UiTheme.get_theme()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(root)
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.75)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.add_child(dim)
+	var safe := SafeMargin.new(20.0, 10.0, 10.0, 640.0)
+	root.add_child(safe)
+	var center := CenterContainer.new()
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	safe.add_child(center)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", PixelArt.style(&"frame"))
+	center.add_child(panel)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 14)
+	panel.add_child(v)
+	v.add_child(UiTheme.label(UiTheme.display_text("O JOGO FECHOU SOZINHO"), 30, UiTheme.ORANGE, 700))
+	var msg: String = "Da última vez o jogo fechou de repente (%s). Seu progresso salvo foi mantido." % Guard.last_step
+	if Guard.compat and not Guard.compat_manual:
+		msg += "\n\nLigamos o modo de compatibilidade, que é mais leve e estável. Dá para desligar nas Configurações."
+	msg += "\n\nSe continuar acontecendo, abra o Diagnóstico, toque em COPIAR e mande o texto para o desenvolvedor."
+	var l := UiTheme.label(msg, 22, UiTheme.TEXT, 500)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.custom_minimum_size = Vector2(560, 0)
+	v.add_child(l)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	v.add_child(row)
+	var diag := Button.new()
+	diag.text = UiTheme.display_text("DIAGNÓSTICO")
+	diag.custom_minimum_size = Vector2(0, 72)
+	diag.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UiTheme.style_button(diag, &"steel")
+	diag.pressed.connect(func() -> void:
+		layer.queue_free()
+		settings.open()
+		settings.show_diagnostics())
+	row.add_child(diag)
+	var ok := Button.new()
+	ok.name = "CrashNoticeOk"
+	ok.text = "OK"
+	ok.custom_minimum_size = Vector2(0, 72)
+	ok.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UiTheme.style_button(ok, &"green")
+	ok.pressed.connect(layer.queue_free)
+	row.add_child(ok)
+	Transitions.pop_in(panel)

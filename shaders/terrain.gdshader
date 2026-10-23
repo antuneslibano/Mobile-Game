@@ -222,6 +222,29 @@ vec3 height_pick(vec3 base, vec3 other, float w) {
 }
 
 // Terreno: textura do atlas (pele da camada) ou, sem pele, o desenho procedural.
+// Chave da superfície (material × camada) de uma célula sólida; -1 se vazia.
+int surf_key(vec4 c) {
+	return c.a > 0.5 ? idx_of(c.r) * 8 + min(idx_of(c.b), 7) : -1;
+}
+
+// Peso total da superfície k entre as 4 células (soma dos pesos das que são iguais a k).
+float surf_sum(int k, int k0, int k1, int k2, int k3, float w0, float w1, float w2, float w3) {
+	if (k < 0) { return 0.0; }
+	return (k0 == k ? w0 : 0.0) + (k1 == k ? w1 : 0.0) + (k2 == k ? w2 : 0.0) + (k3 == k ? w3 : 0.0);
+}
+
+// Vizinhos testados para achar a rocha hospedeira de um minério (ordem de preferência).
+ivec2 host_offset(int k) {
+	if (k == 0) { return ivec2(-1, 0); }
+	if (k == 1) { return ivec2(1, 0); }
+	if (k == 2) { return ivec2(0, -1); }
+	if (k == 3) { return ivec2(0, 1); }
+	if (k == 4) { return ivec2(-2, 0); }
+	if (k == 5) { return ivec2(2, 0); }
+	if (k == 6) { return ivec2(0, 2); }
+	return ivec2(0, -2);
+}
+
 vec3 surface_col(int id, int layer, ivec2 ap, vec2 q, vec4 n1, vec4 n2) {
 	vec4 sk = texelFetch(skin_tex, ivec2(id, layer), 0);
 	int a = idx_of(sk.r);
@@ -288,36 +311,42 @@ void fragment() {
 		vec2 gm = cf + wv - 0.5;
 		ivec2 m0 = ivec2(floor(gm));
 		vec2 mf = gm - floor(gm);
-		vec4 mcs[4];
-		mcs[0] = CELL(m0);
-		mcs[1] = CELL(m0 + ivec2(1, 0));
-		mcs[2] = CELL(m0 + ivec2(0, 1));
-		mcs[3] = CELL(m0 + ivec2(1, 1));
-		float mw[4];
-		mw[0] = (1.0 - mf.x) * (1.0 - mf.y);
-		mw[1] = mf.x * (1.0 - mf.y);
-		mw[2] = (1.0 - mf.x) * mf.y;
-		mw[3] = mf.x * mf.y;
-		int mk[4];
-		for (int i = 0; i < 4; i++) {
-			mk[i] = mcs[i].a > 0.5 ? idx_of(mcs[i].r) * 8 + min(idx_of(mcs[i].b), 7) : -1;
-		}
-		float sum[4];
-		for (int i = 0; i < 4; i++) {
-			sum[i] = 0.0;
-			for (int j = 0; j < 4; j++) {
-				if (mk[i] >= 0 && mk[j] == mk[i]) { sum[i] += mw[j]; }
-			}
-		}
+		// Sem arrays com índice variável (0.17): alguns drivers de GPU de celular travam ou
+		// fecham o app com isso. As 4 células vão em variáveis e a escolha é desenrolada.
+		vec4 m_0 = CELL(m0);
+		vec4 m_1 = CELL(m0 + ivec2(1, 0));
+		vec4 m_2 = CELL(m0 + ivec2(0, 1));
+		vec4 m_3 = CELL(m0 + ivec2(1, 1));
+		float w_0 = (1.0 - mf.x) * (1.0 - mf.y);
+		float w_1 = mf.x * (1.0 - mf.y);
+		float w_2 = (1.0 - mf.x) * mf.y;
+		float w_3 = mf.x * mf.y;
+		int k_0 = surf_key(m_0);
+		int k_1 = surf_key(m_1);
+		int k_2 = surf_key(m_2);
+		int k_3 = surf_key(m_3);
+		float s_0 = surf_sum(k_0, k_0, k_1, k_2, k_3, w_0, w_1, w_2, w_3);
+		float s_1 = surf_sum(k_1, k_0, k_1, k_2, k_3, w_0, w_1, w_2, w_3);
+		float s_2 = surf_sum(k_2, k_0, k_1, k_2, k_3, w_0, w_1, w_2, w_3);
+		float s_3 = surf_sum(k_3, k_0, k_1, k_2, k_3, w_0, w_1, w_2, w_3);
+		// Superfície mais forte (pa) e a segunda diferente dela (pb).
 		int pa = 0;
-		for (int i = 1; i < 4; i++) { if (sum[i] > sum[pa]) { pa = i; } }
+		float spa = s_0;
+		int kpa = k_0;
+		vec4 cpa = m_0;
+		if (s_1 > spa) { pa = 1; spa = s_1; kpa = k_1; cpa = m_1; }
+		if (s_2 > spa) { pa = 2; spa = s_2; kpa = k_2; cpa = m_2; }
+		if (s_3 > spa) { pa = 3; spa = s_3; kpa = k_3; cpa = m_3; }
 		int pb = -1;
-		for (int i = 0; i < 4; i++) {
-			if (mk[i] >= 0 && mk[i] != mk[pa] && (pb < 0 || sum[i] > sum[pb])) { pb = i; }
-		}
-		vec4 mc = mcs[pa];
-		ivec2 mcc = m0 + ivec2(pa % 2, pa / 2);
-		if (mk[pa] < 0) { mc = home; mcc = ivec2(floor(cf)); }
+		float spb = 0.0;
+		vec4 cpb = vec4(0.0);
+		if (k_0 >= 0 && k_0 != kpa && (pb < 0 || s_0 > spb)) { pb = 0; spb = s_0; cpb = m_0; }
+		if (k_1 >= 0 && k_1 != kpa && (pb < 0 || s_1 > spb)) { pb = 1; spb = s_1; cpb = m_1; }
+		if (k_2 >= 0 && k_2 != kpa && (pb < 0 || s_2 > spb)) { pb = 2; spb = s_2; cpb = m_2; }
+		if (k_3 >= 0 && k_3 != kpa && (pb < 0 || s_3 > spb)) { pb = 3; spb = s_3; cpb = m_3; }
+		vec4 mc = cpa;
+		ivec2 mcc = m0 + ivec2((pa == 1 || pa == 3) ? 1 : 0, pa >= 2 ? 1 : 0);
+		if (kpa < 0) { mc = home; mcc = ivec2(floor(cf)); }
 		if (mc.a < 0.5) { mc = ca.a > 0.5 ? ca : (cb.a > 0.5 ? cb : (cc.a > 0.5 ? cc : cd)); }
 		int id = int(mc.r * 255.0 + 0.5);
 		float art = art_of(id);
@@ -327,18 +356,16 @@ void fragment() {
 		int lay2 = 0;
 		float w2 = 0.0;
 		if (pb >= 0) {
-			id2 = idx_of(mcs[pb].r);
-			lay2 = min(idx_of(mcs[pb].b), 5);
-			w2 = clamp(sum[pb] / (sum[pa] + sum[pb]) + (n2.r - 0.5) * 0.3, 0.0, 1.0);
+			id2 = idx_of(cpb.r);
+			lay2 = min(idx_of(cpb.b), 5);
+			w2 = clamp(spb / (spa + spb) + (n2.r - 0.5) * 0.3, 0.0, 1.0);
 		}
 		bool dep = (art > 2.5 && art < 4.5) || (art > 12.5 && art < 13.5) || art > 14.5;
 		if (dep || (art > 13.5 && art < 14.5)) {
 			// Rocha hospedeira: material de terreno vizinho mais próximo.
 			int host = id;
 			for (int k = 0; k < 8; k++) {
-				ivec2 o = k == 0 ? ivec2(-1, 0) : k == 1 ? ivec2(1, 0) : k == 2 ? ivec2(0, -1) : k == 3 ? ivec2(0, 1)
-					: k == 4 ? ivec2(-2, 0) : k == 5 ? ivec2(2, 0) : k == 6 ? ivec2(0, 2) : ivec2(0, -2);
-				vec4 hc = CELL(mcc + o * 2);
+				vec4 hc = CELL(mcc + host_offset(k) * 2);
 				int hid = int(hc.r * 255.0 + 0.5);
 				float ha = art_of(hid);
 				if (hc.a > 0.5 && (ha < 2.5 || (ha > 4.5 && ha < 5.5) || (ha > 7.5 && ha < 12.5))) { host = hid; break; }

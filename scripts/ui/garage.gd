@@ -187,12 +187,8 @@ func _build() -> void:
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	_root.add_child(dim)
 
-	var margin := MarginContainer.new()
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	for side: String in ["left", "right"]:
-		margin.add_theme_constant_override("margin_" + side, 4)
-	margin.add_theme_constant_override("margin_top", 10 + int(_safe_top()))
-	margin.add_theme_constant_override("margin_bottom", 10)
+	# Margens com a área segura do aparelho (notch, cantos, barra de gestos).
+	var margin := SafeMargin.new(4.0, 10.0, 10.0)
 	_root.add_child(margin)
 
 	var window := PanelContainer.new()
@@ -853,14 +849,6 @@ func _show_toast(text: String, color: Color) -> void:
 	_toast.add_theme_color_override("font_color", color)
 	var vp: Vector2 = _root.get_viewport_rect().size
 	_toast.size = Vector2(vp.x, 50)
-	_toast.position = Vector2(0, vp.y - 120)
+	_toast.position = Vector2(0, vp.y - SafeArea.bottom(get_viewport()) - 120)
 	_toast_t = 1.6
 
-
-func _safe_top() -> float:
-	if not OS.has_feature("mobile"):
-		return 0.0
-	var win: Vector2 = Vector2(DisplayServer.window_get_size())
-	if win.y <= 0.0:
-		return 0.0
-	return float(DisplayServer.get_display_safe_area().position.y) * (_root.get_viewport_rect().size.y / win.y) if _root != null else 0.0

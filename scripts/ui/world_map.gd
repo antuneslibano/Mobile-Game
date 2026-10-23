@@ -45,6 +45,7 @@ func open() -> void:
 	_crystals.text = UiTheme.short_number(GameState.economy.crystals)
 	_carousel.setup(RegionRegistry.all(), RegionRegistry.index_of(GameState.region_id))
 	_refresh()
+	Guard.step("mapa")
 	Transitions.slide_in(_root)
 	Sfx.play(&"whoosh")
 	EventBus.map_opened.emit()
@@ -105,12 +106,8 @@ func _build() -> void:
 	bg.mouse_filter = Control.MOUSE_FILTER_STOP
 	_root.add_child(bg)
 
-	var margin := MarginContainer.new()
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	for side: String in ["left", "right"]:
-		margin.add_theme_constant_override("margin_" + side, 4)
-	margin.add_theme_constant_override("margin_top", 10 + int(_safe_top()))
-	margin.add_theme_constant_override("margin_bottom", 10)
+	# Margens com a área segura do aparelho (notch, cantos, barra de gestos).
+	var margin := SafeMargin.new(4.0, 10.0, 10.0)
 	_root.add_child(margin)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
@@ -474,11 +471,3 @@ func ask_new_area(r: RegionDef) -> void:
 		_refresh())
 	row.add_child(yes)
 
-
-func _safe_top() -> float:
-	if not OS.has_feature("mobile"):
-		return 0.0
-	var win: Vector2 = Vector2(DisplayServer.window_get_size())
-	if win.y <= 0.0:
-		return 0.0
-	return float(DisplayServer.get_display_safe_area().position.y) * (_root.get_viewport_rect().size.y / win.y) if _root != null else 0.0

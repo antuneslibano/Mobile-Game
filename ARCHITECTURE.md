@@ -427,3 +427,24 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
   pequenas vão junto), que vira `generator.host_terrain`. `DigResult.drop_bonus` completa
   pedaços de meio bloco para um bloco só nos itens (`drop_counts()`); combustível e energia
   usam `counts`.
+
+## 21. 0.17: telas e estabilidade
+
+- **Área segura**: `SafeArea.insets(viewport)` converte `DisplayServer.get_display_safe_area`
+  (relativa à janela) para px do jogo, com mínimo de 8 px em cima/embaixo no celular;
+  `side_margins` limita o conteúdo a `MAX_CONTENT_W` (760) centralizado. `SafeMargin` é o
+  MarginContainer de tela cheia usado pelas telas de menu (atualiza em `size_changed`).
+  HUD e base calculam posições com as margens; `DepthCamera.target_zoom` aproxima em
+  telas mais largas que o mundo.
+- **Guard** (autoload `crash_guard.gd`, o primeiro): `user://session.json` com `running`,
+  `step` e o modo; `running` fica true só com o app na frente. Sessão anterior "rodando"
+  ao abrir = fechou sozinho → `crashed_last_time`, `compat` automático e aviso em
+  `main._show_crash_notice`. `Guard.step/detail` registram a etapa (base, estação, mapa,
+  gerando mundo, expedição · profundidade, extraindo, relatório).
+- **Modo de compatibilidade** (`Guard.compat`): `WorldModel.threaded = false`, trilha por
+  `MusicSynth.fill` por quadro (sem `WorkerThreadPool`), `FogLayer` com
+  `shaders/fog_lite.gdshader`.
+- **Diagnóstico**: `Diagnostics.report` (aparelho, sistema, GPU, memória, tela, área segura,
+  etapa, fim do log anterior em `user://logs`), mostrado em `SettingsScreen.show_diagnostics`.
+- **Shaders**: `terrain.gdshader` sem arrays locais com índice variável (`surf_key`,
+  `surf_sum`, `host_offset`); `fog.gdshader` sem `break` dependente de uniform.

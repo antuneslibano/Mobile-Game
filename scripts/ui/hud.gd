@@ -255,6 +255,7 @@ func _build() -> void:
 
 	_hint = _label("Arraste o dedo em qualquer direção (menos para cima)\ne desenhe o seu próprio túnel.", UiTheme.FONT_SMALL, UiTheme.TEXT)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_root.add_child(_hint)
 
 	_banner = _label("", 44, UiTheme.TEXT)
@@ -267,6 +268,7 @@ func _build() -> void:
 	_warn = UiTheme.label("", 34, UiTheme.RED, 700)
 	_warn.name = "Warning"
 	_warn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_warn.add_theme_constant_override("outline_size", 8)
 	_warn.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	_warn.visible = false
@@ -366,43 +368,36 @@ func _currency_row(parent: Control, color: Color, tooltip: String) -> Label:
 
 func _apply_layout() -> void:
 	var vp: Vector2 = _root.get_viewport_rect().size
-	_compute_safe_area(vp)
-	_top.position = Vector2(SIDE_MARGIN * 0.5, _safe_top + 8.0)
-	_top.size = Vector2(vp.x - SIDE_MARGIN, TOP_HEIGHT - 16.0)
+	var safe: Vector4 = SafeArea.insets(get_viewport())
+	_safe_top = safe.x
+	_safe_bottom = safe.y
+	var left: float = safe.z + SIDE_MARGIN
+	var right: float = vp.x - safe.w - SIDE_MARGIN
+	# Painel de cima: largura limitada e centralizado (tablets e telas largas).
+	var top_w: float = minf(right - left + SIDE_MARGIN, SafeArea.MAX_CONTENT_W)
+	_top.position = Vector2((left + right - top_w) * 0.5, _safe_top + 8.0)
+	_top.size = Vector2(top_w, TOP_HEIGHT - 16.0)
 	_boost.size = Vector2(BOOST_SIZE, BOOST_SIZE)
-	_boost.position = Vector2(vp.x - BOOST_SIZE - SIDE_MARGIN, vp.y - _safe_bottom - BOOST_SIZE - SIDE_MARGIN)
+	_boost.position = Vector2(right - BOOST_SIZE, vp.y - _safe_bottom - BOOST_SIZE - SIDE_MARGIN)
 	_sonar.size = Vector2(BOOST_SIZE * 0.85, BOOST_SIZE * 0.85)
-	_sonar.position = Vector2(SIDE_MARGIN, vp.y - _safe_bottom - _sonar.size.y - SIDE_MARGIN)
-	_joystick.rest_pos = Vector2(vp.x * 0.5, vp.y - _safe_bottom - Balance.JOYSTICK_RADIUS_PX - 60.0)
+	_sonar.position = Vector2(left, vp.y - _safe_bottom - _sonar.size.y - SIDE_MARGIN)
+	_joystick.rest_pos = Vector2((left + right) * 0.5, vp.y - _safe_bottom - Balance.JOYSTICK_RADIUS_PX - 60.0)
 	_joystick.queue_redraw()
-	_hint.position = Vector2(0, _joystick.rest_pos.y - Balance.JOYSTICK_RADIUS_PX - 110.0)
-	_hint.size = Vector2(vp.x, 80)
-	_banner.position = Vector2(0, vp.y * 0.36)
-	_banner.size = Vector2(vp.x - 40.0, 120)
-	_banner.position.x = 20.0
-	_fps_label.position = Vector2(SIDE_MARGIN, _top.position.y + _top.size.y + 6.0)
+	_hint.position = Vector2(left, _joystick.rest_pos.y - Balance.JOYSTICK_RADIUS_PX - 110.0)
+	_hint.size = Vector2(right - left, 80)
+	_banner.position = Vector2(left, vp.y * 0.36)
+	_banner.size = Vector2(right - left, 120)
+	_fps_label.position = Vector2(left, _top.position.y + _top.size.y + 6.0)
 	_gear.size = _gear.custom_minimum_size
-	_gear.position = Vector2(vp.x - SIDE_MARGIN - _gear.size.x, _top.position.y + _top.size.y + 8.0)
-	_warn.position = Vector2(0, _top.position.y + _top.size.y + 14.0)
-	_warn.size = Vector2(vp.x, 44)
-	_boss.position = Vector2(SIDE_MARGIN * 2.0, _warn.position.y + 52.0)
-	_boss.size = Vector2(vp.x - SIDE_MARGIN * 4.0, 0)
-	_done_panel.size = Vector2(vp.x - 80.0, 0)
-	_done_panel.position = Vector2(40.0, vp.y * 0.3)
-
-
-func _compute_safe_area(vp: Vector2) -> void:
-	_safe_top = 0.0
-	_safe_bottom = 0.0
-	if not OS.has_feature("mobile"):
-		return
-	var win: Vector2 = Vector2(DisplayServer.window_get_size())
-	var safe: Rect2i = DisplayServer.get_display_safe_area()
-	if win.x <= 0.0 or win.y <= 0.0:
-		return
-	var scale: float = vp.y / win.y
-	_safe_top = maxf(0.0, float(safe.position.y)) * scale
-	_safe_bottom = maxf(0.0, win.y - float(safe.end.y)) * scale
+	_gear.position = Vector2(right - _gear.size.x, _top.position.y + _top.size.y + 8.0)
+	_warn.position = Vector2(left, _top.position.y + _top.size.y + 14.0)
+	_warn.size = Vector2(right - left, 44)
+	_boss.position = Vector2(left + SIDE_MARGIN, _warn.position.y + 52.0)
+	_boss.size = Vector2(minf(right - left - SIDE_MARGIN * 2.0, SafeArea.MAX_CONTENT_W - 40.0), 0)
+	_boss.position.x = (left + right - _boss.size.x) * 0.5
+	var done_w: float = minf(right - left - 40.0, SafeArea.MAX_CONTENT_W - 80.0)
+	_done_panel.size = Vector2(done_w, 0)
+	_done_panel.position = Vector2((left + right - done_w) * 0.5, vp.y * 0.3)
 
 
 # --- Atualizações -------------------------------------------------------------------

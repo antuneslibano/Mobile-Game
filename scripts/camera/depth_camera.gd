@@ -28,6 +28,8 @@ var _shake: Vector2 = Vector2.ZERO
 
 
 func snap_to_target() -> void:
+	if is_inside_tree():
+		zoom = Vector2.ONE * target_zoom()
 	if target != null:
 		_pos = _desired()
 		global_position = _pos.snapped(Vector2.ONE * snap_step())
@@ -44,6 +46,14 @@ const INTRO_EASE_SEC: float = 1.4
 const INTRO_SURFACE_SCREEN_Y: float = 0.64  ## Altura da superfície na tela durante a abertura.
 
 
+## Zoom desejado. Em telas mais largas que o mundo (tablets, dobráveis abertos) aproxima
+## o suficiente para a largura visível nunca passar das paredes do mapa.
+func target_zoom() -> float:
+	var z: float = COMBAT_ZOOM if combat else 1.0
+	var world_w: float = float(Balance.WORLD_WIDTH * Balance.BLOCK_PX)
+	return maxf(z, get_viewport_rect().size.x / world_w) if is_inside_tree() else z
+
+
 func add_shake(amount: float) -> void:
 	_trauma = clampf(_trauma + amount, 0.0, 1.0)
 
@@ -56,7 +66,7 @@ func _process(delta: float) -> void:
 		# Saída da abertura: desce suave antes de voltar ao acompanhamento normal.
 		_ease_t = maxf(0.0, _ease_t - delta)
 		speed = lerpf(Balance.CAMERA_FOLLOW_SPEED, 1.6, _ease_t / INTRO_EASE_SEC)
-	var zt: float = COMBAT_ZOOM if combat else 1.0
+	var zt: float = target_zoom()
 	if not is_equal_approx(zoom.x, zt):
 		zoom = Vector2.ONE * move_toward(zoom.x, zt, delta * 0.5)
 		speed = minf(speed, 4.0)

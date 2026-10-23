@@ -23,10 +23,13 @@ void fragment() {
 	// Pixels de 6 px: a borda da luz fica serrilhada como pixel art.
 	p = floor(p / 6.0) * 6.0 + 3.0;
 	float vis = band(distance(p, ship_pos), radius);
+	// Sem "break" dependente de uniform (0.17): mais seguro em drivers antigos. Luzes
+	// sem uso vêm zeradas (intensidade 0), então não mudam nada.
 	for (int i = 0; i < 12; i++) {
-		if (i >= light_count) break;
-		vec4 l = lights[i];
-		vis = max(vis, band(distance(p, l.xy), l.z) * l.w);
+		if (i < light_count) {
+			vec4 l = lights[i];
+			vis = max(vis, band(distance(p, l.xy), l.z) * l.w);
+		}
 	}
 	COLOR = vec4(fog_color.rgb, strength * (1.0 - vis));
 }

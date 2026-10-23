@@ -17,6 +17,7 @@ var _panel: PanelContainer
 var _sliders: Dictionary = {}   ## canal → HSlider
 var _values: Dictionary = {}    ## canal → Label (porcentagem)
 var _was_paused: bool = false
+var _compat: Button
 
 
 func _ready() -> void:
@@ -70,16 +71,17 @@ func _build() -> void:
 		if ev is InputEventMouseButton and (ev as InputEventMouseButton).pressed:
 			close())
 	_root.add_child(dim)
+	var safe := SafeMargin.new(16.0, 10.0, 10.0)
+	_root.add_child(safe)
 	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_root.add_child(center)
+	safe.add_child(center)
 	_panel = PanelContainer.new()
 	_panel.add_theme_stylebox_override("panel", PixelArt.style(&"frame"))
-	_panel.custom_minimum_size = Vector2(640, 0)
+	_panel.custom_minimum_size = Vector2(620, 0)
 	center.add_child(_panel)
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 18)
+	v.add_theme_constant_override("separation", 14)
 	_panel.add_child(v)
 	var plate := PanelContainer.new()
 	plate.add_theme_stylebox_override("panel", PixelArt.style(&"plate"))
@@ -91,6 +93,40 @@ func _build() -> void:
 	v.add_child(UiTheme.label("VOLUME", 26, UiTheme.ORANGE, 700))
 	for row: Array in ROWS:
 		v.add_child(_volume_row(row[0], row[1], row[2]))
+	# Sistema (0.17): modo de compatibilidade e diagnóstico.
+	v.add_child(UiTheme.label("SISTEMA", 26, UiTheme.ORANGE, 700))
+	var sys := PanelContainer.new()
+	sys.add_theme_stylebox_override("panel", PixelArt.style(&"inset"))
+	v.add_child(sys)
+	var sh := HBoxContainer.new()
+	sh.add_theme_constant_override("separation", 10)
+	sys.add_child(sh)
+	var sv := VBoxContainer.new()
+	sv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sh.add_child(sv)
+	sv.add_child(UiTheme.label("Modo de compatibilidade", 24, UiTheme.TEXT, 700))
+	var compat_hint := UiTheme.label("Mais leve e estável em celulares que fecham o jogo sozinhos. Vale ao reabrir o jogo.", 18, UiTheme.TEXT_DIM, 500)
+	compat_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	compat_hint.custom_minimum_size = Vector2(300, 0)
+	sv.add_child(compat_hint)
+	_compat = Button.new()
+	_compat.name = "CompatToggle"
+	_compat.custom_minimum_size = Vector2(150, 70)
+	_compat.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_compat.add_theme_font_size_override("font_size", UiTheme.font_size(20, 700))
+	_compat.pressed.connect(func() -> void:
+		Guard.set_compat(not Guard.compat)
+		_update_compat())
+	sh.add_child(_compat)
+	_update_compat()
+	var diag := Button.new()
+	diag.name = "DiagnosticsButton"
+	diag.text = UiTheme.display_text("DIAGNÓSTICO")
+	diag.custom_minimum_size = Vector2(0, 64)
+	diag.add_theme_font_size_override("font_size", UiTheme.font_size(22, 700))
+	UiTheme.style_button(diag, &"steel")
+	diag.pressed.connect(show_diagnostics)
+	v.add_child(diag)
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 12)
 	v.add_child(buttons)
@@ -194,3 +230,68 @@ static func _grabber() -> ImageTexture:
 		img.fill_rect(Rect2i(17, 10, 6, 16), Color("5a6378"))
 		_grabber_tex = ImageTexture.create_from_image(img)
 	return _grabber_tex
+
+
+func _update_compat() -> void:
+	_compat.text = UiTheme.display_text("LIGADO" if Guard.compat else "DESLIGADO")
+	UiTheme.style_button(_compat, &"green" if Guard.compat else &"steel")
+
+
+## Relatório de diagnóstico por cima das configurações, com botão de copiar.
+func show_diagnostics() -> void:
+	var old: Node = _root.get_node_or_null("Diagnostics")
+	if old != null:
+		old.queue_free()
+	var layer := Control.new()
+	layer.name = "Diagnostics"
+	layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_root.add_child(layer)
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.8)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(dim)
+	var safe := SafeMargin.new(16.0, 16.0, 16.0)
+	layer.add_child(safe)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", PixelArt.style(&"frame"))
+	safe.add_child(panel)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 10)
+	panel.add_child(v)
+	v.add_child(UiTheme.label(UiTheme.display_text("DIAGNÓSTICO"), 30, UiTheme.ORANGE, 700))
+	var hint := UiTheme.label("Se o jogo fechar sozinho, toque em COPIAR e mande este texto para o desenvolvedor.", 19, UiTheme.TEXT_DIM, 500)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(hint)
+	var text: String = Diagnostics.report(get_viewport())
+	var scroll := TouchScroll.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(scroll)
+	var body := UiTheme.label(text, 17, UiTheme.TEXT, 500)
+	body.name = "DiagnosticsText"
+	body.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(body)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	v.add_child(row)
+	var copy := Button.new()
+	copy.name = "CopyDiagnostics"
+	copy.text = UiTheme.display_text("COPIAR")
+	copy.custom_minimum_size = Vector2(0, 72)
+	copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	copy.add_theme_font_size_override("font_size", UiTheme.font_size(24, 700))
+	UiTheme.style_button(copy, &"gold")
+	copy.pressed.connect(func() -> void:
+		DisplayServer.clipboard_set(text)
+		copy.text = UiTheme.display_text("COPIADO!"))
+	row.add_child(copy)
+	var back := Button.new()
+	back.name = "CloseDiagnostics"
+	back.text = UiTheme.display_text("FECHAR")
+	back.custom_minimum_size = Vector2(0, 72)
+	back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	back.add_theme_font_size_override("font_size", UiTheme.font_size(24, 700))
+	UiTheme.style_button(back, &"steel")
+	back.pressed.connect(layer.queue_free)
+	row.add_child(back)
+	Transitions.pop_in(panel)

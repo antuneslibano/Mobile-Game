@@ -21,9 +21,8 @@ var _music: AudioStreamPlayer
 ## Trilha pronta (gerada numa thread na abertura).
 var music_ready: bool = false
 var _music_task: int = -1
+var _music_synth: MusicSynth = null
 var _music_wav: AudioStreamWAV = null  ## Escrita pela thread; lida depois que ela termina.
-const MUSIC_RATE: int = 11025
-const MUSIC_SEC: float = 24.0
 ## Volume da máquina (loops da broca e do motor). 0.15: metade do que era (-6 dB).
 const DRILL_DB: float = -12.0
 const ENGINE_DB: float = -22.0
@@ -56,58 +55,19 @@ func _ready() -> void:
 	_music.volume_db = -80.0
 	_music.bus = BUS_NAMES[&"music"]
 	add_child(_music)
-	_music_task = WorkerThreadPool.add_task(_build_music_thread)
+	if Guard.compat:
+		# Modo de compatibilidade: sem threads; a trilha é gerada aos poucos, por quadro.
+		_music_synth = MusicSynth.new()
+	else:
+		_music_task = WorkerThreadPool.add_task(_build_music_thread)
 
 
-## Trilha ambiente baixinha (24 s em loop): acordes lentos (Lá menor, Fá, Dó, Sol) e
-## notas de sino esparsas da pentatônica. Gerada em segundo plano.
+## Trilha ambiente (MusicSynth) gerada de uma vez, numa thread de trabalho.
 func _build_music_thread() -> void:
-	var n: int = int(MUSIC_SEC * MUSIC_RATE)
-	var data := PackedByteArray()
-	data.resize(n * 2)
-	# Uma oitava acima da 0.14: alto-falante de celular quase não toca graves.
-	var chords: Array = [[220.0, 261.63, 329.63], [174.61, 220.0, 261.63], [261.63, 329.63, 392.0], [196.0, 246.94, 293.66]]
-	var buf := PackedFloat32Array()
-	buf.resize(n)
-	var peak: float = 0.001
-	var seg: float = MUSIC_SEC / chords.size()
-	var bells: Array[float] = [440.0, 523.25, 587.33, 659.25, 783.99]
-	var bell_seq: Array[int] = [0, 2, 4, 3, -1, 1, 0, -1, 2, 4, -1, 3, 1, -1, 0, 2]
-	var lp: float = 0.0
-	for i in n:
-		var t: float = float(i) / MUSIC_RATE
-		var v: float = 0.0
-		for c in chords.size():
-			# Envelope do acorde com sobreposição cíclica (loop sem emenda).
-			var dt: float = fposmod(t - c * seg + seg * 0.5, MUSIC_SEC) - seg * 0.5
-			var env: float = clampf(1.0 - absf(dt - seg * 0.5) / (seg * 0.75), 0.0, 1.0)
-			if env <= 0.0:
-				continue
-			env = env * env * (3.0 - 2.0 * env)
-			for f: float in chords[c]:
-				# Harmônicos médios (2×, 3×, 4×): é o que o alto-falante do celular reproduz.
-				v += (sin(TAU * f * t) + 0.45 * sin(TAU * f * 2.0 * t + 0.5) + 0.25 * sin(TAU * f * 3.0 * t + 1.1) + 0.12 * sin(TAU * f * 4.0 * t + 2.0)) * env * 0.1
-		var step: float = MUSIC_SEC / bell_seq.size()
-		var k: int = int(t / step) % bell_seq.size()
-		if bell_seq[k] >= 0:
-			var bt: float = t - k * step
-			var bf: float = bells[bell_seq[k]]
-			v += (sin(TAU * bf * bt) + 0.3 * sin(TAU * bf * 3.01 * bt)) * exp(-bt * 2.2) * 0.12
-		lp += (v - lp) * 0.35
-		buf[i] = lp
-		peak = maxf(peak, absf(lp))
-	# Normaliza (pico em 90%); o volume final vem de music_db.
-	for i in n:
-		data.encode_s16(i * 2, clampi(int(buf[i] / peak * 0.9 * 32767.0), -32768, 32767))
-	var w := AudioStreamWAV.new()
-	w.format = AudioStreamWAV.FORMAT_16_BITS
-	w.mix_rate = MUSIC_RATE
-	w.stereo = false
-	w.data = data
-	w.loop_mode = AudioStreamWAV.LOOP_FORWARD
-	w.loop_begin = 0
-	w.loop_end = n
-	_music_wav = w
+	var m := MusicSynth.new()
+	m.fill(m.n * 8)
+	m.fill(m.n * 8)
+	_music_wav = m.result()
 
 
 # --- Volume por canal ------------------------------------------------------------------
@@ -228,6 +188,9 @@ func engine(active: bool) -> void:
 
 
 func _process(delta: float) -> void:
+	if _music_synth != null and _music_synth.fill(3000):
+		_start_music(_music_synth.result())
+		_music_synth = null
 	if _music_task >= 0 and WorkerThreadPool.is_task_completed(_music_task):
 		WorkerThreadPool.wait_for_task_completion(_music_task)
 		_music_task = -1

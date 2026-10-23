@@ -36,7 +36,7 @@ func _ready() -> void:
 	v.add_theme_constant_override("separation", 10)
 	_root.add_child(v)
 	var top := Control.new()
-	top.custom_minimum_size = Vector2(0, 150)
+	top.custom_minimum_size = Vector2(0, 150.0 + SafeArea.top(get_viewport()))
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.add_child(top)
 	var plate := PanelContainer.new()
@@ -70,7 +70,7 @@ func _ready() -> void:
 	_bar = SegmentedBar.new(12, UiTheme.ORANGE, 28.0)
 	bv.add_child(_bar)
 	var tail := Control.new()
-	tail.custom_minimum_size = Vector2(0, 60)
+	tail.custom_minimum_size = Vector2(0, 60.0 + SafeArea.bottom(get_viewport()))
 	tail.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.add_child(tail)
 

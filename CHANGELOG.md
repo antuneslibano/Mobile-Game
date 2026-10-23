@@ -3,6 +3,28 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.17.0] — Qualquer tela e mais estabilidade
+
+### Adicionado
+- **Área segura em todas as telas**: base, Bancada, Hangar, Mercado, Laboratório, mapa,
+  relatório, Configurações, abertura, avisos e HUD respeitam notch/câmera furada, cantos
+  arredondados e barra de gestos (`SafeArea`/`SafeMargin`) e se reajustam se a tela
+  mudar de tamanho. Em tablets e celulares dobráveis o conteúdo fica centralizado com
+  largura máxima, e a câmera aproxima para nunca mostrar além das paredes do mapa.
+- **Proteção contra fechamento**: se o jogo fechar sozinho com o app na frente, ao reabrir
+  aparece um aviso (com a etapa em que estava) e o **modo de compatibilidade** liga
+  sozinho: mundo e trilha gerados sem threads e névoa simples. Dá para ligar/desligar nas
+  Configurações › Sistema.
+- **Diagnóstico** (Configurações): aparelho, Android, GPU, memória, tela, área segura,
+  onde o jogo fechou e o fim do log anterior, com botão **COPIAR** para mandar ao
+  desenvolvedor. O log em arquivo agora também fica ligado no celular.
+
+### Corrigido
+- Shader do terreno sem arrays com índice variável e névoa sem `break` dependente de
+  uniform: construções que travam ou derrubam alguns drivers de GPU de celular (Mali,
+  PowerVR, Adreno antigos). O visual não muda.
+- Engrenagem das Configurações saía da tela no cabeçalho da base em celulares de 720.
+
 ## [0.16.0] — Configurações de áudio e minério que sempre rende
 
 ### Adicionado

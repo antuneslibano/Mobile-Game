@@ -12,21 +12,25 @@ config_version=5
 
 config/name="DEEPFORGE: Rumo ao Núcleo"
 config/description="Jogo mobile 2D vertical de escavação incremental."
-config/version="0.16.0"
+config/version="0.17.0"
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 boot_splash/bg_color=Color(0.07, 0.06, 0.08, 1)
 config/icon="res://icon.svg"
 config/quit_on_go_back=false
+run/flush_stdout_on_print=true
 
 [autoload]
 
+Guard="*res://scripts/autoload/crash_guard.gd"
 EventBus="*res://scripts/autoload/event_bus.gd"
 GameState="*res://scripts/autoload/game_state.gd"
 SaveService="*res://scripts/autoload/save_service.gd"
 Sfx="*res://scripts/audio/sfx.gd"
 
 [debug]
+
+file_logging/enable_file_logging=true
 
 gdscript/warnings/untyped_declaration=1
 gdscript/warnings/unsafe_property_access=1

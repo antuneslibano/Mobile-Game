@@ -143,6 +143,11 @@ func _finish() -> void:
 			GameState.economy.credits, GameState.economy.crystals, GameState.economy.cargo_count(), _bought,
 			str(GameState.economy.upgrade_levels)])
 	print("[autotest] quadros=%d partículas_vivas=%d violações=%d subidas=%d energia=%.0f%%" % [_frames, game.fx.alive_count(), _violations, _rises, game.drill.energy.fill_ratio() * 100.0])
+	print("[autotest] memória: estática=%.1fMB pico=%.1fMB vídeo=%.1fMB texturas=%.1fMB objetos=%d nós=%d" % [
+			OS.get_static_memory_usage() / 1048576.0, OS.get_static_memory_peak_usage() / 1048576.0,
+			Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0,
+			Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1048576.0,
+			int(Performance.get_monitor(Performance.OBJECT_COUNT)), int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))])
 	print("[autotest] RESULTADO: %s" % ("PASSOU" if ok else "FALHOU"))
 	# Aguarda capturas pendentes.
 	await get_tree().process_frame

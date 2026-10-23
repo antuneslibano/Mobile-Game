@@ -45,12 +45,7 @@ func _build(r: Dictionary) -> void:
 	dim.color = Color(0.02, 0.02, 0.04, 0.85)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.add_child(dim)
-	var margin := MarginContainer.new()
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	for side: String in ["left", "right"]:
-		margin.add_theme_constant_override("margin_" + side, 18)
-	margin.add_theme_constant_override("margin_top", 120)
-	margin.add_theme_constant_override("margin_bottom", 120)
+	var margin := SafeMargin.new(18.0, 90.0, 90.0, 700.0)
 	_root.add_child(margin)
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", PixelArt.style(&"frame"))

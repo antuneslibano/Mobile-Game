@@ -228,6 +228,38 @@ func test_ore_drops_whole() -> void:
 	check(bad == 0, "golpe em minério rende item inteiro (%d sem drop)" % bad)
 
 
+## 0.17: trilha gerada aos poucos (modo de compatibilidade) igual à gerada de uma vez.
+func test_music_synth_chunked() -> void:
+	var whole := MusicSynth.new()
+	whole.fill(whole.n * 8)
+	whole.fill(whole.n * 8)
+	var parts := MusicSynth.new()
+	var steps: int = 0
+	while not parts.fill(3000) and steps < 1000:
+		steps += 1
+	check(whole.done() and parts.done(), "as duas gerações terminam (%d passos)" % steps)
+	check(whole.result().data == parts.result().data, "mesmo áudio gerando aos poucos")
+
+
+## 0.17: área segura e largura máxima do conteúdo.
+func test_safe_area_margins() -> void:
+	var old: Vector4 = SafeArea.debug_insets
+	SafeArea.debug_insets = Vector4(90, 60, 0, 0)
+	var vp := SubViewport.new()
+	vp.size = Vector2i(720, 1280)
+	var tree := Engine.get_main_loop() as SceneTree
+	tree.root.add_child(vp)
+	check_eq(SafeArea.insets(vp), Vector4(90, 60, 0, 0), "margens simuladas")
+	var r: Rect2 = SafeArea.rect(vp)
+	check(r.position.y == 90.0 and r.end.y == 1220.0, "retângulo seguro desconta notch e barra")
+	check_eq(SafeArea.side_margins(vp, 4.0), Vector2(4, 4), "celular: só a margem base nas laterais")
+	vp.size = Vector2i(1200, 1280)
+	var lr: Vector2 = SafeArea.side_margins(vp, 4.0)
+	check(is_equal_approx(1200.0 - lr.x - lr.y, SafeArea.MAX_CONTENT_W) and is_equal_approx(lr.x, lr.y), "tablet: conteúdo centralizado com largura máxima")
+	vp.queue_free()
+	SafeArea.debug_insets = old
+
+
 ## 0.15: plantas bioluminescentes nas cavernas do Vale (e só no Vale), espaçadas.
 func test_bio_plants() -> void:
 	var total: int = 0

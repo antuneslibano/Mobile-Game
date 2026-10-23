@@ -42,6 +42,7 @@ func is_open() -> bool:
 
 
 func open() -> void:
+	Guard.step("base")
 	visible = true
 	get_tree().paused = true
 	_view.region = GameState.region()
@@ -150,19 +151,20 @@ func _build() -> void:
 	plate.add_theme_stylebox_override("panel", PixelArt.style(&"plate"))
 	plate.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(plate)
-	var title := UiTheme.label("BASE DE PESQUISA", 32, Color("2a1606"), 700)
+	var title := UiTheme.label("BASE DE PESQUISA", 28, Color("2a1606"), 700)
 	title.add_theme_constant_override("outline_size", 0)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	plate.add_child(title)
 	var cbox: Array = UiTheme.currency_box(Economy.CREDITS)
-	(cbox[0] as Control).custom_minimum_size = Vector2(170, 0)
+	(cbox[0] as Control).custom_minimum_size = Vector2(150, 0)
 	header.add_child(cbox[0])
 	_credits = cbox[1]
 	var kbox: Array = UiTheme.currency_box(Economy.CRYSTALS)
-	(kbox[0] as Control).custom_minimum_size = Vector2(110, 0)
+	(kbox[0] as Control).custom_minimum_size = Vector2(100, 0)
 	header.add_child(kbox[0])
 	_crystals = kbox[1]
 	var gear: Button = UiTheme.gear_button()
+	gear.custom_minimum_size = Vector2(64, 64)
 	gear.pressed.connect(func() -> void:
 		Sfx.play(&"click")
 		settings_requested.emit())
@@ -189,8 +191,11 @@ func _layout() -> void:
 	if _root == null:
 		return
 	var vp: Vector2 = _root.get_viewport_rect().size
-	var ox: float = maxf(0.0, (vp.x - 720.0) * 0.5)
-	var h: float = vp.y
+	# Área segura (notch, cantos, barra de gestos): o cenário de 720 fica centralizado
+	# dentro dela e o chão fica acima da barra de gestos.
+	var safe: Vector4 = SafeArea.insets(get_viewport())
+	var ox: float = safe.z + maxf(0.0, (vp.x - safe.z - safe.w - 720.0) * 0.5)
+	var h: float = vp.y - safe.y
 	var floor_y: float = h - 170.0
 	var mezz_y: float = floor_y - 420.0
 	var rects: Dictionary = {
@@ -201,7 +206,7 @@ func _layout() -> void:
 		&"market": Rect2(482, floor_y - 250, 226, 250),
 	}
 	_view.position = Vector2(ox, 0)
-	_view.size = Vector2(720, h)
+	_view.size = Vector2(720, vp.y)  # o chão continua por baixo da barra de gestos
 	_view.rects = rects
 	_view.floor_y = floor_y
 	_view.mezz_y = mezz_y
@@ -219,8 +224,11 @@ func _layout() -> void:
 		var badge: Label = _badges[kind]
 		badge.position = Vector2(plate.position.x + plate.size.x - 22.0, plate.position.y - 30.0)
 	var header: Control = _root.get_node("Header")
-	header.position = Vector2(ox + 8, 10)
+	header.position = Vector2(ox + 8, safe.x + 10)
 	header.size = Vector2(704, 0)
+	header.reset_size()
+	if header.size.x > 704.0:
+		push_warning("Cabeçalho da base mais largo que a tela: %.0f" % header.size.x)
 	_notice.position = Vector2(ox + 20, mezz_y + 34)
 	_notice.size = Vector2(680, 40)
 	_expedition.position = Vector2(ox + 20, h - 124)

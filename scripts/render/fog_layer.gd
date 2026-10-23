@@ -10,6 +10,7 @@ var guardian: FinalGuardian
 var sonar: SonarOverlay
 var _rect: ColorRect
 const MAX_LIGHTS: int = 12
+var _lite: bool = false
 var _mat: ShaderMaterial
 
 
@@ -20,7 +21,9 @@ func _ready() -> void:
 	_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_mat = ShaderMaterial.new()
-	_mat.shader = load("res://shaders/fog.gdshader") as Shader
+	# Modo de compatibilidade: névoa simples (sem laço de luzes extras).
+	_lite = Guard.compat
+	_mat.shader = load("res://shaders/fog_lite.gdshader" if _lite else "res://shaders/fog.gdshader") as Shader
 	_rect.material = _mat
 	add_child(_rect)
 
@@ -45,6 +48,8 @@ func _process(_delta: float) -> void:
 	_mat.set_shader_parameter("ship_pos", xf * drill.global_position)
 	_mat.set_shader_parameter("radius", Balance.LIGHT_RADIUS_BLOCKS * Balance.BLOCK_PX * sc)
 	_mat.set_shader_parameter("strength", 0.86 * s)
+	if _lite:
+		return
 	var lights: Array[Vector4] = []
 	if guardian != null and guardian.alive and guardian.in_arena(drill.position):
 		var gp: Vector2 = xf * (guardian.center + Vector2(0, Balance.BLOCK_PX))

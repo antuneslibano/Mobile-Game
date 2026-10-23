@@ -26,6 +26,8 @@ signal extraction_finished
 signal guardian_defeated(hull_ratio: float)
 
 
+var _crumb_depth: int = -1
+
 func _ready() -> void:
 	drill.dig_hit.connect(_on_dig_hit)
 	drill.dug.connect(_on_dug)
@@ -88,6 +90,8 @@ func start_run(world_seed: int, start_row: int = -1, mods: Dictionary = {}, guar
 	extracting = false
 	var region: RegionDef = GameState.region()
 	world = WorldModel.new(world_seed, region)
+	# Modo de compatibilidade: gera o mundo na thread principal (sem threads de trabalho).
+	world.threaded = not Guard.compat
 	world.generator.guardian_alive = not guardian_defeated
 	creatures.setup(world, region, world_seed)
 	sonar.world = world
@@ -119,6 +123,7 @@ func start_run(world_seed: int, start_row: int = -1, mods: Dictionary = {}, guar
 func play_extraction(duration: float = 1.6) -> void:
 	if world == null or extracting:
 		return
+	Guard.step("extraindo")
 	extracting = true
 	Sfx.drill(false)
 	Sfx.engine(false)
@@ -144,6 +149,11 @@ func _physics_process(delta: float) -> void:
 		return
 	var intent: DrillIntent = input.get_intent()
 	drill.physics_step(delta, intent)
+	# Diagnóstico: onde a nave está (gravado de tempos em tempos pelo Guard).
+	var dm: int = drill.depth_m() / 10 * 10
+	if dm != _crumb_depth:
+		_crumb_depth = dm
+		Guard.detail("%d m%s" % [dm, " · combate" if camera.combat else ""])
 	if camera.intro and (drill.depth_m() > 0 or DrillIntent.sanitize(intent.aim).length() > 0.05):
 		camera.end_intro()
 	GameState.update_depth(drill.depth_m())
