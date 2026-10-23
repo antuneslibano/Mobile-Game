@@ -42,7 +42,9 @@ static func report(vp: Viewport) -> String:
 		else:
 			# Erro de script em build de release interrompe a função e devolve vazio:
 			# mostra o último passo alcançado e o fim do log desta sessão (com o erro).
-			lines.append("(não foi possível ler; parou em: %s)" % _android_step)
+			if not _android_out.is_empty():
+				lines.append("\n".join(_android_out))
+			lines.append("(leitura interrompida em: %s)" % _android_step)
 			lines.append(current_log_tail(15))
 	var tail: String = previous_log_tail()
 	if tail != "":
@@ -99,6 +101,7 @@ const EXIT_REASONS: Dictionary = {
 static func android_exit_reasons(limit: int = 3) -> String:
 	if OS.get_name() != "Android":
 		return ""
+	_android_out.clear()
 	_android_step = "plugin AndroidRuntime"
 	if not Engine.has_singleton("AndroidRuntime"):
 		return "(plugin AndroidRuntime indisponível)"
@@ -117,27 +120,47 @@ static func android_exit_reasons(limit: int = 3) -> String:
 	var list: Object = am.call("getHistoricalProcessExitReasons", pkg, 0, limit)
 	if list == null:
 		return "(Android sem histórico de saídas)"
-	var out: PackedStringArray = []
 	_android_step = "List.size"
-	var n: int = int(list.call("size"))
-	if n == 0:
+	var n: int = _int(list.call("size"))
+	if n <= 0:
 		return "(nenhum registro)"
 	for i in n:
-		_android_step = "List.get(%d)" % i
+		_android_step = "registro %d: get" % (i + 1)
 		var info: Object = list.call("get", i)
 		if info == null:
 			continue
-		var reason: int = int(info.call("getReason"))
-		var when: String = Time.get_datetime_string_from_unix_time(int(info.call("getTimestamp")) / 1000, true)
-		out.append("%d) %s · %s · status %d · %s" % [i + 1, when, EXIT_REASONS.get(reason, str(reason)),
-				int(info.call("getStatus")), String(info.call("getDescription"))])
-		out.append("   memória: pss %d MB, rss %d MB" % [int(info.call("getPss")) / 1024, int(info.call("getRss")) / 1024])
-		_android_step = "pilha (%d)" % i
+		# Cada campo separado e convertido com segurança (alguns vêm vazios/nulos); o que
+		# já foi lido fica em _android_out mesmo se um passo seguinte falhar.
+		_android_step = "registro %d: motivo" % (i + 1)
+		var reason: int = _int(info.call("getReason"))
+		_android_step = "registro %d: data" % (i + 1)
+		var when: String = Time.get_datetime_string_from_unix_time(_int(info.call("getTimestamp")) / 1000, true)
+		_android_out.append("%d) %s · %s" % [i + 1, when, EXIT_REASONS.get(reason, str(reason))])
+		_android_step = "registro %d: status" % (i + 1)
+		_android_out.append("   status (sinal/código): %d" % _int(info.call("getStatus")))
+		_android_step = "registro %d: descrição" % (i + 1)
+		_android_out.append("   descrição: %s" % _str(info.call("getDescription")))
+		_android_step = "registro %d: memória" % (i + 1)
+		_android_out.append("   memória: pss %d MB, rss %d MB" % [_int(info.call("getPss")) / 1024, _int(info.call("getRss")) / 1024])
 		if reason == 5 or reason == 6:
+			_android_step = "registro %d: pilha" % (i + 1)
 			var stack: String = _trace_summary(info.call("getTraceInputStream"), reason == 5)
 			if stack != "":
-				out.append(stack)
-	return "\n".join(out)
+				_android_out.append(stack)
+	_android_step = "fim"
+	return "\n".join(_android_out)
+
+
+## Linhas já lidas do Android (sobrevivem a um erro no meio da leitura).
+static var _android_out: PackedStringArray = []
+
+
+static func _int(v: Variant) -> int:
+	return int(v) if v is int or v is float or v is bool else -1
+
+
+static func _str(v: Variant) -> String:
+	return "" if v == null else str(v)
 
 
 ## Resumo da pilha: crash nativo (tombstone em protobuf) → trechos legíveis que citam
@@ -147,6 +170,7 @@ static func _trace_summary(stream: Object, native: bool) -> String:
 		return ""
 	var data: Variant = stream.call("readAllBytes")
 	stream.call("close")
+	_android_out.append("   pilha: %s bytes" % (str((data as PackedByteArray).size()) if data is PackedByteArray else "?"))
 	if not data is PackedByteArray:
 		return ""
 	var bytes: PackedByteArray = data

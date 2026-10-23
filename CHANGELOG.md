@@ -3,6 +3,13 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.17.3] — Leitura do Android à prova de campos vazios
+
+### Corrigido
+- Diagnóstico: os motivos de saída do Android paravam no meio quando um registro vinha
+  com campo vazio (ex.: sem descrição). Agora cada campo é lido com segurança e o que já
+  foi lido aparece mesmo se um registro falhar.
+
 ## [0.17.2] — Modo de compatibilidade em níveis
 
 ### Alterado
