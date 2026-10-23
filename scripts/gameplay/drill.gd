@@ -46,6 +46,8 @@ var disabled: bool = false
 ## Multiplicador atual de golpes/s (Sobrecarga × calor).
 var speed_mult: float = 1.0
 var heat_penalty: float = 0.0
+## Perda de eficiência pelo desgaste (sujeira e ferrugem; Game atualiza).
+var wear_penalty: float = 0.0
 var radius: float = Balance.DRILL_RADIUS_PX
 ## Tensão da broca (0.13): sobe ao forçar minério duro demais; acima de 1 fere o casco.
 var strain: float = 0.0
@@ -121,7 +123,7 @@ func physics_step(delta: float, intent: DrillIntent) -> void:
 	if energy.step(delta, stats, intent.boost):
 		boost_started.emit()
 	heat_penalty = HeatRules.penalty(depth_m(), stats.temp_limit)
-	speed_mult = energy.speed_mult(stats) * (1.0 - heat_penalty)
+	speed_mult = energy.speed_mult(stats) * (1.0 - heat_penalty) * (1.0 - wear_penalty)
 
 	var a: Vector2 = DrillIntent.sanitize(intent.aim) if not disabled else Vector2.ZERO
 	var throttle: float = a.length()

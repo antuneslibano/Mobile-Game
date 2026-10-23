@@ -282,6 +282,14 @@ func _build_all() -> void:
 	# Batida metálica: rocha-mãe ou minério duro demais.
 	_streams[&"clank"] = _synth(0.3, false, func(t: float, _i: int) -> float:
 		return (sin(TAU * 900.0 * t) * 0.5 + sin(TAU * 1340.0 * t) * 0.35 + sin(TAU * 2110.0 * t) * 0.2) * exp(-t * 16.0), 0.55)
+	# Acerto no guardião (0.19): baque grosso de carne-mineral (tom que cai, com
+	# harmônicos que o alto-falante toca), estalo úmido e um anel de cristal rachando.
+	_streams[&"boss_hit"] = _synth(0.42, false, func(t: float, _i: int) -> float:
+		var f: float = 170.0 - 100.0 * minf(1.0, t * 6.0)
+		var thump: float = (sin(TAU * f * t) + 0.7 * sin(TAU * f * 2.0 * t) + 0.4 * sin(TAU * f * 3.0 * t)) * exp(-t * 9.0)
+		var squelch: float = (rng.randf() * 2.0 - 1.0) * exp(-t * 30.0) * 0.6
+		var ring: float = (sin(TAU * 1480.0 * t) * 0.5 + sin(TAU * 2230.0 * t) * 0.3) * exp(-t * 7.0) * minf(1.0, t * 40.0)
+		return thump * 0.7 + squelch + ring * 0.45, 0.75)
 	# Coleta: dois toques subindo.
 	_streams[&"pickup"] = _synth(0.16, false, func(t: float, _i: int) -> float:
 		var f: float = 880.0 if t < 0.07 else 1320.0

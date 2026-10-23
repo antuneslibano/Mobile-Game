@@ -182,7 +182,7 @@ func test_chests_and_blueprints() -> void:
 func test_sounds() -> void:
 	var s := load("res://scripts/audio/sfx.gd").new() as Node
 	s.call("_build_all")
-	for n: StringName in [&"drill", &"engine", &"hit", &"break", &"clank", &"pickup", &"chest", &"ship_hit", &"creature", &"boost", &"click", &"whoosh", &"firefly", &"mole", &"spider", &"worm", &"bite"]:
+	for n: StringName in [&"drill", &"engine", &"hit", &"break", &"clank", &"pickup", &"chest", &"ship_hit", &"creature", &"boost", &"click", &"whoosh", &"firefly", &"mole", &"spider", &"worm", &"bite", &"boss_hit"]:
 		var st: AudioStreamWAV = (s.get("_streams") as Dictionary).get(n)
 		check(st != null and st.data.size() > 100, "som %s gerado" % n)
 	for n: StringName in [&"shutter", &"door_slam"]:
@@ -266,6 +266,21 @@ func test_safe_area_margins() -> void:
 	check(is_equal_approx(1200.0 - lr.x - lr.y, SafeArea.MAX_CONTENT_W) and is_equal_approx(lr.x, lr.y), "tablet: conteúdo centralizado com largura máxima")
 	vp.queue_free()
 	SafeArea.debug_insets = old
+
+
+## 0.19: desgaste da nave (sujeira, ferrugem, amassados).
+func test_wear_rules() -> void:
+	var w: Dictionary = WearRules.fresh()
+	check_eq(WearRules.penalty(w), 0.0, "nave nova sem perda")
+	WearRules.add_dig(w, 200 * Balance.CELLS_PER_BLOCK)
+	check(float(w[&"dirt"]) > float(w[&"rust"]) and float(w[&"rust"]) > 0.0, "cavar suja mais do que enferruja")
+	WearRules.add_dig(w, 100000 * Balance.CELLS_PER_BLOCK)
+	check(is_equal_approx(float(w[&"dirt"]), 1.0) and is_equal_approx(WearRules.penalty(w), Balance.WEAR_PENALTY_MAX), "desgaste limitado")
+	WearRules.add_damage(w, 50.0, 100.0)
+	check(float(w[&"dents"]) > 0.0 and WearRules.hull_start_ratio(w) < 1.0, "dano amassa e o casco começa ferido")
+	check(WearRules.needs_care(w), "nave desgastada pede cuidado")
+	var back: Dictionary = WearRules.from_dict(JSON.parse_string(JSON.stringify(WearRules.to_dict(w))))
+	check(absf(float(back[&"dents"]) - float(w[&"dents"])) < 0.01, "desgaste salvo e restaurado")
 
 
 ## 0.15: plantas bioluminescentes nas cavernas do Vale (e só no Vale), espaçadas.

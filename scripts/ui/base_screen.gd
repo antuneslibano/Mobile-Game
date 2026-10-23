@@ -76,6 +76,8 @@ func has_badge(kind: StringName) -> bool:
 		&"lab":
 			return Journal.unlocked(econ.discovered, GameState.done, GameState.creatures).size() > GameState.journal_seen
 		&"hangar":
+			if WearRules.needs_care(GameState.wear):
+				return true
 			if ShipLooks.unlocked_count(econ, GameState.done) > GameState.looks_seen:
 				return true
 			for id in ModuleSystem.ALL:

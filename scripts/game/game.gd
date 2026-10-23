@@ -26,6 +26,8 @@ signal extraction_finished
 signal guardian_defeated(hull_ratio: float)
 
 
+var shimmer: HeatShimmer
+var _last_hull: float = 0.0
 var _crumb_depth: int = -1
 
 func _ready() -> void:
@@ -79,6 +81,10 @@ func _ready() -> void:
 	sonar.drill = drill
 	sonar.creatures = creatures
 	fog.sonar = sonar
+	shimmer = HeatShimmer.new()
+	shimmer.name = "HeatShimmer"
+	add_child(shimmer)
+	shimmer.drill = drill
 
 
 ## Começa uma expedição: mundo fixo da região (com a escavação salva) e a nave na
@@ -107,6 +113,14 @@ func start_run(world_seed: int, start_row: int = -1, mods: Dictionary = {}, guar
 		world.fill_circle(spawn, Balance.BIT_RADIUS_PX + 6.0, BlockRegistry.AIR)
 	_apply_stats()
 	drill.setup(world, spawn, world_seed)
+	# Desgaste (0.19): amassados fazem começar com o casco ferido; sujeira e ferrugem
+	# deixam a broca mais lenta.
+	drill.vitals.hull = drill.vitals.hull_max * WearRules.hull_start_ratio(GameState.wear)
+	drill.wear_penalty = WearRules.penalty(GameState.wear)
+	_last_hull = drill.vitals.hull
+	if drill.wear_penalty >= 0.08 and start_row <= 0:
+		get_tree().create_timer(2.5).timeout.connect(func() -> void:
+			EventBus.wear_alert.emit(drill.wear_penalty))
 	drill.visible = true
 	rig.show_at(spawn, false)
 	_on_modules_changed(GameState.economy.equipped_modules)
@@ -151,6 +165,10 @@ func _physics_process(delta: float) -> void:
 		return
 	var intent: DrillIntent = input.get_intent()
 	drill.physics_step(delta, intent)
+	# Amassados: toda perda de casco (pancadas, calor, mordidas, guardião) conta.
+	if drill.vitals.hull < _last_hull:
+		WearRules.add_damage(GameState.wear, _last_hull - drill.vitals.hull, drill.vitals.hull_max)
+	_last_hull = drill.vitals.hull
 	# Diagnóstico: onde a nave está (gravado de tempos em tempos pelo Guard).
 	var dm: int = drill.depth_m() / 10 * 10
 	if dm != _crumb_depth:
@@ -239,6 +257,7 @@ func _guardian_step(delta: float, intent: DrillIntent) -> void:
 		var p := Vector2(drill.position.x, guardian.body_top)
 		fx.emit_burst(p, guardian.glow_color, 4, 220.0, 0.35, 3.0, 600.0)
 		camera.add_shake(0.05)
+		Sfx.play(&"boss_hit", randf_range(0.85, 1.1), -3.0, 0.16)
 	if guardian.take_damage(dps * delta):
 		_on_guardian_defeated()
 
@@ -284,6 +303,17 @@ func _apply_look() -> void:
 	for c in drill.get_children():
 		if c is DrillVisual:
 			(c as DrillVisual).look = GameState.ship_look()
+	_apply_wear_visual()
+
+
+## Nave suja e enferrujada fica mais escura e amarronzada no jogo também.
+func _apply_wear_visual() -> void:
+	var dirt: float = float(GameState.wear.get(&"dirt", 0.0))
+	var rust: float = float(GameState.wear.get(&"rust", 0.0))
+	var tint := Color.WHITE.lerp(Color(0.72, 0.62, 0.5), clampf(dirt * 0.6 + rust * 0.4, 0.0, 1.0) * 0.6)
+	for c in drill.get_children():
+		if c is DrillVisual:
+			(c as DrillVisual).modulate = tint
 
 
 func _on_dig_hit(point: Vector2, material_id: int, crit: bool, removed: int) -> void:
@@ -306,6 +336,10 @@ func _on_dug(counts: Dictionary, at: Vector2) -> void:
 		removed += int(counts[id])
 		if BlockRegistry.get_def(id).special != &"":
 			special = true
+	# Desgaste (0.19): cada bloco quebrado suja e enferruja um pouco a nave.
+	WearRules.add_dig(GameState.wear, removed)
+	drill.wear_penalty = WearRules.penalty(GameState.wear)
+	_apply_wear_visual()
 	if special:
 		fx.emit_burst(at, Color("fff2a8"), 10, 300.0, 0.8, 3.0, 150.0)
 		camera.add_shake(0.25)
@@ -315,6 +349,12 @@ func _on_dug(counts: Dictionary, at: Vector2) -> void:
 
 
 func _on_unbreakable(point: Vector2) -> void:
+	# No corpo do guardião (0.19): som próprio de acerto, não o "clank" da rocha-mãe.
+	if guardian.alive and guardian.on_body(drill.position, drill.radius + 10.0):
+		Sfx.play(&"boss_hit", randf_range(0.85, 1.1), -3.0, 0.16)
+		fx.emit_burst(point, guardian.glow_color, 6, 240.0, 0.4, 3.0, 400.0)
+		camera.add_shake(0.1)
+		return
 	Sfx.play(&"clank", randf_range(0.9, 1.1), -6.0, 0.2)
 	fx.sparks(point, 5)
 	camera.add_shake(0.08)

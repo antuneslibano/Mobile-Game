@@ -156,7 +156,16 @@ const BIO_LIGHT_BLOCKS: float = 3.0      ## Luz das plantas bioluminescentes (0.
 const FOG_FULL_DEPTH_M: float = 12.0
 ## Sonar: recarga (s), alcance (blocos), velocidade da onda (blocos/s), duração dos sinais.
 const SONAR_COOLDOWN: float = 12.0
-const BOSS_MUSIC_RANGE_M: int = 50            ## Tema do guardião começa a esta distância da câmara.
+const BOSS_MUSIC_RANGE_M: int = 50
+## Desgaste da nave (0.19, WearRules).
+const WEAR_DIRT_PER_BLOCK: float = 0.0025      ## 400 blocos sujam a nave toda.
+const WEAR_RUST_PER_BLOCK: float = 0.0008      ## Ferrugem vem mais devagar.
+const WEAR_DENTS_PER_HULL: float = 0.6         ## Amassados por fração do casco perdida.
+const WEAR_DIRT_PENALTY: float = 0.12          ## Sujeira total: −12% de golpes/s.
+const WEAR_RUST_PENALTY: float = 0.13          ## Ferrugem total: −13% de golpes/s.
+const WEAR_PENALTY_MAX: float = 0.25
+const WEAR_DENTS_HULL: float = 0.3             ## Amassados totais: começa com 70% do casco.
+const WEAR_CARE_ALERT: float = 0.35            ## Acima disso o Hangar avisa.            ## Tema do guardião começa a esta distância da câmara.
 const SONAR_RANGE_BLOCKS: float = 22.0
 const SONAR_SPEED_BLOCKS: float = 26.0
 const SONAR_BLIP_SEC: float = 7.0

@@ -92,6 +92,11 @@ func _build(r: Dictionary) -> void:
 		for k: Variant in lost:
 			_item(StringName(k), int(lost[k]), UiTheme.RED, "−")
 		_box.add_child(UiTheme.label("−%d créditos" % int(r.get("value_lost", 0)), 25, UiTheme.RED, 700))
+	# Desgaste (0.19): avisa quando a nave voltou precisando de cuidado.
+	var wear: Dictionary = WearRules.from_dict(r.get("wear", {}))
+	if WearRules.needs_care(wear):
+		v.add_child(_wrap("A nave voltou desgastada (sujeira %d%%, ferrugem %d%%, amassados %d%%): cuide dela no Hangar." % [
+				roundi(float(wear[&"dirt"]) * 100.0), roundi(float(wear[&"rust"]) * 100.0), roundi(float(wear[&"dents"]) * 100.0)], 22, Color("ffb347")))
 	var events: Array = Array(r.get("events", []))
 	if not events.is_empty():
 		_section("CONQUISTAS")

@@ -41,6 +41,8 @@ var pending_notice: String = ""
 var journal_seen: int = 0
 ## Tutorial jogável (0.18) concluído ou pulado. Perfil novo começa por ele.
 var tutorial_done: bool = false
+## Desgaste da nave (0.19, WearRules): sujeira, ferrugem e amassados (0..1).
+var wear: Dictionary = WearRules.fresh()
 ## Visual escolhido no Hangar ({encaixe: opção}; vazio = automático) e quantas opções o
 ## jogador já viu liberadas (alerta do Hangar).
 var looks: Dictionary = {}
@@ -68,6 +70,7 @@ func reset_profile() -> void:
 	pending_notice = ""
 	journal_seen = 0
 	tutorial_done = false
+	wear = WearRules.fresh()
 	looks = {}
 	_look_cache = {}
 	looks_seen = 0
@@ -267,6 +270,7 @@ func end_expedition(rescued: bool, reason: StringName = &"extract", mods: Dictio
 		"region": region_id, "rescued": rescued, "reason": reason, "kept": kept, "lost": lost,
 		"value_kept": value_kept, "value_lost": value_lost, "depth": max_depth_m,
 		"events": expedition_events.duplicate(),
+		"wear": WearRules.to_dict(wear),
 	}
 	expedition_active = false
 	expedition_start_cargo = {}
@@ -351,6 +355,7 @@ func to_profile() -> Dictionary:
 		"expedition": exp,
 		"journal_seen": journal_seen,
 		"tutorial_done": tutorial_done,
+		"wear": WearRules.to_dict(wear),
 		"looks": _string_keys(looks),
 		"looks_seen": looks_seen,
 		"creatures": _string_keys(creatures),
@@ -443,6 +448,7 @@ func apply_profile(d: Dictionary) -> void:
 	journal_seen = maxi(0, int(d.get("journal_seen", 0)))
 	# Salvamentos anteriores à 0.18 são de quem já jogava: o tutorial conta como feito.
 	tutorial_done = bool(d.get("tutorial_done", true))
+	wear = WearRules.from_dict(d.get("wear", {}))
 	looks_seen = maxi(0, int(d.get("looks_seen", 0)))
 	region_variant = {}
 	var rv: Variant = d.get("variants", {})

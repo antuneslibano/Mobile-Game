@@ -56,3 +56,6 @@ signal creature_defeated(species: StringName)
 signal drill_too_weak(block_id: int)
 ## Baú aberto: raridade (0 comum, 1 raro, 2 lendário), recompensa e planta (ou &"").
 signal chest_opened(rarity: int, blueprint: StringName)
+
+## Desgaste (0.19): a expedição começou com a nave desgastada (fração de eficiência perdida).
+signal wear_alert(penalty: float)

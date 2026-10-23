@@ -63,6 +63,8 @@ var guardian: FinalGuardian
 func _ready() -> void:
 	_build()
 	EventBus.depth_changed.connect(_on_depth_changed)
+	EventBus.wear_alert.connect(func(p: float) -> void:
+		show_alert("NAVE DESGASTADA −%d%% · CUIDE DELA NO HANGAR" % roundi(p * 100.0), Color("ffb347")))
 	EventBus.biome_changed.connect(_on_biome_changed)
 	EventBus.material_dug.connect(func(_a: Vector2, _c: Dictionary) -> void: _dismiss_hint())
 	EventBus.overdrive_ready.connect(func() -> void: _show_banner("SOBRECARGA PRONTA", UiTheme.BLUE))
@@ -527,12 +529,11 @@ func _set_biome(biome_id: int) -> void:
 	_biome_label.add_theme_color_override("font_color", biome.ui_color)
 
 
-## Calor (0.18): a etiqueta só aparece superaquecendo (com a perda de velocidade).
+## Calor: a perda de eficiência aparece no aviso de superaquecimento (0.19), que tem
+## espaço; aqui fica só o tom avermelhado da tela.
 func _set_heat(_depth_m: int, penalty: float) -> void:
-	_heat_label.visible = penalty > 0.0
-	if penalty > 0.0:
-		_heat_label.text = "broca −%.0f%%" % (penalty * 100.0)
-	_heat_tint.color.a = penalty * 0.45
+	_heat_label.visible = false
+	_heat_tint.color.a = penalty * 0.3
 
 
 func _on_cargo_changed(_count: int, _value: int) -> void:
@@ -586,7 +587,7 @@ func _update_vitals(delta: float) -> void:
 	elif v.hull_dps > 0.0:
 		tint = Color(1.0, 0.12, 0.05)
 		strength = 0.35 + 0.25 * blink
-		text = "SUPERAQUECENDO %d°/%d°  ·  CASCO −%.0f/s" % [roundi(temp), roundi(limit), v.hull_dps]
+		text = "SUPERAQUECENDO %d°/%d°\nBROCA −%.0f%%  ·  CASCO −%.0f/s" % [roundi(temp), roundi(limit), drill.heat_penalty * 100.0, v.hull_dps]
 	elif fr <= Balance.FUEL_CRITICAL_RATIO:
 		tint = Color(1.0, 0.12, 0.04)
 		strength = 0.45 + 0.35 * blink
