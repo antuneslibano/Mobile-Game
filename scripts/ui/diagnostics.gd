@@ -27,8 +27,16 @@ static func report(vp: Viewport) -> String:
 	lines.append("Etapa atual: %s" % Guard.step_name)
 	if Guard.crashed_last_time:
 		lines.append("FECHOU SOZINHO na última vez, em: %s (seguidas: %d)" % [Guard.last_step, Guard.crash_count])
+		lines.append("Modo de compatibilidade naquela sessão: %s" % ("ligado" if Guard.last_compat else "desligado"))
+		if not Guard.last_history.is_empty():
+			lines.append("Etapas antes de fechar: %s" % " > ".join(Guard.last_history))
 	else:
 		lines.append("Última sessão terminou normalmente.")
+	var exits: String = android_exit_reasons()
+	if exits != "":
+		lines.append("")
+		lines.append("--- motivos de saída registrados pelo Android ---")
+		lines.append(exits)
 	var tail: String = previous_log_tail()
 	if tail != "":
 		lines.append("")
@@ -56,3 +64,83 @@ static func previous_log_tail() -> String:
 	var all: PackedStringArray = text.strip_edges().split("\n")
 	var from: int = maxi(0, all.size() - LOG_LINES)
 	return "\n".join(all.slice(from))
+
+
+## Motivos REASON_* de ApplicationExitInfo (Android 11+).
+const EXIT_REASONS: Dictionary = {
+	0: "desconhecido", 1: "o próprio app saiu", 2: "encerrado por sinal", 3: "pouca memória",
+	4: "crash (Java)", 5: "CRASH NATIVO", 6: "travou (ANR)", 7: "falha ao iniciar",
+	8: "permissão mudou", 9: "uso excessivo de recursos", 10: "pedido do usuário",
+	11: "usuário parou", 12: "dependência morreu", 13: "outro", 14: "congelado",
+	15: "pacote mudou", 16: "app atualizado",
+}
+
+
+## Últimos fechamentos do app segundo o Android (motivo, sinal, memória e, em crash
+## nativo, as funções da pilha). Vazio fora do Android ou se a API não existir.
+static func android_exit_reasons(limit: int = 3) -> String:
+	if OS.get_name() != "Android" or not Engine.has_singleton("AndroidRuntime"):
+		return ""
+	var rt: Object = Engine.get_singleton("AndroidRuntime")
+	var ctx: Object = rt.call("getApplicationContext")
+	if ctx == null:
+		return "(sem contexto do Android)"
+	var am: Object = ctx.call("getSystemService", "activity")
+	if am == null:
+		return "(sem ActivityManager)"
+	var list: Object = am.call("getHistoricalProcessExitReasons", String(ctx.call("getPackageName")), 0, limit)
+	if list == null:
+		return "(Android sem histórico de saídas)"
+	var out: PackedStringArray = []
+	var n: int = int(list.call("size"))
+	for i in n:
+		var info: Object = list.call("get", i)
+		if info == null:
+			continue
+		var reason: int = int(info.call("getReason"))
+		var when: String = Time.get_datetime_string_from_unix_time(int(info.call("getTimestamp")) / 1000, true)
+		out.append("%d) %s · %s · status %d · %s" % [i + 1, when, EXIT_REASONS.get(reason, str(reason)),
+				int(info.call("getStatus")), String(info.call("getDescription"))])
+		out.append("   memória: pss %d MB, rss %d MB" % [int(info.call("getPss")) / 1024, int(info.call("getRss")) / 1024])
+		if reason == 5 or reason == 6:
+			var stack: String = _trace_summary(info.call("getTraceInputStream"), reason == 5)
+			if stack != "":
+				out.append(stack)
+	return "\n".join(out)
+
+
+## Resumo da pilha: crash nativo (tombstone em protobuf) → trechos legíveis que citam
+## bibliotecas e funções; ANR (texto) → começo da pilha da thread principal.
+static func _trace_summary(stream: Object, native: bool) -> String:
+	if stream == null:
+		return ""
+	var data: Variant = stream.call("readAllBytes")
+	stream.call("close")
+	if not data is PackedByteArray:
+		return ""
+	var bytes: PackedByteArray = data
+	if not native:
+		var text: String = bytes.slice(0, 6000).get_string_from_utf8()
+		var keep: PackedStringArray = []
+		for line in text.split("\n"):
+			if line.contains("at ") or line.contains("#") or line.contains("main"):
+				keep.append("   " + line.strip_edges())
+			if keep.size() >= 25:
+				break
+		return "\n".join(keep)
+	# Trechos ASCII imprimíveis com pelo menos 6 caracteres; ficam os que parecem frames.
+	var parts: PackedStringArray = []
+	var run := PackedByteArray()
+	for b in bytes.slice(0, 400000):
+		if b >= 32 and b < 127:
+			run.append(b)
+			continue
+		if run.size() >= 6:
+			var str_run: String = run.get_string_from_ascii()
+			if (str_run.contains(".so") or str_run.contains("::") or str_run.contains("signal") or str_run.contains("Abort") \
+					or str_run.contains("SIG")) and not parts.has(str_run):
+				parts.append("   " + str_run.left(160))
+		run.clear()
+		if parts.size() >= 40:
+			break
+	return "\n".join(parts)

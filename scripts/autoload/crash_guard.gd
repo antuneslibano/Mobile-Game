@@ -15,6 +15,11 @@ const PATH: String = "user://session.json"
 var crashed_last_time: bool = false
 ## Etapa em que estava quando fechou ("" se não fechou sozinha).
 var last_step: String = ""
+## Modo de compatibilidade estava ligado na sessão que fechou sozinha.
+var last_compat: bool = false
+## Últimas etapas da sessão que fechou (mais antiga primeiro).
+var last_history: PackedStringArray = []
+var _history: PackedStringArray = []
 ## Quantas vezes seguidas fechou sozinha (zera depois de uma sessão normal).
 var crash_count: int = 0
 ## Modo de compatibilidade ligado (automático depois de um fechamento ou pelo jogador).
@@ -70,6 +75,11 @@ func _load() -> void:
 	if bool(_state.get("running", false)):
 		crashed_last_time = true
 		last_step = String(_state.get("step", "?"))
+		last_compat = bool(_state.get("compat", false))
+		var h: Variant = _state.get("history", [])
+		if h is Array:
+			for e: Variant in h:
+				last_history.append(str(e))
 		crash_count += 1
 	if compat_manual:
 		compat = bool(_state.get("compat", false))
@@ -81,6 +91,9 @@ func _load() -> void:
 func step(name: String, extra: String = "") -> void:
 	step_name = name
 	_extra = extra
+	_history.append("%ds %s%s" % [Time.get_ticks_msec() / 1000, name, (" · " + extra) if extra != "" else ""])
+	if _history.size() > 8:
+		_history = _history.slice(_history.size() - 8)
 	_write(true)
 
 
@@ -126,6 +139,7 @@ func _write(running: bool) -> void:
 		"running": running,
 		"step": step_name + ((" · " + _extra) if _extra != "" else ""),
 		"crash_count": crash_count,
+		"history": Array(_history),
 		"compat": compat,
 		"compat_manual": compat_manual,
 		"version": String(ProjectSettings.get_setting("application/config/version", "")),

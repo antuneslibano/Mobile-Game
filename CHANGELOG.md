@@ -3,6 +3,15 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.17.1] — Diagnóstico com o motivo do Android
+
+### Adicionado
+- O Diagnóstico mostra os últimos fechamentos registrados pelo próprio Android
+  (ApplicationExitInfo, Android 11+): motivo (crash nativo, travamento, pouca memória…),
+  sinal, memória usada e, em crash nativo, as bibliotecas/funções da pilha.
+- Mostra também se o modo de compatibilidade estava ligado na sessão que fechou e as
+  últimas etapas antes do fechamento.
+
 ## [0.17.0] — Qualquer tela e mais estabilidade
 
 ### Adicionado
