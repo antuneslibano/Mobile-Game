@@ -148,6 +148,7 @@ func _finish() -> void:
 			Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0,
 			Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1048576.0,
 			int(Performance.get_monitor(Performance.OBJECT_COUNT)), int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))])
+	print("[autotest] música: %s (tema do guardião %s)" % ["guardião" if Sfx.boss_mode else "normal", "pronto" if Sfx.boss_ready else "gerando"])
 	print("[autotest] RESULTADO: %s" % ("PASSOU" if ok else "FALHOU"))
 	# Aguarda capturas pendentes.
 	await get_tree().process_frame

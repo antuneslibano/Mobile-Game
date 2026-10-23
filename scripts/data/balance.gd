@@ -156,6 +156,7 @@ const BIO_LIGHT_BLOCKS: float = 3.0      ## Luz das plantas bioluminescentes (0.
 const FOG_FULL_DEPTH_M: float = 12.0
 ## Sonar: recarga (s), alcance (blocos), velocidade da onda (blocos/s), duração dos sinais.
 const SONAR_COOLDOWN: float = 12.0
+const BOSS_MUSIC_RANGE_M: int = 50            ## Tema do guardião começa a esta distância da câmara.
 const SONAR_RANGE_BLOCKS: float = 22.0
 const SONAR_SPEED_BLOCKS: float = 26.0
 const SONAR_BLIP_SEC: float = 7.0

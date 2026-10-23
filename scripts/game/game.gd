@@ -88,6 +88,7 @@ func start_run(world_seed: int, start_row: int = -1, mods: Dictionary = {}, guar
 	if world != null:
 		world.shutdown()
 	extracting = false
+	Sfx.set_boss_mode(false)
 	var region: RegionDef = GameState.region()
 	world = WorldModel.new(world_seed, region)
 	# Modo de compatibilidade: gera o mundo na thread principal (sem threads de trabalho).
@@ -124,6 +125,7 @@ func play_extraction(duration: float = 1.6) -> void:
 	if world == null or extracting:
 		return
 	Guard.step("extraindo")
+	Sfx.set_boss_mode(false)
 	extracting = true
 	Sfx.drill(false)
 	Sfx.engine(false)
@@ -210,6 +212,7 @@ func _on_creature_defeated(species: StringName, at: Vector2) -> void:
 ## Combate com o guardião: dentro da arena a câmera entra em modo de combate; raízes que
 ## sobem de baixo ferem o casco; andar por cima do corpo (movendo-se) o desgasta.
 func _guardian_step(delta: float, intent: DrillIntent) -> void:
+	_update_boss_music()
 	var fighting: bool = guardian.alive and guardian.in_arena(drill.position) and not drill.disabled
 	if fighting != camera.combat:
 		camera.combat = fighting
@@ -238,6 +241,24 @@ func _guardian_step(delta: float, intent: DrillIntent) -> void:
 		camera.add_shake(0.05)
 	if guardian.take_damage(dps * delta):
 		_on_guardian_defeated()
+
+
+## Tema do guardião (0.18): começa antes de vê-lo, a BOSS_MUSIC_RANGE_M acima da câmara
+## final; para ao subir de volta (com folga, para não ficar alternando), ao vencê-lo ou
+## ao extrair.
+func _update_boss_music() -> void:
+	var on: bool = Sfx.boss_mode
+	if not guardian.alive or drill.disabled or extracting:
+		on = false
+	else:
+		var start_m: int = RegionRegistry.chamber_top(GameState.region()) - Balance.BOSS_MUSIC_RANGE_M
+		var d: int = drill.depth_m()
+		if d >= start_m:
+			on = true
+		elif d < start_m - 15:
+			on = false
+	if on != Sfx.boss_mode:
+		Sfx.set_boss_mode(on)
 
 
 func _on_guardian_defeated() -> void:

@@ -23,6 +23,15 @@ var music_ready: bool = false
 var _music_task: int = -1
 var _music_synth: MusicSynth = null
 var _music_wav: AudioStreamWAV = null  ## Escrita pela thread; lida depois que ela termina.
+## Tema do guardião (0.18): gerado depois da trilha principal; toca em crossfade quando a
+## nave chega perto da câmara final (set_boss_mode).
+var _boss: AudioStreamPlayer
+var _boss_task: int = -1
+var _boss_synth: BossSynth = null
+var _boss_wav: AudioStreamWAV = null
+var boss_ready: bool = false
+var boss_mode: bool = false
+const BOSS_DB_BOOST: float = 3.0   ## O tema do guardião um pouco mais alto que a trilha.
 ## Volume da máquina (loops da broca e do motor). 0.15: metade do que era (-6 dB).
 const DRILL_DB: float = -12.0
 const ENGINE_DB: float = -22.0
@@ -55,6 +64,10 @@ func _ready() -> void:
 	_music.volume_db = -80.0
 	_music.bus = BUS_NAMES[&"music"]
 	add_child(_music)
+	_boss = AudioStreamPlayer.new()
+	_boss.volume_db = -80.0
+	_boss.bus = BUS_NAMES[&"music"]
+	add_child(_boss)
 	if Guard.compat_level >= 2:
 		# Compatibilidade nível 2+: sem trilha sonora.
 		music_ready = true
@@ -63,6 +76,20 @@ func _ready() -> void:
 		_music_synth = MusicSynth.new()
 	else:
 		_music_task = WorkerThreadPool.add_task(_build_music_thread)
+		_boss_task = WorkerThreadPool.add_task(_build_boss_thread)
+
+
+## Tema do guardião gerado de uma vez, numa thread de trabalho.
+func _build_boss_thread() -> void:
+	var m := BossSynth.new()
+	m.fill(m.n * 8)
+	m.fill(m.n * 8)
+	_boss_wav = m.result()
+
+
+## Liga/desliga o tema do guardião (a troca é um crossfade de ~2 s).
+func set_boss_mode(on: bool) -> void:
+	boss_mode = on
 
 
 ## Trilha ambiente (MusicSynth) gerada de uma vez, numa thread de trabalho.
@@ -147,6 +174,9 @@ func _exit_tree() -> void:
 	if _music_task >= 0:
 		WorkerThreadPool.wait_for_task_completion(_music_task)
 		_music_task = -1
+	if _boss_task >= 0:
+		WorkerThreadPool.wait_for_task_completion(_boss_task)
+		_boss_task = -1
 
 
 func _start_music(w: AudioStreamWAV) -> void:
@@ -194,6 +224,18 @@ func _process(delta: float) -> void:
 	if _music_synth != null and _music_synth.fill(3000):
 		_start_music(_music_synth.result())
 		_music_synth = null
+		# Compatibilidade nível 1: o tema do guardião é gerado em seguida, também por quadro.
+		_boss_synth = BossSynth.new()
+	elif _boss_synth != null and _boss_synth.fill(3000):
+		_boss.stream = _boss_synth.result()
+		boss_ready = true
+		_boss_synth = null
+	if _boss_task >= 0 and WorkerThreadPool.is_task_completed(_boss_task):
+		WorkerThreadPool.wait_for_task_completion(_boss_task)
+		_boss_task = -1
+		if _boss_wav != null:
+			_boss.stream = _boss_wav
+			boss_ready = true
 	if _music_task >= 0 and WorkerThreadPool.is_task_completed(_music_task):
 		WorkerThreadPool.wait_for_task_completion(_music_task)
 		_music_task = -1
@@ -207,7 +249,15 @@ func _process(delta: float) -> void:
 	var ev: float = ENGINE_DB if (_engine_on and not paused) else -60.0
 	_engine.volume_db = lerpf(_engine.volume_db, ev, dt)
 	if music_ready:
-		_music.volume_db = lerpf(_music.volume_db, music_db if enabled else -80.0, clampf(delta * 0.8, 0.0, 1.0))
+		var boss_on: bool = boss_mode and boss_ready and enabled
+		var fade: float = clampf(delta * 1.2, 0.0, 1.0)
+		_music.volume_db = lerpf(_music.volume_db, -80.0 if (boss_on or not enabled) else music_db, fade)
+		if boss_ready:
+			if boss_on and not _boss.playing:
+				_boss.play()
+			_boss.volume_db = lerpf(_boss.volume_db, music_db + BOSS_DB_BOOST if boss_on else -80.0, fade)
+			if not boss_on and _boss.playing and _boss.volume_db < -60.0:
+				_boss.stop()
 
 
 # --- Síntese -------------------------------------------------------------------------

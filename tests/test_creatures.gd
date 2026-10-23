@@ -239,6 +239,14 @@ func test_music_synth_chunked() -> void:
 		steps += 1
 	check(whole.done() and parts.done(), "as duas gerações terminam (%d passos)" % steps)
 	check(whole.result().data == parts.result().data, "mesmo áudio gerando aos poucos")
+	# 0.18: tema do guardião (loop de 16 s, diferente da trilha principal).
+	var boss := BossSynth.new()
+	var bs: int = 0
+	while not boss.fill(4000) and bs < 1000:
+		bs += 1
+	var bw: AudioStreamWAV = boss.result()
+	check(boss.done() and bw.loop_mode == AudioStreamWAV.LOOP_FORWARD and bw.loop_end == int(BossSynth.BOSS_SECONDS * MusicSynth.RATE), "tema do guardião em loop de 16 s")
+	check(bw.data != whole.result().data.slice(0, bw.data.size()), "tema do guardião é outra música")
 
 
 ## 0.17: área segura e largura máxima do conteúdo.
