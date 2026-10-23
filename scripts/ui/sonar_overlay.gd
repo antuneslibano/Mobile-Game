@@ -118,7 +118,9 @@ func _scan_ring(r0: float, r1: float) -> void:
 			var id: int = world.peek_cell(cell)
 			var def: BlockDef = BlockRegistry.get_def(id)
 			var kind: StringName = &""
-			if id == BlockRegistry.CHEST:
+			if Relics.is_relic_block(id):
+				kind = &"relic"
+			elif id == BlockRegistry.CHEST:
 				kind = &"chest"
 			elif not TerrainSkins.ore_sprite_for(id).is_empty() or id == BlockRegistry.ARTIFACT or id == BlockRegistry.FOSSIL:
 				kind = &"ore"
@@ -129,6 +131,8 @@ func _scan_ring(r0: float, r1: float) -> void:
 			var col: Color = def.color_accent.lightened(0.3)
 			if kind == &"chest":
 				col = Chests.COLORS[Chests.rarity(key, world.generator.seed_value, by)]
+			elif kind == &"relic":
+				col = Color("ffd23f")
 			blips.append({"pos": center, "color": col, "t": 0.0, "kind": kind,
 					"weak": not MiningRules.can_break(id, drill.stats.drill_tier)})
 			_beep(d)
@@ -182,7 +186,16 @@ func _on_draw() -> void:
 		var p: Vector2 = xf * (b.pos as Vector2)
 		var pulse: float = 0.5 + 0.5 * sin(now * 6.0 + p.x * 0.01)
 		var inside: bool = p.x > 0 and p.y > top and p.x < vp.x and p.y < vp.y
-		if inside:
+		if inside and b.kind == &"relic":
+			# Relíquia: estrela dourada grande, pulsando.
+			var rs: float = 16.0 + 6.0 * pulse
+			var star := PackedVector2Array()
+			for si in 10:
+				var rad: float = rs if si % 2 == 0 else rs * 0.45
+				star.append(p + Vector2.from_angle(-PI * 0.5 + si * TAU / 10.0) * rad)
+			_draw_node.draw_colored_polygon(star, Color(col.r, col.g, col.b, k))
+			_draw_node.draw_arc(p, rs + 10.0, 0.0, TAU, 24, Color(col.r, col.g, col.b, 0.6 * k), 3.0)
+		elif inside:
 			var r: float = 11.0 if b.kind == &"chest" else 7.0
 			_draw_node.draw_arc(p, r + 6.0 + 6.0 * pulse, 0.0, TAU, 24, Color(col.r, col.g, col.b, 0.6 * k), 3.0)
 			_draw_node.draw_rect(Rect2(p - Vector2(r, r) * 0.5, Vector2(r, r)), Color(col.r, col.g, col.b, k))

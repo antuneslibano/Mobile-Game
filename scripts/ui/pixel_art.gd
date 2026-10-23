@@ -544,6 +544,9 @@ static func _block_for(key: StringName) -> int:
 	for def: BlockDef in BlockRegistry.all():
 		if def.key == key:
 			return def.id
+	for def: BlockDef in BlockRegistry.all():
+		if def.drops.has(key):
+			return def.id
 	return BlockRegistry.COPPER
 
 

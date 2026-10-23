@@ -468,3 +468,27 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
   (thread ou por quadro no modo de compatibilidade); `Sfx.set_boss_mode` faz o crossfade.
   `Game._update_boss_music` liga a `BOSS_MUSIC_RANGE_M` da câmara final.
 - **Couro**: recurso `leather`; `Economy.from_dict` converte `bio_sample`.
+
+## 23. 0.19: desgaste, cuidado da nave, vitória e relíquias
+
+- **Calor na tela** (`HeatShimmer`, CanvasLayer 4): `BackBufferCopy` + shader
+  `heat_shimmer.gdshader` (lê a tela e ondula); força = `drill.heat_penalty /
+  HEAT_PENALTY_MAX`. Desligado com `Guard.compat_level >= 2`.
+- **Desgaste** (`WearRules`): `GameState.wear` = {dirt, rust, dents} 0..1, salvo no
+  perfil. `Game._on_dug` → `add_dig`; queda de casco → `add_damage`. `penalty` reduz
+  `Drill.wear_penalty` (velocidade); `hull_start_ratio` ajusta o casco inicial.
+- **Cuidar da nave** (`ShipCare` + `ShipCarePanel`, Hangar): máscara por tipo (2 px por
+  pixel da arte) com cobertura por `FastNoiseLite`; `scrub` apaga dentro do pincel e
+  grava o nível em `GameState.wear`. `TouchScroll.no_scroll` impede a rolagem ao
+  arrastar sobre a nave.
+- **Formatos de broca**: `ShipLooks` slot `shape`; `ShipArt.drill_has` desenha cada um.
+- **Vitória** (`VictoryScreen`, CanvasLayer 32, pausa): `chosen(next_region)`;
+  `GameState.complete_region` marca `reset_on_end` e `end_expedition` chama `new_area`.
+- **Relíquias** (`Relics`): um bloco por região (`BlockRegistry` 33..38, `special =
+  &"relic"`), posição `Relics.place(semente, região)`; `WorldGenerator._forced_cell`
+  abre uma câmara 3×3 em volta. `collect_drops` limita a 1 e marca
+  `GameState.relic_prompt`; `main.show_relic_choice` (CanvasLayer 33) abre na base ou por
+  `EventBus.relic_choice_requested`. `install_relic` grava em `Economy.relics` e
+  `Relics.apply` soma o bônus em `_refresh_stats`. Relíquias ficam fora de `sell_all` e
+  `cargo_value`.
+

@@ -19,6 +19,8 @@ var discovered: Dictionary = {}       ## StringName → true
 var tech: int = 0
 ## Plantas de visual exclusivo achadas em baús (0.12).
 var blueprints: Dictionary = {}       ## StringName → true
+## Relíquias instaladas (0.19): chave → true (bônus permanente, Relics.apply).
+var relics: Dictionary = {}
 var _fraction: Dictionary = {}        ## StringName → float (sobra do multiplicador de coleta)
 
 
@@ -56,7 +58,7 @@ func cargo_value() -> int:
 	var v: int = 0
 	for key: StringName in cargo:
 		var def: ResourceDef = ResourceRegistry.get_def(key)
-		if def != null:
+		if def != null and not Relics.is_relic_key(key):
 			v += def.sell_value * int(cargo[key])
 	return v
 
@@ -78,11 +80,13 @@ func sell(key: StringName, n: int) -> int:
 	return value
 
 
-## Vende só o excedente: o que passa da reserva ({recurso: quantidade}).
+## Vende só o excedente: o que passa da reserva ({recurso: quantidade}). Relíquias
+## ficam (o jogador escolhe instalar ou vender).
 func sell_surplus(reserve: Dictionary) -> int:
 	var value: int = 0
 	for key: StringName in cargo.keys():
-		value += sell(key, int(cargo[key]) - int(reserve.get(key, 0)))
+		if not Relics.is_relic_key(key):
+			value += sell(key, int(cargo[key]) - int(reserve.get(key, 0)))
 	return value
 
 
@@ -105,12 +109,12 @@ func spend_materials(mats: Dictionary) -> bool:
 	return true
 
 
-## Vende toda a carga. Retorna os Créditos recebidos.
+## Vende toda a carga (menos relíquias). Retorna os Créditos recebidos.
 func sell_all() -> int:
-	var value: int = cargo_value()
-	cargo.clear()
-	credits += value
-	lifetime_credits += value
+	var value: int = 0
+	for key: StringName in cargo.keys():
+		if not Relics.is_relic_key(key):
+			value += sell(key, int(cargo[key]))
 	return value
 
 
@@ -158,6 +162,7 @@ func to_dict() -> Dictionary:
 		"credits": credits, "crystals": crystals, "lifetime_credits": lifetime_credits,
 		"cargo": cargo_out, "upgrades": levels, "equipped": eq, "discovered": disc,
 		"blueprints": blueprints.keys().map(func(k: StringName) -> String: return String(k)),
+		"relics": relics.keys().map(func(k: StringName) -> String: return String(k)),
 	}
 
 
@@ -190,6 +195,11 @@ static func from_dict(d: Dictionary) -> Economy:
 	for k: StringName in e.cargo:
 		e.discovered[k] = true
 	var bp_in: Variant = d.get("blueprints", [])
+	var rel_in: Variant = d.get("relics", [])
+	if rel_in is Array:
+		for k: Variant in rel_in:
+			if Relics.is_relic_key(StringName(str(k))):
+				e.relics[StringName(str(k))] = true
 	if bp_in is Array:
 		for k: Variant in bp_in:
 			if Chests.BLUEPRINTS.has(StringName(str(k))):

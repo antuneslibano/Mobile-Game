@@ -44,7 +44,11 @@ static func _build() -> void:
 	_add(&"rare_crystal", "Cristal raro", 1800, Color("ff9ff3"))
 	_add(&"crystal", "Cristal", 0, Color("6fe3ff"), &"crystals")
 	_add(&"bio_sample", "Amostra biológica", 0, Color("9bff5a"))  ## Só para salvamentos antigos (vira couro).
-	_add(&"leather", "Couro", 70, Color("b9784a"))  ## Das criaturas (0.18): vende e vai em peças orgânicas.
+	_add(&"leather", "Couro", 70, Color("b9784a"))
+	# Relíquias (0.19): uma por região; vendem por muito ou viram bônus permanente.
+	for r: StringName in Relics.REGION_ORDER:
+		var d: Array = Relics.DEFS[r]
+		_add(d[0], d[1], d[3], d[7])  ## Das criaturas (0.18): vende e vai em peças orgânicas.
 
 
 static func get_def(key: StringName) -> ResourceDef:

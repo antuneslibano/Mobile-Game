@@ -598,7 +598,7 @@ func _lab_cell(icon_tex: Texture2D, title: String, known: bool, on_tap: Callable
 func _lab_minerals(econ: Economy) -> void:
 	var keys: Array[StringName] = []
 	for key in ResourceRegistry.order():
-		if not key in CATALOG_SKIP:
+		if not key in CATALOG_SKIP and not Relics.is_relic_key(key):
 			keys.append(key)
 	var found: int = 0
 	for key in keys:
@@ -632,6 +632,37 @@ func _lab_plans(econ: Economy) -> void:
 		grid.add_child(_lab_cell(tex, String(bp[1]), known, func() -> void: _detail(String(bp[1]) if known else "???", tex if known else null,
 				["Visual exclusivo da nave (%s)." % ShipLooks.SLOT_NAMES[bp[0]].to_lower(), "Encontrada em baú raro ou lendário." if known else "Ainda não encontrada. Procure baús raros (aura azul) e lendários (aura roxa).",
 				"Escolha no Hangar." if known else ""], UiTheme.ORANGE)))
+	# Relíquias (0.19): uma por região; instalar aqui as que estiverem no armazém.
+	var installed: int = econ.relics.size()
+	_lab_box.add_child(UiTheme.label("RELÍQUIAS  ·  %d/%d instaladas" % [installed, Relics.DEFS.size()], 28, UiTheme.ORANGE, 700))
+	var rgrid := _lab_grid("Relics", 2)
+	for region_id: StringName in Relics.REGION_ORDER:
+		var rd: Array = Relics.DEFS[region_id]
+		var key: StringName = rd[0]
+		var have: bool = int(econ.cargo.get(key, 0)) > 0
+		var known: bool = econ.relics.has(key) or have or econ.discovered.has(key)
+		var tex: Texture2D = PixelArt.ore_icon(key)
+		var title: String = String(rd[1]) + ("  ✓" if econ.relics.has(key) else "")
+		rgrid.add_child(_lab_cell(tex, title, known, func() -> void: _relic_card(region_id)))
+
+
+func _relic_card(region_id: StringName) -> void:
+	var rd: Array = Relics.DEFS[region_id]
+	var key: StringName = rd[0]
+	var econ: Economy = GameState.economy
+	var known: bool = econ.relics.has(key) or int(econ.cargo.get(key, 0)) > 0 or econ.discovered.has(key)
+	var lines: Array = []
+	if known:
+		lines.append(String(rd[2]))
+	lines.append("Escondida em %s: só uma no mapa, numa pequena câmara funda. Brilha e aparece no sonar como estrela." % RegionRegistry.get_def(region_id).display_name)
+	lines.append("Instalada: %s (para sempre)." % rd[6])
+	lines.append("Ou vender por %s créditos." % UiTheme.short_number(int(rd[3])))
+	if econ.relics.has(key):
+		lines.append("JÁ INSTALADA.")
+	_detail(String(rd[1]) if known else "???", PixelArt.ore_icon(key) if known else null, lines, Color(rd[7]))
+	if int(econ.cargo.get(key, 0)) > 0:
+		# Tem uma no armazém: abre a escolha instalar/vender por cima.
+		EventBus.relic_choice_requested.emit(key)
 
 
 static func _look_for_blueprint(id: StringName) -> StringName:

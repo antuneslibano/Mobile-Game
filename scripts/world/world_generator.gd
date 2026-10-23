@@ -30,6 +30,12 @@ var _body_top_cy: int = 0          ## Primeira linha (células) do corpo.
 var _body_cx0: int = 0             ## Faixa de colunas (células) do corpo.
 var _body_cx1: int = 0
 var _floor_cy: int = 0
+## Relíquia da região (bloco) e a câmara em volta (células). relic_id < 0 = sem relíquia.
+var relic_id: int = -1
+var relic_block: Vector2i = Vector2i(-100, -100)
+var _relic_c0: Vector2i = Vector2i(-1000, -1000)
+var _relic_room0: Vector2i = Vector2i(-1000, -1000)
+var _relic_room1: Vector2i = Vector2i(-1000, -1000)
 ## Região e camadas usadas por este gerador (cópia própria: seguro em threads).
 var region: RegionDef
 var _layers: Array[BiomeDef] = []
@@ -68,6 +74,14 @@ func _init(p_seed: int, p_region: RegionDef = null) -> void:
 	var half: int = (Balance.FINAL_CHAMBER_HALF_WIDTH + 1) * Balance.CELL_SUB
 	_body_cx0 = floori(gc.x / Balance.CELL_PX) - half
 	_body_cx1 = floori(gc.x / Balance.CELL_PX) + half
+	# Relíquia (0.19): uma por mapa, no centro de uma pequena câmara de 3×3 blocos.
+	relic_id = Relics.block_for(region.id)
+	if relic_id >= 0:
+		relic_block = Relics.place(p_seed, region)
+		var sub: int = Balance.CELL_SUB
+		_relic_c0 = Vector2i(relic_block.x * sub, relic_block.y * sub)
+		_relic_room0 = _relic_c0 - Vector2i(sub, sub)
+		_relic_room1 = _relic_c0 + Vector2i(sub * 2 - 1, sub * 2 - 1)
 
 
 static func _warp_table(p_seed: int) -> PackedByteArray:
@@ -245,6 +259,11 @@ func _forced_cell(cx: int, cy: int) -> int:
 		return BlockRegistry.BEDROCK
 	if guardian_alive and cy >= _body_top_cy and cy < _floor_cy and cx >= _body_cx0 and cx <= _body_cx1:
 		return BlockRegistry.BEDROCK
+	if cy >= _relic_room0.y and cy <= _relic_room1.y and cx >= _relic_room0.x and cx <= _relic_room1.x:
+		var sub: int = Balance.CELL_SUB
+		if cx >= _relic_c0.x and cx < _relic_c0.x + sub and cy >= _relic_c0.y and cy < _relic_c0.y + sub:
+			return relic_id
+		return BlockRegistry.AIR
 	return -1
 
 

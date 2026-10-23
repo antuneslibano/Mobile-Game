@@ -81,6 +81,7 @@ func _ready() -> void:
 	add_child(base)
 	move_child(base, garage.get_index())
 	base.station_requested.connect(_on_station)
+	EventBus.relic_choice_requested.connect(show_relic_choice)
 	garage.closed.connect(func() -> void: base._refresh())
 	world_map.closed.connect(func() -> void: base._refresh())
 	settings = SettingsScreen.new()
@@ -101,6 +102,16 @@ func _ready() -> void:
 	if testing or args.has("no-map"):
 		# Testes: começa direto numa expedição (sem passar pela base).
 		_start_expedition(GameState.region_id, maxi(0, start_row))
+		if OS.is_debug_build() and args.has("near-relic"):
+			# Depuração: recomeça logo acima da relíquia da região.
+			var rb: Vector2i = game.world.generator.relic_block
+			game.start_run(GameState.world_seed, maxi(0, rb.y - 5), GameState.region_mods(GameState.region_id), false)
+		if OS.is_debug_build() and args.has("relic-choice-at"):
+			get_tree().create_timer(float(args["relic-choice-at"])).timeout.connect(func() -> void:
+				var key: StringName = Relics.for_region(GameState.region_id)[0]
+				GameState.economy.cargo[key] = 1
+				base.open()
+				show_relic_choice(key))
 		if OS.is_debug_build() and args.has("fuel"):
 			game.drill.vitals.fuel = game.drill.vitals.fuel_max * clampf(float(args["fuel"]), 0.0, 1.0)
 		if OS.is_debug_build() and args.has("guardian-hp"):
@@ -301,6 +312,8 @@ func _on_extraction_finished() -> void:
 
 func _back_to_base() -> void:
 	Guard.step("base")
+	if GameState.relic_prompt != &"":
+		show_relic_choice.call_deferred(GameState.relic_prompt)
 	if _next_region_after_report != &"":
 		var nr: StringName = _next_region_after_report
 		_next_region_after_report = &""
@@ -396,4 +409,92 @@ func _show_crash_notice() -> void:
 	UiTheme.style_button(ok, &"green")
 	ok.pressed.connect(layer.queue_free)
 	row.add_child(ok)
+	Transitions.pop_in(panel)
+
+
+## Relíquia trazida (0.19): instalar (bônus para sempre) ou vender (muitos créditos).
+func show_relic_choice(key: StringName) -> void:
+	if get_node_or_null("RelicChoice") != null or not Relics.is_relic_key(key) or int(GameState.economy.cargo.get(key, 0)) <= 0:
+		return
+	var rd: Array = Relics.def_by_key(key)
+	var installed: bool = GameState.economy.relics.has(key)
+	var layer := CanvasLayer.new()
+	layer.name = "RelicChoice"
+	layer.layer = 33
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(layer)
+	var root := Control.new()
+	root.theme = UiTheme.get_theme()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(root)
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.75)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.add_child(dim)
+	var safe := SafeMargin.new(20.0, 10.0, 10.0, 640.0)
+	root.add_child(safe)
+	var center := CenterContainer.new()
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	safe.add_child(center)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", PixelArt.style(&"frame"))
+	center.add_child(panel)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 14)
+	panel.add_child(v)
+	v.add_child(UiTheme.label(UiTheme.display_text("RELÍQUIA"), 26, UiTheme.TEXT_DIM, 700))
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 14)
+	v.add_child(head)
+	var icon := TextureRect.new()
+	icon.texture = PixelArt.ore_icon(key)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.custom_minimum_size = Vector2(96, 96)
+	head.add_child(icon)
+	var name_l := UiTheme.label(String(rd[1]).to_upper(), 32, Color(rd[7]), 700)
+	name_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_l.custom_minimum_size = Vector2(300, 0)
+	head.add_child(name_l)
+	var desc := UiTheme.label(String(rd[2]), 22, UiTheme.TEXT, 500)
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc.custom_minimum_size = Vector2(540, 0)
+	v.add_child(desc)
+	var close := func() -> void:
+		GameState.relic_prompt = &""
+		layer.queue_free()
+		base._refresh()
+	var inst := Button.new()
+	inst.name = "RelicInstall"
+	inst.text = UiTheme.display_text("JÁ INSTALADA" if installed else "INSTALAR: %s" % String(rd[6]))
+	inst.disabled = installed
+	inst.custom_minimum_size = Vector2(0, 80)
+	inst.add_theme_font_size_override("font_size", UiTheme.font_size(21, 700))
+	UiTheme.style_button(inst, &"green")
+	inst.pressed.connect(func() -> void:
+		if GameState.install_relic(key):
+			Sfx.play(&"boost", 1.2)
+			hud.show_alert("%s INSTALADA!" % String(rd[1]).to_upper(), UiTheme.GREEN)
+		close.call())
+	v.add_child(inst)
+	var sell := Button.new()
+	sell.name = "RelicSell"
+	sell.text = UiTheme.display_text("VENDER POR %s CRÉDITOS" % UiTheme.short_number(int(rd[3])))
+	sell.custom_minimum_size = Vector2(0, 80)
+	sell.add_theme_font_size_override("font_size", UiTheme.font_size(21, 700))
+	UiTheme.style_button(sell, &"gold")
+	sell.pressed.connect(func() -> void:
+		if GameState.sell_relic(key) > 0:
+			Sfx.play(&"pickup", 0.8)
+		close.call())
+	v.add_child(sell)
+	var later := Button.new()
+	later.name = "RelicLater"
+	later.text = UiTheme.display_text("DECIDIR DEPOIS (Laboratório)")
+	later.custom_minimum_size = Vector2(0, 64)
+	later.add_theme_font_size_override("font_size", UiTheme.font_size(18, 700))
+	UiTheme.style_button(later, &"steel")
+	later.pressed.connect(close)
+	v.add_child(later)
 	Transitions.pop_in(panel)

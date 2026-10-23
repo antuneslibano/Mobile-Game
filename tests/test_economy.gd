@@ -59,3 +59,38 @@ func test_spend_never_goes_negative() -> void:
 	check(e.spend(Economy.CREDITS, 10), "gasta exatamente o saldo")
 	check_eq(e.credits, 0, "zerado")
 	check(not e.spend(Economy.CREDITS, -5), "valor negativo rejeitado")
+
+
+## 0.19: relíquia única por região, numa câmara escondida; bônus ao instalar.
+func test_relics() -> void:
+	for r: StringName in Relics.REGION_ORDER:
+		var id: int = Relics.block_for(r)
+		var key: StringName = Relics.for_region(r)[0]
+		check(Relics.is_relic_block(id) and BlockRegistry.get_def(id).drops.has(key), "bloco da relíquia de %s solta %s" % [r, key])
+		check(ResourceRegistry.get_def(key).sell_value >= 6000, "relíquia %s vale muito" % key)
+	var region: RegionDef = RegionRegistry.get_def(RegionRegistry.VALE)
+	var w := WorldModel.new(91, region)
+	var rb: Vector2i = w.generator.relic_block
+	check(rb.y >= int(region.target_depth_m * 0.45) and rb.y < RegionRegistry.chamber_top(region), "relíquia no fundo, antes da câmara")
+	var sub: int = Balance.CELL_SUB
+	var found: int = 0
+	var relic_id: int = Relics.block_for(&"vale")
+	for y in range(0, region.target_depth_m + 20):
+		for x in Balance.WORLD_WIDTH:
+			if w.peek_cell(Vector2i(x * sub + 1, y * sub + 1)) == relic_id:
+				found += 1
+	check_eq(found, 1, "uma só relíquia no mapa todo")
+	check_eq(w.peek_cell(Vector2i(rb.x * sub - 1, rb.y * sub + 1)), BlockRegistry.AIR, "câmara aberta em volta")
+	check(WorldModel.new(92, region).generator.relic_block != rb, "outra semente, outro lugar")
+	var s := DrillStats.base()
+	var before: float = s.collect_mult
+	Relics.apply(s, {&"relic_seed": true})
+	check(is_equal_approx(s.collect_mult, before + 0.15), "Semente Primordial: +15% de coleta")
+	var e := Economy.new()
+	e.cargo = {&"relic_seed": 1, &"copper": 2}
+	check_eq(e.cargo_value(), 2 * ResourceRegistry.get_def(&"copper").sell_value, "relíquia fora do valor da carga")
+	e.sell_all()
+	check(e.cargo.has(&"relic_seed"), "vender tudo não vende a relíquia")
+	e.relics[&"relic_amber"] = true
+	var back := Economy.from_dict(JSON.parse_string(JSON.stringify(e.to_dict())))
+	check(back.relics.has(&"relic_amber") and back.cargo.has(&"relic_seed"), "relíquias salvas")

@@ -88,6 +88,10 @@ Executa, em modo headless:
 | `--guardian-hp=F` | vida inicial do guardião da câmara final (fração; só builds de depuração) |
 | `--sonar-at=T` | com `--autotest`, usa o sonar em T segundos |
 | `--tutorial` | com `--autotest`, mostra o tutorial por cima da expedição |
+| `--wear=F` | nave desgastada (sujeira, ferrugem e amassados em F; só depuração) |
+| `--upgrade=id:n,...` | níveis de melhorias ao iniciar (ex.: `cooling:5`; só depuração) |
+| `--near-relic` | com `--autotest`, começa logo acima da relíquia da região |
+| `--relic-choice-at=T` | com `--autotest`, abre a escolha da relíquia na base em T segundos |
 | `--settings-at=T` | com `--autotest`, abre as Configurações em T segundos (`--diag` abre o Diagnóstico) |
 | `--safe-area=T,B,L,R` | simula notch/cantos/barra de gestos (px do jogo; só depuração) |
 | `--compat[=N]` | força o modo de compatibilidade, nível N de 1 a 3 (só depuração) |
@@ -200,6 +204,7 @@ Instalar: `adb install -r build/deepforge.apk`, ou copie o APK para o celular e 
 | 0.16 | Configurações de volume (música, efeitos, máquina), minério sempre rende item | ✅ |
 | 0.17 | Área segura em todas as telas (notch, cantos, barra de gestos, tablets), modo de compatibilidade automático, diagnóstico | ✅ |
 | 0.18 | Tutorial jogável, calor por profundidade com limite térmico, tema do guardião, couro vendável, Sobrecarga 2× combustível | ✅ |
+| 0.19 | Calor tremendo a tela, desgaste e cuidado da nave no Hangar, formatos de broca, vitória "ele retornará" com região refeita, relíquias por região | ✅ |
 | 0.10–0.11 | Base com construção, criaturas — ver [ROADMAP_EXPEDICOES.md](ROADMAP_EXPEDICOES.md) | planejado |
 | 5 | Arte, efeitos, áudio, otimização, exportação Android | pendente |
 

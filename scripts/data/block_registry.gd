@@ -37,7 +37,9 @@ const TITANIUM: int = 29
 const RARE_CRYSTAL: int = 30
 const FOSSIL: int = 31
 const METEORITE: int = 32
-const COUNT: int = 33
+# Relíquias (0.19): uma por região (Relics.DEFS), ids 33..38.
+const RELIC_FIRST: int = 33
+const COUNT: int = 39
 
 static var _defs: Array[BlockDef] = []
 
@@ -138,6 +140,15 @@ static func _build() -> void:
 			Color("2a2226"), Color("140f12"), Color("ff3a26"))
 	meteor.special = &"meteorite"
 	list[METEORITE] = meteor
+	# Relíquias: depósito brilhante, saem inteiras ao quebrar e rendem o recurso único.
+	for i in Relics.REGION_ORDER.size():
+		var rd: Array = Relics.DEFS[Relics.REGION_ORDER[i]]
+		var id: int = RELIC_FIRST + i
+		var acc: Color = rd[7]
+		var relic := BlockDef.make(id, StringName("relic_%d" % i), String(rd[1]), 160.0, 4.0, {rd[0]: 1}, BlockDef.Art.ORE,
+				Color("2a2430"), Color("16121a"), acc)
+		relic.special = &"relic"
+		list[id] = relic
 
 	_defs = list
 

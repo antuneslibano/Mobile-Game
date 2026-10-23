@@ -45,6 +45,8 @@ var tutorial_done: bool = false
 var wear: Dictionary = WearRules.fresh()
 ## Região a refazer ao fim desta expedição (o guardião dela foi vencido, 0.19).
 var reset_on_end: StringName = &""
+## Relíquia trazida que ainda não foi decidida (instalar ou vender) — pergunta na base.
+var relic_prompt: StringName = &""
 ## Visual escolhido no Hangar ({encaixe: opção}; vazio = automático) e quantas opções o
 ## jogador já viu liberadas (alerta do Hangar).
 var looks: Dictionary = {}
@@ -74,6 +76,7 @@ func reset_profile() -> void:
 	tutorial_done = false
 	wear = WearRules.fresh()
 	reset_on_end = &""
+	relic_prompt = &""
 	looks = {}
 	_look_cache = {}
 	looks_seen = 0
@@ -285,6 +288,7 @@ func end_expedition(rescued: bool, reason: StringName = &"extract", mods: Dictio
 		"events": expedition_events.duplicate(),
 		"wear": WearRules.to_dict(wear),
 		"guardian_returns": true,
+		"relic_prompt": String(relic_prompt),
 		"reset_on_end": String(reset_on_end),
 		"reset": reset,
 	}
@@ -330,6 +334,7 @@ func region_mods(id: StringName) -> Dictionary:
 
 func _refresh_stats() -> void:
 	stats = Progression.build_stats(economy.upgrade_levels)
+	Relics.apply(stats, economy.relics)
 	_emit_economy()
 	EventBus.stats_changed.emit()
 	EventBus.modules_changed.emit(economy.equipped_modules)
@@ -457,6 +462,7 @@ func apply_profile(d: Dictionary) -> void:
 			if _valid_region(k):
 				region_variant[StringName(str(k))] = maxi(0, int(rv[k]))
 	reset_on_end = StringName(str(d.get("reset_on_end", "")))
+	relic_prompt = StringName(str(d.get("relic_prompt", "")))
 	if not d.has("guardian_returns"):
 		# Salvamentos anteriores à 0.19: o guardião vencido ficava morto. Agora ele volta,
 		# então as regiões concluídas recomeçam com mundo novo.
@@ -538,6 +544,14 @@ func collect_drops(at: Vector2, drops: Dictionary) -> Dictionary:
 	var gained: Dictionary = economy.collect(drops, stats.collect_mult)
 	if not gained.is_empty():
 		_count_research(gained)
+		for k: StringName in gained:
+			if Relics.is_relic_key(k):
+				# Relíquia (0.19): uma só (sem multiplicador de coleta), aviso e escolha na base.
+				economy.cargo[k] = int(economy.cargo.get(k, 0)) - int(gained[k]) + 1
+				gained[k] = 1
+				relic_prompt = k
+				expedition_events.append("Relíquia encontrada: %s" % Relics.def_by_key(k)[1])
+				EventBus.relic_found.emit(k)
 		EventBus.resources_collected.emit(at, gained)
 		_emit_economy()
 	return gained
@@ -663,3 +677,30 @@ func toggle_module(id: StringName) -> bool:
 func _emit_economy() -> void:
 	EventBus.wallet_changed.emit(economy.credits, economy.crystals)
 	EventBus.cargo_changed.emit(economy.cargo_count(), economy.cargo_value())
+
+
+## Instala uma relíquia trazida (bônus permanente). Falha se não tiver ou já instalada.
+func install_relic(key: StringName) -> bool:
+	if not Relics.is_relic_key(key) or int(economy.cargo.get(key, 0)) <= 0 or economy.relics.has(key):
+		return false
+	economy.cargo[key] = int(economy.cargo[key]) - 1
+	if int(economy.cargo[key]) <= 0:
+		economy.cargo.erase(key)
+	economy.relics[key] = true
+	if relic_prompt == key:
+		relic_prompt = &""
+	_refresh_stats()
+	SaveService.save_now()
+	return true
+
+
+## Vende uma relíquia trazida. Retorna os créditos ganhos.
+func sell_relic(key: StringName) -> int:
+	if int(economy.cargo.get(key, 0)) <= 0:
+		return 0
+	var gained: int = economy.sell(key, 1)
+	if relic_prompt == key:
+		relic_prompt = &""
+	_emit_economy()
+	SaveService.save_now()
+	return gained

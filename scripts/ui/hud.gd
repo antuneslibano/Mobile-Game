@@ -63,6 +63,9 @@ var guardian: FinalGuardian
 func _ready() -> void:
 	_build()
 	EventBus.depth_changed.connect(_on_depth_changed)
+	EventBus.relic_found.connect(func(key: StringName) -> void:
+		Sfx.play(&"chest", 0.8)
+		show_alert("RELÍQUIA: %s!" % String(Relics.def_by_key(key)[1]).to_upper(), Color("ffd23f")))
 	EventBus.wear_alert.connect(func(p: float) -> void:
 		show_alert("NAVE DESGASTADA −%d%% · CUIDE DELA NO HANGAR" % roundi(p * 100.0), Color("ffb347")))
 	EventBus.biome_changed.connect(_on_biome_changed)

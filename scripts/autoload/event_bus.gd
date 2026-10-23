@@ -59,3 +59,8 @@ signal chest_opened(rarity: int, blueprint: StringName)
 
 ## Desgaste (0.19): a expedição começou com a nave desgastada (fração de eficiência perdida).
 signal wear_alert(penalty: float)
+
+## Relíquia da região coletada (0.19).
+signal relic_found(key: StringName)
+## Pedido para abrir a escolha instalar/vender de uma relíquia do armazém (0.19).
+signal relic_choice_requested(key: StringName)

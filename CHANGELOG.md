@@ -3,6 +3,37 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.19.0] — Nave que desgasta, relíquias e "ele retornará"
+
+### Adicionado
+- **Calor na tela**: ao superaquecer, a tela treme e ondula como ar quente, mais forte
+  quanto maior o excesso. O aviso mostra a perda: "BROCA −X% · CASCO −Y/s".
+- **Desgaste da nave**: cavar suja e enferruja a nave; levar dano deixa amassados.
+  Sujeira e ferrugem tiram até 25% da velocidade da broca; amassados fazem a expedição
+  começar com o casco ferido. A nave fica visivelmente mais suja durante a expedição e
+  o Hangar mostra um aviso quando ela precisa de cuidado.
+- **Cuidar da nave** (Hangar): a nave aparece grande com as manchas de sujeira,
+  ferrugem e os amassados. Escolha a ferramenta (ESPONJA, LIXA ou SOLDA) e arraste o
+  dedo por cima: a sujeira sai com espuma e som, a lixa solta pó, a solda solta
+  faíscas. Ao terminar uma camada, a nave brilha.
+- **Formatos de broca** (Hangar › Visual): Padrão, Agulha, Robusta, Dupla e Coroa
+  (esta só depois de vencer o guardião do Vale).
+- **Vitória sobre o guardião**: tela de VITÓRIA, depois escurece, um coração pulsa e
+  aparece "...mas ele retornará.". A região é refeita (novo mapa, guardião de volta).
+  Contagem de 5 s para voltar à base, ou o botão **PRÓXIMA REGIÃO** abre o mapa na
+  região liberada.
+- **Som próprio ao acertar o guardião**, diferente do bloco indestrutível.
+- **Relíquias**: cada região esconde uma só, numa pequena câmara entre 45% e 85% da
+  profundidade. Aparece no sonar como estrela dourada. Na base, escolha: **INSTALAR**
+  (bônus permanente) ou **VENDER** (muitos créditos), ou decidir depois no Laboratório
+  (Planos › Relíquias). Semente Primordial (Vale, +15% coleta), Âmbar Solar (Dunas, +20%
+  tanque), Coração de Ferro (Cordilheira, +25 casco), Pérola do Brejo (Pântano, +10%
+  golpes), Lágrima de Magma (Abismo, +40 °C) e Prisma Eterno (Vazio, +10% crítico).
+  Quando a região é refeita, aparece outra (dá para vender a repetida).
+
+### Alterado
+- "Vender tudo" no Mercado não vende relíquias.
+
 ## [0.18.0] — Tutorial, calor, tema do guardião e couro
 
 ### Adicionado

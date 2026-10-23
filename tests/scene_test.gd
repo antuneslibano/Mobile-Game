@@ -482,6 +482,37 @@ func _run() -> void:
 	_check(world_map.is_open() and world_map.current_region().id == RegionRegistry.DUNAS, "PRÓXIMA REGIÃO abre o mapa nas Dunas")
 	world_map.close()
 
+	# 0.19: relíquia — coleta dá uma só, a base pergunta instalar/vender.
+	(main.get("base") as BaseScreen).close()
+	main.call("_start_expedition", RegionRegistry.VALE, 0)
+	await _frames(3)
+	var collect_before: float = GameState.stats.collect_mult
+	var rg: Dictionary = GameState.collect_drops(Vector2.ZERO, {&"relic_seed": 1})
+	_check(int(rg.get(&"relic_seed", 0)) == 1 and int(GameState.economy.cargo.get(&"relic_seed", 0)) == 1, "relíquia: uma só na carga")
+	_check(GameState.relic_prompt == &"relic_seed", "relíquia pede escolha")
+	main.call("extract")
+	var rrep: ExpeditionReport = main.get("report")
+	var rrf: int = 0
+	while not rrep.is_open() and rrf < 600:
+		await _frames(1)
+		rrf += 1
+	(rrep.find_child("BaseButton", true, false) as Button).pressed.emit()
+	var rcf: int = 0
+	while main.get_node_or_null("RelicChoice") == null and rcf < 300:
+		await _frames(1)
+		rcf += 1
+	var rc: Node = main.get_node_or_null("RelicChoice")
+	_check(rc != null, "na base abre a escolha da relíquia")
+	if rc != null:
+		(rc.find_child("RelicInstall", true, false) as Button).pressed.emit()
+		await _frames(3)
+	_check(GameState.economy.relics.has(&"relic_seed") and not GameState.economy.cargo.has(&"relic_seed"), "relíquia instalada")
+	_check(is_equal_approx(GameState.stats.collect_mult, collect_before + 0.15), "bônus da relíquia aplicado")
+	_check(GameState.relic_prompt == &"" and main.get_node_or_null("RelicChoice") == null, "escolha fechada")
+	GameState.economy.cargo[&"relic_seed"] = 1
+	var cr0: int = GameState.economy.credits
+	_check(GameState.sell_relic(&"relic_seed") == 6000 and GameState.economy.credits == cr0 + 6000, "relíquia repetida vende por 6000")
+
 	print("")
 	print("%d verificações, %d falhas" % [_checks, _fail])
 	main.queue_free()

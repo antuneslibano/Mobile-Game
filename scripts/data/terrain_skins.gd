@@ -41,6 +41,8 @@ static func ore_sprite_for(block_id: int) -> String:
 		B.RUBY: return "cristal_vermelho"
 		B.RARE_CRYSTAL: return "cristal_roxo"
 		B.CHEST: return "bau"
+	if Relics.is_relic_block(block_id):
+		return String(Relics.DEFS[Relics.REGION_ORDER[block_id - Relics.FIRST_BLOCK]][8])
 	return ""
 
 
