@@ -21,6 +21,10 @@ var combat: bool = false
 var combat_anchor: Vector2 = Vector2.ZERO
 const COMBAT_ZOOM: float = 0.75
 const COMBAT_FLOOR_SCREEN_Y: float = 0.8
+## Queda livre (0.20), 0..1: aproxima a câmera, olha mais para baixo e treme de leve.
+var fall: float = 0.0
+const FALL_ZOOM: float = 0.14
+const FALL_LOOK: float = 0.1
 var _ease_t: float = 0.0
 var _trauma: float = 0.0
 var _pos: Vector2 = Vector2.ZERO
@@ -49,7 +53,7 @@ const INTRO_SURFACE_SCREEN_Y: float = 0.64  ## Altura da superfície na tela dur
 ## Zoom desejado. Em telas mais largas que o mundo (tablets, dobráveis abertos) aproxima
 ## o suficiente para a largura visível nunca passar das paredes do mapa.
 func target_zoom() -> float:
-	var z: float = COMBAT_ZOOM if combat else 1.0
+	var z: float = COMBAT_ZOOM if combat else 1.0 + FALL_ZOOM * fall
 	var world_w: float = float(Balance.WORLD_WIDTH * Balance.BLOCK_PX)
 	return maxf(z, get_viewport_rect().size.x / world_w) if is_inside_tree() else z
 
@@ -68,7 +72,7 @@ func _process(delta: float) -> void:
 		speed = lerpf(Balance.CAMERA_FOLLOW_SPEED, 1.6, _ease_t / INTRO_EASE_SEC)
 	var zt: float = target_zoom()
 	if not is_equal_approx(zoom.x, zt):
-		zoom = Vector2.ONE * move_toward(zoom.x, zt, delta * 0.5)
+		zoom = Vector2.ONE * move_toward(zoom.x, zt, delta * (0.5 if fall <= 0.01 else 0.3))
 		speed = minf(speed, 4.0)
 	var k: float = 1.0 - exp(-speed * delta)
 	_pos = _pos.lerp(_desired(), k)
@@ -77,6 +81,9 @@ func _process(delta: float) -> void:
 		_trauma = maxf(0.0, _trauma - Balance.CAMERA_SHAKE_DECAY * delta)
 		var s: float = _trauma * _trauma * Balance.CAMERA_SHAKE_MAX_PX
 		_shake = Vector2(randf_range(-s, s), randf_range(-s, s))
+	if fall > 0.3 and not combat:
+		var r: float = (fall - 0.3) * 3.0
+		_shake += Vector2(randf_range(-r, r), randf_range(-r, r))
 	offset = Vector2.ZERO
 	global_position = (_pos + _shake).snapped(Vector2.ONE * snap_step())
 
@@ -97,7 +104,7 @@ static func step_for_scale(sc: float) -> float:
 
 func _desired() -> Vector2:
 	var view: Vector2 = get_viewport_rect().size / zoom
-	var p: Vector2 = target.global_position + Vector2(0.0, view.y * Balance.CAMERA_LOOK_AHEAD_RATIO)
+	var p: Vector2 = target.global_position + Vector2(0.0, view.y * (Balance.CAMERA_LOOK_AHEAD_RATIO + FALL_LOOK * fall))
 	if intro:
 		p.y = -view.y * (INTRO_SURFACE_SCREEN_Y - 0.5)
 	if combat:

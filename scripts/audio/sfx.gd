@@ -51,6 +51,7 @@ func _ready() -> void:
 	_make_buses()
 	load_settings()
 	_build_all()
+	EventBus.cargo_sold.connect(func(_v: int) -> void: play(&"coin", randf_range(0.97, 1.03)))
 	for i in VOICES:
 		var p := AudioStreamPlayer.new()
 		p.bus = BUS_NAMES[&"sfx"]
@@ -311,6 +312,18 @@ func _build_all() -> void:
 	_streams[&"pickup"] = _synth(0.16, false, func(t: float, _i: int) -> float:
 		var f: float = 880.0 if t < 0.07 else 1320.0
 		return _square(t * f) * 0.35 * exp(-fposmod(t, 0.07) * 30.0), 0.5)
+	# Moedas (0.20): "tlin-tlin" metálico (dois toques agudos com parciais inarmônicas
+	# e um chiado de moedas batendo).
+	_streams[&"coin"] = _synth(0.42, false, func(t: float, _i: int) -> float:
+		var out: float = 0.0
+		for hit: Array in [[0.0, 1975.5], [0.085, 2637.0]]:
+			var lt: float = t - float(hit[0])
+			if lt < 0.0:
+				continue
+			var f: float = hit[1]
+			out += (sin(TAU * f * lt) * 0.5 + sin(TAU * f * 2.76 * lt) * 0.22 + sin(TAU * f * 5.4 * lt) * 0.1) * exp(-lt * 11.0)
+		var jingle: float = (rng.randf() * 2.0 - 1.0) * exp(-t * 18.0) * 0.12
+		return out + jingle, 0.55)
 	# Baú: arpejo brilhante.
 	_streams[&"chest"] = _synth(0.5, false, func(t: float, _i: int) -> float:
 		var notes: Array[float] = [523.3, 659.3, 784.0, 1046.5]

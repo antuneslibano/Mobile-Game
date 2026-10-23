@@ -165,7 +165,9 @@ const WEAR_DIRT_PENALTY: float = 0.12          ## Sujeira total: −12% de golpe
 const WEAR_RUST_PENALTY: float = 0.13          ## Ferrugem total: −13% de golpes/s.
 const WEAR_PENALTY_MAX: float = 0.25
 const WEAR_DENTS_HULL: float = 0.3             ## Amassados totais: começa com 70% do casco.
-const WEAR_CARE_ALERT: float = 0.35            ## Acima disso o Hangar avisa.            ## Tema do guardião começa a esta distância da câmara.
+## Visual só troca com a nave limpa (cada tipo de desgaste até este nível).
+const WEAR_CLEAN_MAX: float = 0.02
+const WEAR_CARE_ALERT: float = 0.35            ## Acima disso o Hangar avisa.
 const SONAR_RANGE_BLOCKS: float = 22.0
 const SONAR_SPEED_BLOCKS: float = 26.0
 const SONAR_BLIP_SEC: float = 7.0

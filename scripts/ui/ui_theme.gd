@@ -144,6 +144,26 @@ static func label(text: String, size: int, color: Color, weight: int = 600) -> L
 	return l
 
 
+## Texto que encolhe para caber (0.20): a largura mínima deixa de depender do texto e a
+## fonte diminui (até min_px) quando o espaço é menor. Para títulos e valores em linhas
+## apertadas (cabeçalhos), assim nada empurra a tela para fora das bordas.
+static func fit(l: Label, min_px: int = 12) -> Label:
+	l.clip_text = true
+	l.set_meta("fit_base", l.get_theme_font_size("font_size"))
+	var refit := func() -> void:
+		if not is_instance_valid(l) or l.size.x <= 0.0:
+			return
+		var f: Font = l.get_theme_font("font")
+		var s: int = int(l.get_meta("fit_base"))
+		while s > min_px and f.get_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, s).x > l.size.x - 2.0:
+			s -= 1
+		if s != l.get_theme_font_size("font_size"):
+			l.add_theme_font_size_override("font_size", s)
+	l.resized.connect(refit)
+	l.draw.connect(func() -> void: refit.call_deferred())
+	return l
+
+
 ## Ícone pixel art (TextureRect nítido) do tamanho pedido.
 static func icon_rect(id: StringName, size: float) -> TextureRect:
 	var r := TextureRect.new()
@@ -165,7 +185,7 @@ static func currency_box(currency: StringName) -> Array:
 	h.add_theme_constant_override("separation", 10)
 	box.add_child(h)
 	h.add_child(icon_rect(&"crystal" if currency == Economy.CRYSTALS else &"coin", 36))
-	var value := label("0", FONT_NORMAL, TEXT, 700)
+	var value := fit(label("0", FONT_NORMAL, TEXT, 700))
 	value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	h.add_child(value)

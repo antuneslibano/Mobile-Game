@@ -74,7 +74,7 @@ func has_badge(kind: StringName) -> bool:
 					return true
 			return false
 		&"lab":
-			return Journal.unlocked(econ.discovered, GameState.done, GameState.creatures).size() > GameState.journal_seen
+			return GameState.lab_new_count() > 0 or Journal.unlocked(econ.discovered, GameState.done, GameState.creatures).size() > GameState.journal_seen
 		&"hangar":
 			if WearRules.needs_care(GameState.wear):
 				return true
@@ -153,16 +153,16 @@ func _build() -> void:
 	plate.add_theme_stylebox_override("panel", PixelArt.style(&"plate"))
 	plate.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(plate)
-	var title := UiTheme.label("BASE DE PESQUISA", 28, Color("2a1606"), 700)
+	var title := UiTheme.fit(UiTheme.label("BASE DE PESQUISA", 28, Color("2a1606"), 700))
 	title.add_theme_constant_override("outline_size", 0)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	plate.add_child(title)
 	var cbox: Array = UiTheme.currency_box(Economy.CREDITS)
-	(cbox[0] as Control).custom_minimum_size = Vector2(150, 0)
+	(cbox[0] as Control).custom_minimum_size = Vector2(130, 0)
 	header.add_child(cbox[0])
 	_credits = cbox[1]
 	var kbox: Array = UiTheme.currency_box(Economy.CRYSTALS)
-	(kbox[0] as Control).custom_minimum_size = Vector2(100, 0)
+	(kbox[0] as Control).custom_minimum_size = Vector2(90, 0)
 	header.add_child(kbox[0])
 	_crystals = kbox[1]
 	var gear: Button = UiTheme.gear_button()

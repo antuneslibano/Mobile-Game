@@ -91,9 +91,7 @@ func open_station(kind: StringName) -> void:
 		Transitions.fade_in(_root, 0.18)
 	_show_page()
 	_refresh()
-	if _kind == &"lab":
-		GameState.journal_seen = Journal.unlocked(GameState.economy.discovered, GameState.done, GameState.creatures).size()
-	elif _kind == &"hangar":
+	if _kind == &"hangar":
 		GameState.looks_seen = ShipLooks.unlocked_count(GameState.economy, GameState.done)
 		_care.reload()
 
@@ -183,6 +181,19 @@ func sell_one(key: StringName) -> int:
 	return value
 
 
+## Abre a venda em quantidade (0.20) para um recurso do armazém.
+func open_sell(key: StringName) -> SellDialog:
+	var old: Node = _root.get_node_or_null("SellDialog")
+	if old != null:
+		old.free()
+	var d := SellDialog.new().setup(key)
+	d.sold.connect(func(value: int) -> void:
+		if value > 0:
+			_show_toast("+%s Créditos" % UiTheme.short_number(value), UiTheme.CREDITS))
+	_root.add_child(d)
+	return d
+
+
 func sell_all() -> int:
 	var value: int = GameState.sell_cargo()
 	if value > 0:
@@ -247,16 +258,16 @@ func _build() -> void:
 	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	plate.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(plate)
-	_title = UiTheme.label("UPGRADES", 40, Color("2a1606"), 700)
+	_title = UiTheme.fit(UiTheme.label("UPGRADES", 40, Color("2a1606"), 700))
 	_title.add_theme_constant_override("outline_size", 0)
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	plate.add_child(_title)
 	var cbox: Array = UiTheme.currency_box(Economy.CREDITS)
-	(cbox[0] as Control).custom_minimum_size = Vector2(170, 0)
+	(cbox[0] as Control).custom_minimum_size = Vector2(140, 0)
 	header.add_child(cbox[0])
 	_credits = cbox[1]
 	var kbox: Array = UiTheme.currency_box(Economy.CRYSTALS)
-	(kbox[0] as Control).custom_minimum_size = Vector2(110, 0)
+	(kbox[0] as Control).custom_minimum_size = Vector2(96, 0)
 	header.add_child(kbox[0])
 	_crystals = kbox[1]
 	var close_b := Button.new()
@@ -335,6 +346,7 @@ func _build() -> void:
 	pages.add_child(_modules_page)
 	# Cuidar da nave (0.19): limpar e consertar arrastando as ferramentas.
 	_care = ShipCarePanel.new()
+	_care.looks_changed.connect(func() -> void: _refresh_looks(GameState.economy))
 	_modules_page.add_child(_care)
 	_looks_box = VBoxContainer.new()
 	_looks_box.name = "Looks"
@@ -364,10 +376,6 @@ func _build() -> void:
 	_market_page.add_theme_constant_override("separation", 12)
 	_market_page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pages.add_child(_market_page)
-	var mhint := UiTheme.label("A Bancada reserva o que precisa para o próximo nível de cada peça. Venda o excedente para ganhar Créditos.", 24, UiTheme.TEXT_DIM, 500)
-	mhint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	mhint.custom_minimum_size = Vector2(300, 0)
-	_market_page.add_child(mhint)
 	var mb := HBoxContainer.new()
 	mb.add_theme_constant_override("separation", 10)
 	_market_page.add_child(mb)
@@ -547,7 +555,7 @@ func _refresh_market(econ: Economy) -> void:
 		info.add_child(UiTheme.label(sub, 23, UiTheme.ORANGE if res > 0 else UiTheme.TEXT_DIM, 500))
 		var b := Button.new()
 		b.name = "Sell"
-		b.text = "+%s" % UiTheme.short_number(n * rd.sell_value)
+		b.text = UiTheme.display_text("VENDER")
 		b.icon = PixelArt.icon(&"coin")
 		b.add_theme_constant_override("icon_max_width", 30)
 		b.custom_minimum_size = Vector2(170, 70)
@@ -557,7 +565,9 @@ func _refresh_market(econ: Economy) -> void:
 			b.text = "—"
 		b.add_theme_font_size_override("font_size", UiTheme.font_size(24, 700))
 		UiTheme.style_button(b, &"gold")
-		b.pressed.connect(func() -> void: sell_one(key))
+		b.pressed.connect(func() -> void:
+			Sfx.play(&"click")
+			open_sell(key))
 		h.add_child(b)
 		_market_rows.add_child(row)
 
@@ -570,13 +580,21 @@ func _refresh_lab(econ: Economy) -> void:
 	var tabs := HBoxContainer.new()
 	tabs.add_theme_constant_override("separation", 6)
 	_lab_box.add_child(tabs)
-	for t: Array in [[&"minerals", "MINERAIS"], [&"creatures", "CRIATURAS"], [&"plans", "PLANTAS"], [&"diary", "DIÁRIO"]]:
+	if _lab_tab == &"diary":
+		GameState.journal_seen = Journal.unlocked(GameState.economy.discovered, GameState.done, GameState.creatures).size()
+	for t: Array in [[&"minerals", "MINERAIS", "m:"], [&"creatures", "CRIATURAS", "c:"], [&"plans", "PLANTAS", "p:"], [&"diary", "DIÁRIO", ""]]:
 		var tb := Button.new()
 		tb.name = "LabTab_" + String(t[0])
+		var fresh: bool = GameState.lab_new_count(t[2]) > 0 if t[2] != "" else Journal.unlocked(econ.discovered, GameState.done, GameState.creatures).size() > GameState.journal_seen
+		if t[0] == &"plans" and GameState.lab_new_count("r:") > 0:
+			fresh = true
 		tb.text = UiTheme.display_text(String(t[1]))
+		if fresh and _lab_tab != t[0]:
+			_new_badge(tb)
 		tb.custom_minimum_size = Vector2(0, 64)
 		tb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		tb.add_theme_font_size_override("font_size", UiTheme.font_size(20, 700))
+		tb.clip_text = true
+		tb.add_theme_font_size_override("font_size", UiTheme.font_size(17, 700))
 		UiTheme.style_button(tb, &"gold" if _lab_tab == t[0] else &"steel")
 		var id: StringName = t[0]
 		tb.pressed.connect(func() -> void:
@@ -584,7 +602,6 @@ func _refresh_lab(econ: Economy) -> void:
 			Sfx.play(&"click")
 			_refresh())
 		tabs.add_child(tb)
-	_lab_box.add_child(UiTheme.label("Toque em um item para ver a ficha.", 21, UiTheme.TEXT_DIM, 500))
 	match _lab_tab:
 		&"creatures":
 			_lab_creatures()
@@ -606,8 +623,28 @@ func _lab_grid(name: String, cols: int) -> GridContainer:
 	return g
 
 
-## Célula tocável do catálogo (ícone + nome, ou silhueta "???").
-func _lab_cell(icon_tex: Texture2D, title: String, known: bool, on_tap: Callable) -> Button:
+## "!" vermelho piscando no canto de um botão (novidade do Laboratório, 0.20).
+func _new_badge(owner: Control) -> Label:
+	var badge := UiTheme.label("!", 24, Color.WHITE, 700)
+	badge.name = "NewBadge"
+	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	badge.add_theme_stylebox_override("normal", PixelArt.style(&"red"))
+	badge.custom_minimum_size = Vector2(34, 34)
+	badge.size = Vector2(34, 34)
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	badge.position = Vector2(-30, -8)
+	owner.add_child(badge)
+	var tw := badge.create_tween().set_loops()
+	tw.tween_property(badge, "modulate:a", 0.35, 0.45)
+	tw.tween_property(badge, "modulate:a", 1.0, 0.45)
+	return badge
+
+
+## Célula tocável do catálogo (ícone + nome, ou silhueta "???"). seen_key: chave de
+## novidade (0.20) — se o item é novo, mostra "!" até ser tocado.
+func _lab_cell(icon_tex: Texture2D, title: String, known: bool, on_tap: Callable, seen_key: String = "") -> Button:
 	var cell := Button.new()
 	cell.custom_minimum_size = Vector2(0, 112)
 	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -634,8 +671,14 @@ func _lab_cell(icon_tex: Texture2D, title: String, known: bool, on_tap: Callable
 	nl.custom_minimum_size = Vector2(80, 0)
 	nl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.add_child(nl)
+	var badge: Label = null
+	if known and seen_key != "" and GameState.is_lab_new(seen_key):
+		badge = _new_badge(cell)
 	cell.pressed.connect(func() -> void:
 		Sfx.play(&"click")
+		if badge != null and is_instance_valid(badge):
+			badge.queue_free()
+			GameState.mark_lab_seen(seen_key)
 		on_tap.call())
 	return cell
 
@@ -654,7 +697,7 @@ func _lab_minerals(econ: Economy) -> void:
 	for key in keys:
 		var known: bool = econ.discovered.has(key)
 		var rd: ResourceDef = ResourceRegistry.get_def(key)
-		grid.add_child(_lab_cell(PixelArt.ore_icon(key), rd.display_name, known, func() -> void: _mineral_card(key, known)))
+		grid.add_child(_lab_cell(PixelArt.ore_icon(key), rd.display_name, known, func() -> void: _mineral_card(key, known), "m:" + String(key)))
 
 
 func _lab_creatures() -> void:
@@ -663,7 +706,7 @@ func _lab_creatures() -> void:
 	for sp in Creature.ORDER:
 		var known: bool = GameState.creatures.has(sp)
 		var tex: Texture2D = CreatureManager.sprite(&"worm_head" if sp == &"worm" else sp, 0)
-		grid.add_child(_lab_cell(tex, String(Creature.DEFS[sp].name), known, func() -> void: _creature_card(sp, known)))
+		grid.add_child(_lab_cell(tex, String(Creature.DEFS[sp].name), known, func() -> void: _creature_card(sp, known), "c:" + String(sp)))
 
 
 func _lab_plans(econ: Economy) -> void:
@@ -675,8 +718,8 @@ func _lab_plans(econ: Economy) -> void:
 		var look: Dictionary = {bp[0]: _look_for_blueprint(id)}
 		var tex: Texture2D = ShipArt.frame(0, look)
 		grid.add_child(_lab_cell(tex, String(bp[1]), known, func() -> void: _detail(String(bp[1]) if known else "???", tex if known else null,
-				["Visual exclusivo da nave (%s)." % ShipLooks.SLOT_NAMES[bp[0]].to_lower(), "Encontrada em baú raro ou lendário." if known else "Ainda não encontrada. Procure baús raros (aura azul) e lendários (aura roxa).",
-				"Escolha no Hangar." if known else ""], UiTheme.ORANGE)))
+				["Visual exclusivo da nave (%s)." % ShipLooks.SLOT_NAMES[bp[0]].to_lower(), "Encontrada em baú raro ou lendário." if known else "Vem de baús raros e lendários.",
+				"Escolha no Hangar." if known else ""], UiTheme.ORANGE), "p:" + String(id)))
 	# Relíquias (0.19): uma por região; instalar aqui as que estiverem no armazém.
 	var installed: int = econ.relics.size()
 	_lab_box.add_child(UiTheme.label("RELÍQUIAS  ·  %d/%d instaladas" % [installed, Relics.DEFS.size()], 28, UiTheme.ORANGE, 700))
@@ -688,7 +731,7 @@ func _lab_plans(econ: Economy) -> void:
 		var known: bool = econ.relics.has(key) or have or econ.discovered.has(key)
 		var tex: Texture2D = PixelArt.ore_icon(key)
 		var title: String = String(rd[1]) + ("  ✓" if econ.relics.has(key) else "")
-		rgrid.add_child(_lab_cell(tex, title, known, func() -> void: _relic_card(region_id)))
+		rgrid.add_child(_lab_cell(tex, title, known, func() -> void: _relic_card(region_id), "r:" + String(key)))
 
 
 func _relic_card(region_id: StringName) -> void:
@@ -737,7 +780,7 @@ func _lab_diary(econ: Economy) -> void:
 func _mineral_card(key: StringName, known: bool) -> void:
 	var rd: ResourceDef = ResourceRegistry.get_def(key)
 	if not known:
-		_detail("???", null, ["Ainda não descoberto. Colete para catalogar."], UiTheme.TEXT_DIM)
+		_detail("???", null, ["Ainda não descoberto."], UiTheme.TEXT_DIM)
 		return
 	var lines: Array = []
 	for e: Array in Journal.ENTRIES:
@@ -777,7 +820,7 @@ func _mineral_card(key: StringName, known: bool) -> void:
 
 func _creature_card(sp: StringName, known: bool) -> void:
 	if not known:
-		_detail("???", null, ["Criatura ainda não vista. Explore as cavernas do Vale (use o sonar)."], UiTheme.TEXT_DIM)
+		_detail("???", null, ["Ainda não vista."], UiTheme.TEXT_DIM)
 		return
 	var d: Dictionary = Creature.DEFS[sp]
 	var lines: Array = []
@@ -859,6 +902,12 @@ func _refresh_looks(econ: Economy) -> void:
 		c.queue_free()
 	_looks_box.add_child(UiTheme.label("VISUAL DA NAVE", 32, UiTheme.ORANGE, 700))
 	var look: Dictionary = GameState.ship_look()
+	# 0.20: só troca o visual com a nave limpa.
+	var clean: bool = WearRules.is_clean(GameState.wear)
+	if not clean:
+		var warn := UiTheme.label("Limpe a nave para trocar o visual.", 22, UiTheme.ORANGE, 700)
+		warn.name = "LooksLocked"
+		_looks_box.add_child(warn)
 	for slot in ShipLooks.SLOTS:
 		var panel := PanelContainer.new()
 		panel.add_theme_stylebox_override("panel", PixelArt.style(&"inset"))
@@ -893,7 +942,7 @@ func _refresh_looks(econ: Economy) -> void:
 			if not ok:
 				b.modulate = Color(1, 1, 1, 0.55)
 			UiTheme.style_button(b, &"green" if look.get(slot) == id else &"steel")
-			b.disabled = not ok
+			b.disabled = not ok or not clean
 			b.pressed.connect(func() -> void:
 				GameState.set_look(slot, id)
 				Sfx.play(&"click")
@@ -908,6 +957,13 @@ func _refresh_looks(econ: Economy) -> void:
 				req.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 				req.custom_minimum_size = Vector2(196, 0)
 				cell.add_child(req)
+			if slot == &"shape":
+				# Formato da broca (0.20): o que muda ao cavar.
+				var fx := UiTheme.label(String(ShipLooks.shape_fx(id)["text"]), 18, UiTheme.GREEN if ok else UiTheme.TEXT_DIM, 600)
+				fx.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+				fx.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				fx.custom_minimum_size = Vector2(196, 0)
+				cell.add_child(fx)
 			flow.add_child(cell)
 
 

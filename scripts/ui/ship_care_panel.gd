@@ -10,6 +10,9 @@ const TOOLS: Array = [
 	[&"dents", &"welder", "SOLDA", "Amassados"],
 ]
 
+## Ficou limpa de um tipo: o visual pode ter sido liberado (Garage atualiza).
+signal looks_changed
+
 var care: ShipCare
 var _buttons: Dictionary = {}   ## tipo → Button
 var _bars: Dictionary = {}      ## tipo → SegmentedBar
@@ -30,6 +33,7 @@ func _init() -> void:
 	care.changed.connect(func(_k: StringName, _l: float) -> void: _sync())
 	care.cleaned.connect(func(kind: StringName) -> void:
 		_sync()
+		looks_changed.emit()
 		_status.text = "%s: LIMPO!" % WearRules.NAMES[kind] if kind != &"dents" else "Amassados: CONSERTADO!"
 		Transitions.bump(_status))
 	_status = UiTheme.label("", 24, UiTheme.GREEN, 700)
@@ -96,10 +100,10 @@ func _sync() -> void:
 	var pen: float = WearRules.penalty(GameState.wear)
 	var dents: float = float(GameState.wear.get(&"dents", 0.0))
 	if pen <= 0.001 and dents <= 0.001:
-		_effect.text = "Nave novinha! Broca no máximo e casco inteiro."
+		_effect.text = "Nave limpa!"
 		_effect.add_theme_color_override("font_color", UiTheme.GREEN)
 	else:
-		_effect.text = "Escolha a ferramenta e arraste o dedo na nave. Agora: broca −%d%%, casco começa com %d%%." % [
+		_effect.text = "Arraste na nave. Broca −%d%% · casco %d%%" % [
 				roundi(pen * 100.0), roundi(WearRules.hull_start_ratio(GameState.wear) * 100.0)]
 		_effect.add_theme_color_override("font_color", UiTheme.TEXT_DIM)
 	SaveService.mark_dirty()

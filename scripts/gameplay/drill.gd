@@ -48,6 +48,8 @@ var speed_mult: float = 1.0
 var heat_penalty: float = 0.0
 ## Perda de eficiência pelo desgaste (sujeira e ferrugem; Game atualiza).
 var wear_penalty: float = 0.0
+## Formato da broca (0.20): muda o tamanho da área cavada e, na Dupla, cava em dois pontos.
+var shape: StringName = &"cone"
 var radius: float = Balance.DRILL_RADIUS_PX
 ## Tensão da broca (0.13): sobe ao forçar minério duro demais; acima de 1 fere o casco.
 var strain: float = 0.0
@@ -90,7 +92,7 @@ func is_overlapping_solid() -> bool:
 
 
 func bit_radius() -> float:
-	var r: float = Balance.BIT_RADIUS_PX + modules.side_bonus(stats)
+	var r: float = Balance.BIT_RADIUS_PX * float(ShipLooks.shape_fx(shape).get("bit", 1.0)) + modules.side_bonus(stats)
 	return r * (Balance.OVERDRIVE_BIT_MULT if energy.is_boosting() else 1.0)
 
 
@@ -225,7 +227,14 @@ func _do_hit() -> bool:
 	var crit: bool = roll.y > 0.5
 	var c: Vector2 = bit_center()
 	var rb: float = bit_radius()
-	var cells: Array[Vector2i] = world.cells_in_circle(c, rb, dig_ceiling())
+	var cells: Array[Vector2i] = []
+	if bool(ShipLooks.shape_fx(shape).get("twin", false)):
+		# Dupla: duas pontas lado a lado (o vão entre elas ainda é maior que o corpo).
+		var side: Vector2 = Vector2(-facing.y, facing.x) * ShipLooks.TWIN_OFFSET_PX
+		cells = world.cells_in_circle(c + side, rb, dig_ceiling())
+		cells.append_array(world.cells_in_circle(c - side, rb, dig_ceiling()))
+	else:
+		cells = world.cells_in_circle(c, rb, dig_ceiling())
 	cells.append_array(world.blocking_cells(position + facing * PLOW_PX, radius))
 	var res: WorldModel.DigResult = world.dig_cells(cells, roll.x, dig_ceiling(), stats.drill_tier)
 	if res.too_hard >= 0:

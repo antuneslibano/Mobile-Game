@@ -24,12 +24,16 @@ step "Tutorial jogável (passo a passo + pular)"
 timeout 300 "$GODOT" --headless --path . --fixed-fps 60 res://tests/tutorial_test.tscn 2>&1 | tee /tmp/deepforge_tutorial.log
 [ "${PIPESTATUS[0]}" -eq 0 ] || fail=1
 
+step "Telas sem cortes nas laterais"
+timeout 300 "$GODOT" --headless --path . --fixed-fps 60 res://tests/overflow_check.tscn -- --no-guard 2>&1 | tee /tmp/deepforge_overflow.log
+[ "${PIPESTATUS[0]}" -eq 0 ] || fail=1
+
 step "Sessão automática (30 s simulados)"
 timeout 300 "$GODOT" --headless --path . --fixed-fps 60 -- --seed=42 --autotest=30 2>&1 | tee /tmp/deepforge_auto.log
 [ "${PIPESTATUS[0]}" -eq 0 ] || fail=1
 
 step "Erros de script no log"
-if grep -hE "SCRIPT ERROR|Parse Error|Compile Error" /tmp/deepforge_unit.log /tmp/deepforge_scene.log /tmp/deepforge_tutorial.log /tmp/deepforge_auto.log; then
+if grep -hE "SCRIPT ERROR|Parse Error|Compile Error" /tmp/deepforge_unit.log /tmp/deepforge_scene.log /tmp/deepforge_tutorial.log /tmp/deepforge_overflow.log /tmp/deepforge_auto.log; then
 	echo "erros encontrados"; fail=1
 else
 	echo "nenhum"

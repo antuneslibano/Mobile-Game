@@ -504,3 +504,22 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
 - **Sprites de relíquias**: `tools/gen_relic_art.py` → `assets/environment/ores/relic_*`,
   linhas novas em `TerrainSkins.ORES`.
 
+## 24. 0.20: venda, brocas, novidades e telas
+
+- **Venda** (`SellDialog`, aberto por `Garage.open_sell`): slider 1..N →
+  `GameState.sell_resource(key, n)`. `Sfx` toca `coin` em todo `EventBus.cargo_sold`.
+- **Formatos de broca**: `ShipLooks.SHAPE_FX` (bit, speed, damage, crit, collect, twin);
+  `ShipLooks.apply_shape` entra em `GameState._build_stats` (peças + relíquias + formato,
+  usado também ao comprar melhoria). `Drill.shape` muda `bit_radius()` e, na Dupla,
+  cava dois círculos a ±`TWIN_OFFSET_PX`. `BIT_RADIUS_PX × 0,8` ainda é maior que o corpo.
+- **Visual só limpo**: `WearRules.is_clean` (cada tipo ≤ `WEAR_CLEAN_MAX`).
+- **Sujeira na run**: `DrillVisual.wear` → `_wear_texture()` (manchas na resolução do
+  sprite, ordem por ruído; refeita a cada degrau de nível).
+- **Novidades do Laboratório**: `GameState.lab_seen` ("m:", "c:", "p:", "r:"),
+  `lab_known`, `is_lab_new`, `lab_new_count`, `mark_lab_seen`; `Garage._new_badge`.
+  Salvamentos antigos marcam tudo o que já conheciam como visto.
+- **Queda livre**: `Game._update_fall` → `DepthCamera.fall` (zoom, olhar à frente,
+  tremor) e `FallFx` (riscos de vento, filho da Drill).
+- **Telas**: `UiTheme.fit(label)` (texto encolhe para caber, sem largura mínima);
+  `tests/overflow_check.tscn` abre as telas e falha se algo passar das laterais.
+

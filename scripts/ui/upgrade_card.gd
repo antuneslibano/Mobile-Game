@@ -48,10 +48,7 @@ func _init(p_def: UpgradeDef) -> void:
 	_bar = SegmentedBar.new(10, UiTheme.ORANGE, 26.0)
 	_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	info.add_child(_bar)
-	var desc := UiTheme.label(def.description, 25, UiTheme.TEXT_DIM, 500)
-	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	desc.custom_minimum_size = Vector2(120, 0)
-	info.add_child(desc)
+	# 0.20: sem descrição (o "antes → depois" já diz o que a peça faz).
 	_change = UiTheme.label("", 26, UiTheme.GREEN, 600)
 	_change.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_change.custom_minimum_size = Vector2(120, 0)

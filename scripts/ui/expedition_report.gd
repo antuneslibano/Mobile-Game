@@ -66,7 +66,7 @@ func _build(r: Dictionary) -> void:
 	if rescued:
 		var why: String = {&"fuel": "Acabou o combustível.", &"hull": "O casco não aguentou.",
 				&"interrupted": "A expedição foi interrompida."}.get(StringName(r.get("reason", "")), "")
-		v.add_child(_wrap("%s A cápsula de resgate trouxe você de volta com metade da carga desta expedição." % why, 25, UiTheme.TEXT))
+		v.add_child(_wrap("%s Resgate: metade da carga perdida." % why, 25, UiTheme.TEXT))
 	var region: RegionDef = RegionRegistry.get_def(StringName(r.get("region", "")))
 	v.add_child(UiTheme.label("%s  ·  máx %d m" % [region.display_name, int(r.get("depth", 0))], 26, UiTheme.TEXT_DIM, 600))
 
@@ -93,11 +93,11 @@ func _build(r: Dictionary) -> void:
 			_item(StringName(k), int(lost[k]), UiTheme.RED, "−")
 		_box.add_child(UiTheme.label("−%d créditos" % int(r.get("value_lost", 0)), 25, UiTheme.RED, 700))
 	if bool(r.get("reset", false)):
-		v.add_child(_wrap("O guardião foi vencido... mas ele retornará. A região foi refeita: novo mundo, novos minérios.", 22, Color("ff7a6a")))
+		v.add_child(_wrap("...mas ele retornará. Região refeita.", 22, Color("ff7a6a")))
 	# Desgaste (0.19): avisa quando a nave voltou precisando de cuidado.
 	var wear: Dictionary = WearRules.from_dict(r.get("wear", {}))
 	if WearRules.needs_care(wear):
-		v.add_child(_wrap("A nave voltou desgastada (sujeira %d%%, ferrugem %d%%, amassados %d%%): cuide dela no Hangar." % [
+		v.add_child(_wrap("Nave desgastada (%d%% · %d%% · %d%%): limpe no Hangar." % [
 				roundi(float(wear[&"dirt"]) * 100.0), roundi(float(wear[&"rust"]) * 100.0), roundi(float(wear[&"dents"]) * 100.0)], 22, Color("ffb347")))
 	var events: Array = Array(r.get("events", []))
 	if not events.is_empty():

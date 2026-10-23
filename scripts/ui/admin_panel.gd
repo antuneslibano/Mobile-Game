@@ -117,7 +117,7 @@ func run(id: StringName) -> String:
 				var key: StringName = Relics.for_region(r)[0]
 				e.cargo[key] = int(e.cargo.get(key, 0)) + 1
 				e.discovered[key] = true
-			msg = "Relíquias no armazém: instale ou venda no Laboratório (Planos › Relíquias)"
+			msg = "Relíquias no armazém (Laboratório › Plantas)"
 		&"regions":
 			for r in RegionRegistry.all():
 				GameState.unlocked[r.id] = true

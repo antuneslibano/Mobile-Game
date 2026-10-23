@@ -3,7 +3,7 @@ extends RefCounted
 ## Visual da nave (0.11): a nave muda de aparência conforme evolui. Cada encaixe tem
 ## opções liberadas por níveis de peça, minerais descobertos ou guardiões vencidos; o
 ## jogador escolhe no Hangar. Sem escolha, usa a melhor opção liberada (a nave "cresce"
-## sozinha). Só visual: não altera atributos.
+## sozinha). Só o formato da broca (0.20) muda como ela cava (SHAPE_FX).
 
 const SLOTS: Array[StringName] = [&"shape", &"drill", &"hull", &"engine", &"paint"]
 const SLOT_NAMES: Dictionary = {&"shape": "FORMATO DA BROCA", &"drill": "MATERIAL DA BROCA", &"hull": "CASCO", &"engine": "MOTORES", &"paint": "PINTURA"}
@@ -53,6 +53,33 @@ const OPTIONS: Dictionary = {
 		[&"chrome", "Cromada", "bp:bp_chrome"],
 	],
 }
+
+## Formato da broca (0.20): cada um cava de um jeito. bit = tamanho da área cavada
+## (sempre maior que o corpo, a nave nunca fica presa), speed/damage = multiplicadores,
+## crit/collect = somas, twin = duas pontas lado a lado.
+const SHAPE_FX: Dictionary = {
+	&"cone": {"bit": 1.0, "speed": 1.0, "damage": 1.0, "text": "Equilibrada"},
+	&"needle": {"bit": 0.8, "speed": 1.3, "damage": 0.9, "text": "Túnel fino · +30% golpes"},
+	&"fat": {"bit": 1.3, "speed": 0.85, "damage": 1.2, "text": "Túnel largo · +20% força"},
+	&"twin": {"bit": 0.8, "twin": true, "crit": 0.08, "text": "Duas pontas · +8% crítico"},
+	&"crown": {"bit": 1.15, "damage": 1.15, "collect": 0.15, "text": "Larga · +15% força e coleta"},
+}
+## Distância de cada ponta da Dupla até o eixo (px).
+const TWIN_OFFSET_PX: float = 14.0
+
+
+static func shape_fx(shape: StringName) -> Dictionary:
+	return SHAPE_FX.get(shape, SHAPE_FX[&"cone"])
+
+
+## Atributos do formato da broca.
+static func apply_shape(s: DrillStats, shape: StringName) -> void:
+	var fx: Dictionary = shape_fx(shape)
+	s.hits_per_second *= float(fx.get("speed", 1.0))
+	s.damage *= float(fx.get("damage", 1.0))
+	s.crit_chance = minf(Progression.MAX_CRIT_CHANCE, s.crit_chance + float(fx.get("crit", 0.0)))
+	s.collect_mult += float(fx.get("collect", 0.0))
+
 
 ## Cores de destaque de cada pintura: [claro, médio, escuro].
 const PAINTS: Dictionary = {

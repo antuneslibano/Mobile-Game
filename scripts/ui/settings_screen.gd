@@ -105,7 +105,7 @@ func _build() -> void:
 	sv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sh.add_child(sv)
 	sv.add_child(UiTheme.label("Modo de compatibilidade", 24, UiTheme.TEXT, 700))
-	var compat_hint := UiTheme.label("Mais leve e estável em celulares que fecham o jogo sozinhos (nível 1 a 3: cada um desliga mais coisas). Vale ao reabrir o jogo.", 18, UiTheme.TEXT_DIM, 500)
+	var compat_hint := UiTheme.label("Para celulares que fecham o jogo. Vale ao reabrir.", 18, UiTheme.TEXT_DIM, 500)
 	compat_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	compat_hint.custom_minimum_size = Vector2(300, 0)
 	sv.add_child(compat_hint)
@@ -212,7 +212,7 @@ func _preview(ch: StringName) -> void:
 
 
 ## Trilho grosso e alça grande (fácil de arrastar com o dedo).
-func _style_slider(s: HSlider) -> void:
+static func _style_slider(s: HSlider) -> void:
 	var track := StyleBoxFlat.new()
 	track.bg_color = Color("1a1f29")
 	track.border_color = Color("0b0e14")
@@ -283,7 +283,7 @@ func show_diagnostics() -> void:
 	v.add_theme_constant_override("separation", 10)
 	panel.add_child(v)
 	v.add_child(UiTheme.label(UiTheme.display_text("DIAGNÓSTICO"), 30, UiTheme.ORANGE, 700))
-	var hint := UiTheme.label("Se o jogo fechar sozinho, toque em COPIAR e mande este texto para o desenvolvedor.", 19, UiTheme.TEXT_DIM, 500)
+	var hint := UiTheme.label("Toque em COPIAR e mande para o desenvolvedor.", 19, UiTheme.TEXT_DIM, 500)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(hint)
 	var text: String = Diagnostics.report(get_viewport())

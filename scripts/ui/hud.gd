@@ -258,7 +258,7 @@ func _build() -> void:
 	_root.add_child(_sonar)
 	_pads.append(_sonar)
 
-	_hint = _label("Arraste o dedo em qualquer direção (menos para cima)\ne desenhe o seu próprio túnel.", UiTheme.FONT_SMALL, UiTheme.TEXT)
+	_hint = _label("Arraste o dedo para cavar.", UiTheme.FONT_SMALL, UiTheme.TEXT)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_root.add_child(_hint)

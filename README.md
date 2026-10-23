@@ -92,6 +92,9 @@ Executa, em modo headless:
 | `--upgrade=id:n,...` | níveis de melhorias ao iniciar (ex.: `cooling:5`; só depuração) |
 | `--admin` | com `--settings-at`, abre o Modo teste |
 | `--garage-scroll=N` | com `--base-at`/`--station`, rola a estação (-1 = visual da nave) |
+| `--look=slot:id,...` | visual sem requisito (ex.: `shape:twin`; só depuração) |
+| `--sell=KEY` | com `--station=market`, abre a venda em quantidade |
+| `--fall-test` | com `--autotest`, abre um poço de 60 blocos abaixo da nave |
 | `--near-relic` | com `--autotest`, começa logo acima da relíquia da região |
 | `--relic-choice-at=T` | com `--autotest`, abre a escolha da relíquia na base em T segundos |
 | `--settings-at=T` | com `--autotest`, abre as Configurações em T segundos (`--diag` abre o Diagnóstico) |
@@ -207,6 +210,7 @@ Instalar: `adb install -r build/deepforge.apk`, ou copie o APK para o celular e 
 | 0.17 | Área segura em todas as telas (notch, cantos, barra de gestos, tablets), modo de compatibilidade automático, diagnóstico | ✅ |
 | 0.18 | Tutorial jogável, calor por profundidade com limite térmico, tema do guardião, couro vendável, Sobrecarga 2× combustível | ✅ |
 | 0.19 | Calor tremendo a tela, desgaste e cuidado da nave no Hangar, formatos de broca, vitória "ele retornará" com região refeita, relíquias por região | ✅ |
+| 0.20 | Venda em quantidade, brocas com função, sujeira na run, "!" no Laboratório, câmera de queda, telas responsivas | ✅ |
 | 0.10–0.11 | Base com construção, criaturas — ver [ROADMAP_EXPEDICOES.md](ROADMAP_EXPEDICOES.md) | planejado |
 | 5 | Arte, efeitos, áudio, otimização, exportação Android | pendente |
 

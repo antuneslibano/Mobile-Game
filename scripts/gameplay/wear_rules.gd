@@ -45,6 +45,14 @@ static func needs_care(w: Dictionary) -> bool:
 	return false
 
 
+## Nave limpa e consertada (0.20): só assim dá para trocar o visual.
+static func is_clean(w: Dictionary) -> bool:
+	for k in KINDS:
+		if float(w.get(k, 0.0)) > Balance.WEAR_CLEAN_MAX:
+			return false
+	return true
+
+
 static func from_dict(d: Variant) -> Dictionary:
 	var w: Dictionary = fresh()
 	if d is Dictionary:

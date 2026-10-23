@@ -126,8 +126,9 @@ func _build() -> void:
 	ph.alignment = BoxContainer.ALIGNMENT_CENTER
 	plate.add_child(ph)
 	ph.add_child(UiTheme.icon_rect(&"map", 40))
-	var title := UiTheme.label("MAPA MUNDIAL", 34, Color("2a1606"), 700)
+	var title := UiTheme.fit(UiTheme.label("MAPA MUNDIAL", 34, Color("2a1606"), 700))
 	title.add_theme_constant_override("outline_size", 0)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	ph.add_child(title)
 	var cbox: Array = UiTheme.currency_box(Economy.CREDITS)
 	(cbox[0] as Control).custom_minimum_size = Vector2(150, 0)
@@ -251,10 +252,6 @@ func _refresh() -> void:
 	for i in 5:
 		diff.add_child(UiTheme.icon_rect(&"star" if i < r.difficulty else &"star_empty", 38))
 	diff.add_child(UiTheme.label("  " + RegionRegistry.DIFFICULTY_NAMES[r.difficulty], 27, UiTheme.TEXT, 600))
-	var desc := UiTheme.label(r.description, 27, UiTheme.TEXT, 500)
-	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	desc.custom_minimum_size = Vector2(300, 0)
-	head.add_child(desc)
 
 	if GameState.pending_notice != "":
 		var np := _panel("")
@@ -294,8 +291,7 @@ func _refresh() -> void:
 		var rl := UiTheme.label(range_txt, 25, UiTheme.TEXT, 600)
 		rl.custom_minimum_size = Vector2(160, 0)
 		lr.add_child(rl)
-		var dl := UiTheme.label(b.description, 25, UiTheme.TEXT_DIM, 500)
-		dl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var dl := UiTheme.label(b.display_name, 25, UiTheme.TEXT_DIM, 500)
 		dl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		lr.add_child(dl)
 
@@ -327,7 +323,7 @@ func _refresh() -> void:
 	if true:
 		# Calor (0.18): toda região esquenta com a profundidade.
 		var limit: float = GameState.stats.temp_limit
-		var hn := UiTheme.label("Calor: %.0f °C na superfície, %.0f °C no fundo. Sua nave aguenta %.0f °C (melhore a Refrigeração para descer mais)." % [r.temp_surface, r.temp_bottom, limit], 24, UiTheme.TEXT_DIM, 500)
+		var hn := UiTheme.label("Calor %.0f → %.0f °C  ·  sua nave aguenta %.0f °C" % [r.temp_surface, r.temp_bottom, limit], 24, UiTheme.TEXT_DIM, 500)
 		hn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		hn.custom_minimum_size = Vector2(300, 0)
 		haz.add_child(hn)
@@ -397,9 +393,9 @@ func _tunnels_panel(r: RegionDef) -> void:
 	row.add_theme_constant_override("separation", 10)
 	box.add_child(row)
 	row.add_child(UiTheme.icon_rect(&"fuel", 40))
-	var txt: String = "Tudo o que você escava fica salvo. Cair pelos túneis antigos não gasta combustível: cave um poço e chegue mais fundo a cada expedição."
+	var txt: String = "Seus túneis ficam salvos: cair por eles não gasta combustível."
 	if GameState.region_depth(r.id) > 0:
-		txt += " Recorde: %d m." % GameState.region_depth(r.id)
+		txt = "Recorde: %d m. %s" % [GameState.region_depth(r.id), txt]
 	var l := UiTheme.label(txt, 24, UiTheme.TEXT, 500)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -444,7 +440,7 @@ func ask_new_area(r: RegionDef) -> void:
 	var t := UiTheme.label("NOVA ÁREA?", 34, UiTheme.TEXT, 700)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	plate.add_child(t)
-	var msg := UiTheme.label("Você vai explorar um mapa novo de %s. A área atual será APAGADA: túneis, minério e baús que ficaram para trás e o recorde de profundidade. Objetivos, guardião vencido, catálogo e o armazém continuam." % r.display_name, 24, UiTheme.TEXT, 500)
+	var msg := UiTheme.label("Mapa novo de %s: túneis, minérios e baús deixados para trás serão APAGADOS. Objetivos, catálogo e armazém continuam." % r.display_name, 24, UiTheme.TEXT, 500)
 	msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	msg.custom_minimum_size = Vector2(minf(580.0, _root.get_viewport_rect().size.x - 80.0), 0)
 	v.add_child(msg)

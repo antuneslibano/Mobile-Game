@@ -29,6 +29,12 @@ signal guardian_defeated(hull_ratio: float)
 var shimmer: HeatShimmer
 var _last_hull: float = 0.0
 var _crumb_depth: int = -1
+## Queda livre (0.20): tempo caindo rápido e intensidade do efeito (0..1).
+var _fall_t: float = 0.0
+var _fall: float = 0.0
+var fall_fx: FallFx
+const FALL_SPEED_BLOCKS: float = 8.0   ## Acima disto (blocos/s, para baixo) conta como queda.
+const FALL_DELAY_SEC: float = 0.3      ## Só depois deste tempo caindo o efeito começa.
 
 func _ready() -> void:
 	drill.dig_hit.connect(_on_dig_hit)
@@ -85,6 +91,9 @@ func _ready() -> void:
 	shimmer.name = "HeatShimmer"
 	add_child(shimmer)
 	shimmer.drill = drill
+	fall_fx = FallFx.new()
+	fall_fx.name = "FallFx"
+	drill.add_child(fall_fx)
 
 
 ## Começa uma expedição: mundo fixo da região (com a escavação salva) e a nave na
@@ -114,6 +123,7 @@ func start_run(world_seed: int, start_row: int = -1, mods: Dictionary = {}, guar
 			spawn.x = (start_x + 0.5) * Balance.BLOCK_PX
 		world.fill_circle(spawn, Balance.BIT_RADIUS_PX + 6.0, BlockRegistry.AIR)
 	_apply_stats()
+	drill.shape = GameState.ship_look().get(&"shape", &"cone")
 	drill.setup(world, spawn, world_seed)
 	# Desgaste (0.19): amassados fazem começar com o casco ferido; sujeira e ferrugem
 	# deixam a broca mais lenta.
@@ -178,6 +188,7 @@ func _physics_process(delta: float) -> void:
 		Guard.detail("%d m%s" % [dm, " · combate" if camera.combat else ""])
 	if camera.intro and (drill.depth_m() > 0 or DrillIntent.sanitize(intent.aim).length() > 0.05):
 		camera.end_intro()
+	_update_fall(delta)
 	GameState.update_depth(drill.depth_m())
 	GameState.check_final_chamber(floori(drill.position.x / Balance.BLOCK_PX), drill.depth_m())
 	_guardian_step(delta, intent)
@@ -312,10 +323,11 @@ func _apply_look() -> void:
 func _apply_wear_visual() -> void:
 	var dirt: float = float(GameState.wear.get(&"dirt", 0.0))
 	var rust: float = float(GameState.wear.get(&"rust", 0.0))
-	var tint := Color.WHITE.lerp(Color(0.72, 0.62, 0.5), clampf(dirt * 0.6 + rust * 0.4, 0.0, 1.0) * 0.6)
+	var tint := Color.WHITE.lerp(Color(0.72, 0.62, 0.5), clampf(dirt * 0.6 + rust * 0.4, 0.0, 1.0) * 0.25)
 	for c in drill.get_children():
 		if c is DrillVisual:
 			(c as DrillVisual).modulate = tint
+			(c as DrillVisual).wear = GameState.wear
 
 
 func _on_dig_hit(point: Vector2, material_id: int, crit: bool, removed: int) -> void:
@@ -376,3 +388,20 @@ func _on_boost_started() -> void:
 	fx.emit_burst(drill.position, Color(0.5, 0.85, 1.0), 24, 320.0, 0.6, 4.0, 0.0)
 	camera.add_shake(0.35)
 	EventBus.boost_started.emit()
+
+
+## Queda livre: depois de um tempo caindo rápido, a câmera aproxima, olha para baixo e
+## treme de leve, com riscos de vento; ao bater no chão, um tranco.
+func _update_fall(delta: float) -> void:
+	var falling: bool = not drill.grounded and drill.velocity.y > FALL_SPEED_BLOCKS * Balance.BLOCK_PX and not camera.combat
+	if falling:
+		_fall_t += delta
+	else:
+		if _fall > 0.4:
+			camera.add_shake(0.25 * _fall)
+		_fall_t = 0.0
+	var target: float = clampf((_fall_t - FALL_DELAY_SEC) / 0.8, 0.0, 1.0) if falling else 0.0
+	_fall = move_toward(_fall, target, delta * (1.5 if falling else 4.0))
+	camera.fall = _fall
+	fall_fx.amount = _fall
+

@@ -51,6 +51,9 @@ var relic_prompt: StringName = &""
 ## jogador já viu liberadas (alerta do Hangar).
 var looks: Dictionary = {}
 var looks_seen: int = 0
+## Itens do Laboratório já vistos (0.20): "m:minério", "c:criatura", "p:planta",
+## "r:relíquia". Os conhecidos que não estão aqui mostram "!" até o jogador tocar.
+var lab_seen: Dictionary = {}
 ## Criaturas catalogadas: { espécie: { "seen": true, "defeated": n } }.
 var creatures: Dictionary = {}
 ## Quantas vezes cada região foi trocada por uma área nova ({id: n}).
@@ -80,6 +83,7 @@ func reset_profile() -> void:
 	looks = {}
 	_look_cache = {}
 	looks_seen = 0
+	lab_seen = {}
 	creatures = {}
 	region_variant = {}
 	_refresh_stats()
@@ -332,9 +336,16 @@ func region_mods(id: StringName) -> Dictionary:
 	return decode_mods(world_mods.get(id, {}))
 
 
-func _refresh_stats() -> void:
+## Atributos: peças + relíquias instaladas + formato da broca.
+func _build_stats() -> void:
 	stats = Progression.build_stats(economy.upgrade_levels)
 	Relics.apply(stats, economy.relics)
+	_look_cache = {}
+	ShipLooks.apply_shape(stats, ship_look().get(&"shape", &"cone"))
+
+
+func _refresh_stats() -> void:
+	_build_stats()
 	_emit_economy()
 	EventBus.stats_changed.emit()
 	EventBus.modules_changed.emit(economy.equipped_modules)
@@ -379,6 +390,7 @@ func to_profile() -> Dictionary:
 		"wear": WearRules.to_dict(wear),
 		"looks": _string_keys(looks),
 		"looks_seen": looks_seen,
+		"lab_seen": lab_seen.keys(),
 		"creatures": _string_keys(creatures),
 		"variants": _string_keys(region_variant),
 	}
@@ -502,6 +514,16 @@ func apply_profile(d: Dictionary) -> void:
 		for k: Variant in (region_stats[stats_id] as Dictionary).get("res", {}):
 			if ResourceRegistry.get_def(StringName(str(k))) != null:
 				economy.discovered[StringName(str(k))] = true
+	lab_seen = {}
+	if d.has("lab_seen"):
+		var ls: Variant = d["lab_seen"]
+		if ls is Array:
+			for k: Variant in ls:
+				lab_seen[str(k)] = true
+	else:
+		# Salvamento anterior à 0.20: o que já era conhecido conta como visto.
+		for k: String in lab_known():
+			lab_seen[k] = true
 	_refresh_stats()
 
 
@@ -620,6 +642,8 @@ func set_look(slot: StringName, option: StringName) -> bool:
 		if o[0] == option and ShipLooks.is_unlocked(String(o[2]), economy, done):
 			looks[slot] = option
 			_look_cache = {}
+			if slot == &"shape":
+				_refresh_stats()
 			EventBus.looks_changed.emit()
 			SaveService.mark_dirty()
 			return true
@@ -656,7 +680,7 @@ func buy_upgrade(id: StringName) -> bool:
 	var def: UpgradeDef = UpgradeRegistry.get_def(id)
 	if def == null or not Progression.try_buy(economy, def):
 		return false
-	stats = Progression.build_stats(economy.upgrade_levels)
+	_build_stats()
 	# Primeiro nível de um módulo: equipa automaticamente se houver slot livre.
 	if id in ModuleSystem.ALL and economy.get_level(id) == 1 and not economy.equipped_modules.has(id):
 		if economy.toggle_module(id, Balance.MODULE_SLOTS):
@@ -701,6 +725,44 @@ func sell_relic(key: StringName) -> int:
 	var gained: int = economy.sell(key, 1)
 	if relic_prompt == key:
 		relic_prompt = &""
+	if gained > 0:
+		EventBus.cargo_sold.emit(gained)
 	_emit_economy()
 	SaveService.save_now()
 	return gained
+
+
+# --- Novidades do Laboratório (0.20) -------------------------------------------------
+
+## Chaves de tudo o que o jogador já conhece no Laboratório.
+func lab_known() -> Array[String]:
+	var out: Array[String] = []
+	for k: StringName in economy.discovered:
+		out.append("r:" + String(k) if Relics.is_relic_key(k) else "m:" + String(k))
+	for k: StringName in economy.relics:
+		out.append("r:" + String(k))
+	for k: StringName in creatures:
+		out.append("c:" + String(k))
+	for k: StringName in economy.blueprints:
+		out.append("p:" + String(k))
+	return out
+
+
+func is_lab_new(key: String) -> bool:
+	return not lab_seen.has(key) and lab_known().has(key)
+
+
+## Quantos itens novos (prefixo "" = todos; "m:", "c:", "p:", "r:" = por aba).
+func lab_new_count(prefix: String = "") -> int:
+	var n: int = 0
+	for k: String in lab_known():
+		if k.begins_with(prefix) and not lab_seen.has(k):
+			n += 1
+	return n
+
+
+func mark_lab_seen(key: String) -> void:
+	if not lab_seen.has(key):
+		lab_seen[key] = true
+		SaveService.mark_dirty()
+

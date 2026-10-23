@@ -308,7 +308,29 @@ func _run() -> void:
 	_check(hscroll.scroll_vertical == scroll_before, "arrastar na nave não rola a lista")
 	garage.open_station(&"lab")
 	await _frames(1)
-	_check(garage.find_child("Catalog", true, false) != null and not base.has_badge(&"lab"), "laboratório mostra catálogo e marca o diário como lido")
+	_check(garage.find_child("Catalog", true, false) != null, "laboratório mostra o catálogo")
+	# 0.20: "!" em cada item novo; some ao tocar. Aba Diário marca o diário como lido.
+	var new_before: int = GameState.lab_new_count("m:")
+	var catalog_n: Node = garage.find_child("Catalog", true, false)
+	var badges: Array[Node] = catalog_n.find_children("NewBadge", "", true, false)
+	_check(new_before > 0 and badges.size() == new_before, "minério novo tem \"!\" (%d)" % badges.size())
+	if not badges.is_empty():
+		var cellb: Button = badges[0].get_parent()
+		cellb.pressed.emit()
+		await _frames(2)
+		_check(GameState.lab_new_count("m:") == new_before - 1, "tocar no minério novo tira o \"!\"")
+		var det: Node = garage.find_child("LabDetail", true, false)
+		if det != null:
+			det.queue_free()
+	for k: String in GameState.lab_known():
+		GameState.mark_lab_seen(k)
+	garage.set("_lab_tab", &"diary")
+	garage.call("_refresh")
+	await _frames(1)
+	_check(not base.has_badge(&"lab"), "tudo visto: laboratório sem alerta")
+	garage.set("_lab_tab", &"minerals")
+	garage.call("_refresh")
+	await _frames(1)
 	var cat: Node = garage.find_child("Catalog", true, false)
 	(cat.get_child(0) as Button).pressed.emit()
 	await _frames(2)
@@ -512,6 +534,45 @@ func _run() -> void:
 	GameState.economy.cargo[&"relic_seed"] = 1
 	var cr0: int = GameState.economy.credits
 	_check(GameState.sell_relic(&"relic_seed") == 6000 and GameState.economy.credits == cr0 + 6000, "relíquia repetida vende por 6000")
+
+	# 0.20: venda em quantidade com slider e som de moeda.
+	var g2: Garage = main.get("garage")
+	GameState.economy.cargo[&"iron"] = 90
+	g2.open_station(&"market")
+	await _frames(2)
+	var sd: SellDialog = g2.open_sell(&"iron")
+	await _frames(2)
+	_check(sd.slider.min_value == 1 and sd.slider.max_value == 90 and sd.amount() == 1, "venda: slider de 1 a 90, começa em 1")
+	sd.slider.value = 17
+	var cr_b: int = GameState.economy.credits
+	var got: int = sd.confirm()
+	_check(int(GameState.economy.cargo.get(&"iron", 0)) == 73 and GameState.economy.credits == cr_b + got and got == 17 * ResourceRegistry.get_def(&"iron").sell_value, "venda: vende só 17 ferros")
+	g2.close()
+	await _frames(2)
+	# 0.20: visual só com a nave limpa.
+	for k in WearRules.KINDS:
+		GameState.wear[k] = 0.5
+	g2.open_station(&"hangar")
+	await _frames(3)
+	var lk: Button = g2.find_child("Look_shape_cone", true, false)
+	_check(lk != null and lk.disabled and g2.find_child("LooksLocked", true, false) != null, "nave suja: visual bloqueado")
+	GameState.wear = WearRules.fresh()
+	g2.call("_refresh")
+	await _frames(3)
+	lk = g2.find_child("Look_shape_cone", true, false)
+	_check(lk != null and not lk.disabled, "nave limpa: visual liberado")
+	g2.close()
+	await _frames(2)
+	# 0.20: formato da broca muda atributos e área cavada.
+	GameState.economy.upgrade_levels[&"speed"] = maxi(3, GameState.economy.get_level(&"speed"))
+	GameState._refresh_stats()
+	var hps0: float = GameState.stats.hits_per_second
+	GameState.looks[&"shape"] = &"needle"
+	GameState._refresh_stats()
+	_check(GameState.stats.hits_per_second > hps0 * 1.2, "Agulha: mais golpes por segundo")
+	GameState.looks.erase(&"shape")
+	GameState._refresh_stats()
+	_check(is_equal_approx(GameState.stats.hits_per_second, hps0), "volta ao padrão")
 
 	# 0.19.1: modo teste nas Configurações.
 	var st: SettingsScreen = main.get("settings")

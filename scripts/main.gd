@@ -56,6 +56,13 @@ func _ready() -> void:
 			if kv.size() == 2 and UpgradeRegistry.get_def(StringName(kv[0])) != null:
 				GameState.economy.upgrade_levels[StringName(kv[0])] = int(kv[1])
 		GameState._refresh_stats()
+	if OS.is_debug_build() and args.has("look"):
+		# Depuração: --look=shape:twin,paint:ruby (visual sem requisito).
+		for part: String in String(args["look"]).split(","):
+			var kv: PackedStringArray = part.split(":")
+			if kv.size() == 2:
+				GameState.looks[StringName(kv[0])] = StringName(kv[1])
+		GameState._refresh_stats()
 	if OS.is_debug_build() and args.has("unlock-all"):
 		SaveService.enabled = false  # progresso artificial nunca vai para o perfil do jogador
 		for r in RegionRegistry.all():
@@ -105,6 +112,11 @@ func _ready() -> void:
 		if OS.is_debug_build() and args.has("near-relic"):
 			# Depuração: recomeça logo acima da relíquia da região.
 			admin_jump(&"jump_relic")
+		if OS.is_debug_build() and args.has("fall-test"):
+			# Depuração: um poço de 60 blocos logo abaixo da nave (queda livre).
+			var top: Vector2 = game.drill.position
+			for i in 60:
+				game.world.fill_circle(top + Vector2(0, i * Balance.BLOCK_PX), Balance.BIT_RADIUS_PX + 6.0, BlockRegistry.AIR)
 		if OS.is_debug_build() and args.has("relic-choice-at"):
 			get_tree().create_timer(float(args["relic-choice-at"])).timeout.connect(func() -> void:
 				var key: StringName = Relics.for_region(GameState.region_id)[0]
@@ -136,6 +148,8 @@ func _ready() -> void:
 				base.open()
 				if st != &"":
 					_on_station(st)
+				if args.has("sell"):
+					garage.open_sell(StringName(String(args["sell"])))
 				if args.has("garage-scroll"):
 					get_tree().create_timer(0.6).timeout.connect(func() -> void:
 						garage.debug_scroll(int(args["garage-scroll"]))))
@@ -386,8 +400,8 @@ func _show_crash_notice() -> void:
 	v.add_child(UiTheme.label(UiTheme.display_text("O JOGO FECHOU SOZINHO"), 30, UiTheme.ORANGE, 700))
 	var msg: String = "Da última vez o jogo fechou de repente (%s). Seu progresso salvo foi mantido." % Guard.last_step
 	if Guard.compat and not Guard.compat_manual:
-		msg += "\n\nLigamos o modo de compatibilidade (nível %d), que é mais leve e estável. Se fechar de novo, ele desliga mais coisas sozinho. Dá para mudar nas Configurações." % Guard.compat_level
-	msg += "\n\nSe continuar acontecendo, abra o Diagnóstico, toque em COPIAR e mande o texto para o desenvolvedor."
+		msg += "\n\nModo de compatibilidade ligado (nível %d)." % Guard.compat_level
+	msg += "\n\nSe continuar: Configurações › Diagnóstico › COPIAR."
 	var l := UiTheme.label(msg, 22, UiTheme.TEXT, 500)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.custom_minimum_size = Vector2(560, 0)
@@ -507,8 +521,7 @@ func show_relic_choice(key: StringName) -> void:
 	sell.add_theme_font_size_override("font_size", UiTheme.font_size(21, 700))
 	UiTheme.style_button(sell, &"gold")
 	sell.pressed.connect(func() -> void:
-		if GameState.sell_relic(key) > 0:
-			Sfx.play(&"pickup", 0.8)
+		GameState.sell_relic(key)
 		close.call())
 	v.add_child(sell)
 	var later := Button.new()

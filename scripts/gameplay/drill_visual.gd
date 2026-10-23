@@ -14,6 +14,12 @@ var _t: float = 0.0
 var _kick: float = 0.0
 var _spin: float = 0.0
 var _boost_flash: float = 0.0
+## Desgaste (0.20): manchas de sujeira, ferrugem e amassados por cima do sprite, que
+## aumentam enquanto a nave cava. {dirt, rust, dents} 0..1 (GameState.wear).
+var wear: Dictionary = {}
+var _wear_tex: ImageTexture
+var _wear_key: String = ""
+static var _ranks: Array[PackedFloat32Array] = []
 
 
 func _ready() -> void:
@@ -94,6 +100,9 @@ func _draw() -> void:
 	var frame: int = int(_spin * 3.0)
 	draw_set_transform(o, 0.0, Vector2(s, s))
 	draw_texture(ShipArt.frame(frame, look), Vector2.ZERO)
+	var wt: ImageTexture = _wear_texture()
+	if wt != null:
+		draw_texture(wt, Vector2.ZERO)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 	# Emissor sísmico (módulo): antena no pod superior com anel de recarga.
@@ -121,3 +130,55 @@ func _draw() -> void:
 	if drill != null and drill.digging:
 		var tip: Vector2 = o + Vector2(ShipArt.W - 1, 10) * s
 		draw_circle(tip, 3.0 + _kick * 3.0, Color(1.0, 0.85, 0.5, 0.55))
+
+
+## Manchas do desgaste na resolução do sprite. Refeita só quando o nível muda um degrau.
+func _wear_texture() -> ImageTexture:
+	var dirt: float = float(wear.get(&"dirt", 0.0))
+	var rust: float = float(wear.get(&"rust", 0.0))
+	var dents: float = float(wear.get(&"dents", 0.0))
+	var key: String = "%d/%d/%d/%s" % [roundi(dirt * 40.0), roundi(rust * 40.0), roundi(dents * 20.0), ShipLooks.key(look)]
+	if key == _wear_key:
+		return _wear_tex
+	_wear_key = key
+	if dirt < 0.02 and rust < 0.02 and dents < 0.02:
+		_wear_tex = null
+		return null
+	var base: Image = ShipArt.build(0, look)
+	var w: int = base.get_width()
+	var h: int = base.get_height()
+	if _ranks.is_empty():
+		_ranks = [_rank_noise(w, h, 11, 0.22), _rank_noise(w, h, 23, 0.3), _rank_noise(w, h, 37, 0.5)]
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	for y in h:
+		for x in w:
+			if base.get_pixel(x, y).a < 0.5:
+				continue
+			var i: int = y * w + x
+			if _ranks[2][i] < dents * 0.22:
+				img.set_pixel(x, y, Color(0.12, 0.13, 0.16, 0.75))   # amassado (sombra)
+			elif _ranks[1][i] < rust * 0.55:
+				img.set_pixel(x, y, Color(0.62, 0.3, 0.12, 0.85))    # ferrugem
+			elif _ranks[0][i] < dirt * 0.7:
+				img.set_pixel(x, y, Color(0.36, 0.26, 0.16, 0.6))    # sujeira
+	_wear_tex = ImageTexture.create_from_image(img)
+	return _wear_tex
+
+
+## Posição (0..1) de cada pixel na ordem de um ruído: manchas crescem em grupos, de forma
+## estável, conforme o nível sobe.
+static func _rank_noise(w: int, h: int, seed_v: int, freq: float) -> PackedFloat32Array:
+	var n := FastNoiseLite.new()
+	n.seed = seed_v
+	n.frequency = freq
+	var vals: Array = []
+	for y in h:
+		for x in w:
+			vals.append([n.get_noise_2d(x, y), y * w + x])
+	vals.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	var out := PackedFloat32Array()
+	out.resize(w * h)
+	for k in vals.size():
+		out[int(vals[k][1])] = float(k) / vals.size()
+	return out
+

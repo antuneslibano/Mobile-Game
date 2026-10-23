@@ -3,6 +3,36 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.20.0] — Venda em quantidade, brocas que cavam diferente e telas que cabem
+
+### Adicionado
+- **Venda em quantidade** (Mercado): VENDER abre uma janela com o ícone, quanto você
+  tem (×N) e um slider de 1 até N (com − e +); o botão mostra quanto vai render.
+- **Som de moedas** ao vender (Mercado, vender tudo/excedente e relíquias).
+- **Formatos de broca com função**: Padrão (equilibrada), Agulha (túnel fino, +30%
+  golpes), Robusta (túnel largo, +20% força), Dupla (duas pontas lado a lado, +8%
+  crítico) e Coroa (larga, +15% força e coleta). A área cavada é sempre maior que a
+  nave: nenhum formato prende.
+- **Sujeira na nave durante a expedição**: manchas de sujeira, ferrugem e amassados
+  aparecem e crescem enquanto você cava.
+- **"!" nos itens novos do Laboratório**: cada minério, criatura, planta de baú e
+  relíquia nova pisca até você tocar nela; as abas também avisam.
+- **Câmera de queda livre**: caindo por um tempo, a câmera aproxima, olha para baixo,
+  treme de leve e aparecem riscos de vento; ao bater no chão, um tranco.
+
+### Alterado
+- **Visual só com a nave limpa**: no Hangar, as opções ficam bloqueadas até limpar a
+  sujeira, a ferrugem e os amassados.
+- **Menos texto**: sem descrição nos cartões da Bancada, no Mercado e na região do mapa;
+  avisos, tutorial e resumo bem mais curtos.
+- **Telas que cabem em qualquer celular**: cabeçalhos (base, mapa e estações) e abas do
+  Laboratório passavam da largura da tela e cortavam as laterais; agora o título e os
+  valores encolhem para caber. Novo teste automático abre todas as telas e falha se
+  algo passar das bordas.
+
+### Corrigido
+- Comprar uma melhoria tirava o bônus das relíquias até reabrir o jogo.
+
 ## [0.19.2] — Diagnóstico mais detalhado do fechamento
 
 ### Alterado
