@@ -18,6 +18,7 @@ extends Node
 ##   --grant-ores=N      (debug) N de cada minério comum no armazém
 ##   --safe-area=T,B,L,R simula notch/cantos/barra de gestos (px do jogo)
 ##   --tutorial          (com --autotest) mostra o tutorial por cima da expedição
+##   --wear=F            nave com desgaste F (0..1) em sujeira, ferrugem e amassados
 ##   --settings-at=T     (com --autotest) abre as Configurações em T segundos
 ##   --splash            (com --autotest) mostra a tela de abertura
 ##   --creatures         (debug) caverna com uma criatura de cada espécie à frente da nave
@@ -120,6 +121,10 @@ func _ready() -> void:
 	if OS.is_debug_build() and args.has("grant-ores"):
 		var n: float = float(args["grant-ores"])
 		GameState.collect_drops(Vector2.ZERO, {&"copper": n, &"iron": n, &"quartz": n, &"silver": n * 0.5, &"gold": n * 0.3, &"fossil": 2.0, &"amethyst": 3.0})
+	if OS.is_debug_build() and args.has("wear"):
+		# Depuração: nave desgastada (sujeira, ferrugem e amassados no mesmo nível).
+		for k in WearRules.KINDS:
+			GameState.wear[k] = clampf(float(args["wear"]), 0.0, 1.0)
 	if OS.is_debug_build() and (args.has("grant-credits") or args.has("grant-crystals")):
 		GameState.economy.credits += int(args.get("grant-credits", "0"))
 		GameState.economy.crystals += int(args.get("grant-crystals", "0"))

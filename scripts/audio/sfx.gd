@@ -282,6 +282,18 @@ func _build_all() -> void:
 	# Batida metálica: rocha-mãe ou minério duro demais.
 	_streams[&"clank"] = _synth(0.3, false, func(t: float, _i: int) -> float:
 		return (sin(TAU * 900.0 * t) * 0.5 + sin(TAU * 1340.0 * t) * 0.35 + sin(TAU * 2110.0 * t) * 0.2) * exp(-t * 16.0), 0.55)
+	# Ferramentas do Hangar (0.19): esponja (chiado molhado), lixa (raspar) e solda.
+	_streams[&"scrub"] = _synth(0.16, false, func(t: float, _i: int) -> float:
+		var n: float = rng.randf() * 2.0 - 1.0
+		return (n * 0.5 + sin(TAU * (900.0 + 600.0 * sin(TAU * 18.0 * t)) * t) * 0.15) * sin(PI * t / 0.16), 0.5)
+	_streams[&"sand"] = _synth(0.14, false, func(t: float, _i: int) -> float:
+		var n: float = rng.randf() * 2.0 - 1.0
+		var grit: float = 1.0 if fposmod(t, 0.012) < 0.006 else 0.4
+		return n * grit * sin(PI * t / 0.14), 0.55)
+	_streams[&"weld"] = _synth(0.12, false, func(t: float, _i: int) -> float:
+		var n: float = rng.randf() * 2.0 - 1.0
+		var crackle: float = 1.0 if rng.randf() < 0.15 else 0.25
+		return (n * crackle + sin(TAU * 2400.0 * t) * 0.2) * exp(-t * 6.0), 0.5)
 	# Acerto no guardião (0.19): baque grosso de carne-mineral (tom que cai, com
 	# harmônicos que o alto-falante toca), estalo úmido e um anel de cristal rachando.
 	_streams[&"boss_hit"] = _synth(0.42, false, func(t: float, _i: int) -> float:

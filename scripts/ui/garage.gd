@@ -41,6 +41,7 @@ var _tabs: Control
 var _market_page: VBoxContainer
 var _market_rows: VBoxContainer
 var _surplus: Button
+var _care: ShipCarePanel
 var _lab_page: VBoxContainer
 var _lab_box: VBoxContainer
 var _looks_box: VBoxContainer
@@ -90,6 +91,7 @@ func open_station(kind: StringName) -> void:
 		GameState.journal_seen = Journal.unlocked(GameState.economy.discovered, GameState.done, GameState.creatures).size()
 	elif _kind == &"hangar":
 		GameState.looks_seen = ShipLooks.unlocked_count(GameState.economy, GameState.done)
+		_care.reload()
 
 
 func station() -> StringName:
@@ -293,6 +295,9 @@ func _build() -> void:
 	_modules_page.add_theme_constant_override("separation", 12)
 	_modules_page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pages.add_child(_modules_page)
+	# Cuidar da nave (0.19): limpar e consertar arrastando as ferramentas.
+	_care = ShipCarePanel.new()
+	_modules_page.add_child(_care)
 	_looks_box = VBoxContainer.new()
 	_looks_box.name = "Looks"
 	_looks_box.add_theme_constant_override("separation", 8)

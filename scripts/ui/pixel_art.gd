@@ -354,6 +354,28 @@ static func _icon_img(id: StringName) -> Image:
 			rect(img, 3, 8, 12, 9, RED)
 			rect(img, 3, 8, 12, 2, RED_HI)
 			rect(img, 8, 11, 2, 3, Color("2a0a08"))
+		&"sponge":
+			# Esponja amarela com espuma.
+			rect(img, 3, 7, 12, 8, Color("f2c94c"))
+			rect(img, 3, 7, 12, 2, Color("ffe08a"))
+			rect(img, 3, 13, 12, 2, Color("c99a1c"))
+			for p: Vector2i in [Vector2i(5, 10), Vector2i(9, 11), Vector2i(12, 9)]:
+				rect(img, p.x, p.y, 1, 1, Color("b07d10"))
+			circle(img, 6, 5, 2.2, Color("e8f6ff"))
+			circle(img, 11, 4, 1.8, Color("e8f6ff"))
+		&"sandpaper":
+			# Lixa: bloco com grãos.
+			poly(img, PackedVector2Array([Vector2(2, 12), Vector2(12, 3), Vector2(16, 7), Vector2(6, 16)]), Color("c8a070"))
+			poly(img, PackedVector2Array([Vector2(2, 12), Vector2(12, 3), Vector2(13, 4), Vector2(3, 13)]), Color("e6c898"))
+			for p: Vector2i in [Vector2i(7, 10), Vector2i(10, 8), Vector2i(9, 12), Vector2i(12, 6), Vector2i(6, 13)]:
+				rect(img, p.x, p.y, 1, 1, Color("6e5030"))
+		&"welder":
+			# Maçarico com chama azul.
+			rect(img, 2, 11, 9, 4, Color("5a6378"))
+			rect(img, 2, 11, 9, 1, Color("8a94a4"))
+			rect(img, 10, 10, 3, 3, Color("c3cad6"))
+			poly(img, PackedVector2Array([Vector2(13, 9), Vector2(17, 7), Vector2(17, 13), Vector2(13, 12)]), Color("5fd0ff"))
+			rect(img, 14, 10, 2, 1, Color.WHITE)
 		&"gear":
 			# Engrenagem: dentes em cruz e na diagonal, miolo vazado.
 			var gc := Color("c3cad6")

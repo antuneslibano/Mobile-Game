@@ -21,6 +21,8 @@ var _last_t: float = 0.0
 ## Todas as listas: um toque só é da lista mais alta (camada) que o contém, ex.: a garagem
 ## aberta por cima do mapa não deixa a lista do mapa roubar o arrasto.
 static var _all: Array[TouchScroll] = []
+## Áreas onde arrastar não rola a lista (ex.: limpar a nave no Hangar, 0.19).
+static var no_scroll: Array[Control] = []
 
 
 func _init() -> void:
@@ -49,6 +51,13 @@ func _is_topmost_at(p: Vector2) -> bool:
 	return true
 
 
+func _in_no_scroll(p: Vector2) -> bool:
+	for c in no_scroll:
+		if is_instance_valid(c) and c.is_visible_in_tree() and c.get_global_rect().has_point(p):
+			return true
+	return false
+
+
 func is_dragging() -> bool:
 	return _dragging
 
@@ -65,7 +74,7 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		var t := event as InputEventScreenTouch
 		if t.pressed:
-			if not _tracking and get_global_rect().has_point(t.position) and _is_topmost_at(t.position):
+			if not _tracking and get_global_rect().has_point(t.position) and _is_topmost_at(t.position) and not _in_no_scroll(t.position):
 				_tracking = true
 				_dragging = false
 				_index = t.index

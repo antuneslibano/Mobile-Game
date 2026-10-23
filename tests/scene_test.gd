@@ -277,6 +277,35 @@ func _run() -> void:
 	garage.sell_surplus()
 	var reserve: Dictionary = Recipes.reserve(econ.upgrade_levels)
 	_check(int(econ.cargo.get(&"iron", 0)) == int(reserve.get(&"iron", 0)), "vender excedente guarda o que a Bancada usa (ferro %d)" % int(econ.cargo.get(&"iron", 0)))
+	# Cuidar da nave (0.19): arrastar as ferramentas limpa e conserta.
+	for k in WearRules.KINDS:
+		GameState.wear[k] = 0.6
+	garage.open_station(&"hangar")
+	await _frames(3)
+	var care: ShipCare = garage.find_child("ShipCare", true, false)
+	var hscroll: ScrollContainer = garage.find_child("Scroll", true, false)
+	_check(care != null and care.level(&"dirt") > 0.5, "Hangar mostra a nave suja")
+	hscroll.scroll_vertical = int(care.get_global_rect().position.y - hscroll.get_global_rect().position.y) - 20
+	await _frames(2)
+	var scroll_before: int = hscroll.scroll_vertical
+	for k in WearRules.KINDS:
+		(garage.find_child("Tool_" + String(k), true, false) as Button).pressed.emit()
+		await _frames(1)
+		var origin: Vector2 = care.get_global_rect().position + care.ship_rect().position
+		var area: Vector2 = care.ship_rect().size
+		var py: float = 0.0
+		while py <= area.y:
+			_touch(0, origin + Vector2(0.0, py), true)
+			var px: float = 0.0
+			while px <= area.x:
+				px += 14.0
+				_drag(0, origin + Vector2(px, py))
+			_touch(0, origin + Vector2(px, py), false)
+			py += 10.0
+		await _frames(1)
+	_check(care.level(&"dirt") < 0.01 and care.level(&"rust") < 0.01 and care.level(&"dents") < 0.01, "esponja, lixa e solda limpam tudo (sujeira %.2f, ferrugem %.2f, amassados %.2f)" % [care.level(&"dirt"), care.level(&"rust"), care.level(&"dents")])
+	_check(WearRules.penalty(GameState.wear) < 0.01 and WearRules.hull_start_ratio(GameState.wear) > 0.99, "desgaste do perfil zerado")
+	_check(hscroll.scroll_vertical == scroll_before, "arrastar na nave não rola a lista")
 	garage.open_station(&"lab")
 	await _frames(1)
 	_check(garage.find_child("Catalog", true, false) != null and not base.has_badge(&"lab"), "laboratório mostra catálogo e marca o diário como lido")
