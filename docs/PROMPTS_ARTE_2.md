@@ -167,19 +167,80 @@ Para as outras regiões, troque a descrição do meio:
 
 ## 6. Minérios — nova tentativa (ícone minúsculo)
 
-Faça primeiro só 2 (cobre e ouro) para testarmos antes dos outros.
+Faça primeiro só **cobre** e **ouro** e me mande para testarmos no jogo. Se ficarem bons,
+faça o resto da lista com o mesmo estilo.
 
 `cobre.png`
 ```
-Ícone de jogo para ser visto MUITO pequeno (32x32 na tela), desenhado em 1024x1024 com
-fundo transparente: 3 pepitas de cobre grandes e simples, formas arredondadas, contorno
-preto GROSSO, 3 tons de laranja-acobreado + 1 brilho claro. Sem pedras em volta, sem
-brilho no fundo, sem detalhes pequenos, sem faíscas. Estilo ícone de Terraria.
+Ícone de jogo para ser visto MUITO pequeno (32x32 na tela), desenhado em 1024x1024 com fundo transparente: 3 pepitas de cobre grandes e arredondadas, laranja-acobreado, contorno preto GROSSO, 3 tons + 1 brilho claro. Sem pedras em volta, sem brilho no fundo, sem detalhes pequenos, sem faíscas. Estilo ícone de Terraria.
 ```
+
 `ouro.png`
 ```
-Ícone de jogo para ser visto MUITO pequeno (32x32 na tela), desenhado em 1024x1024 com
-fundo transparente: 2 a 3 pepitas de ouro grandes e simples, contorno preto GROSSO,
-3 tons de amarelo-dourado + 1 brilho quase branco. Sem pedras em volta, sem brilho no
-fundo, sem detalhes pequenos, sem faíscas. Estilo ícone de Terraria.
+Ícone de jogo para ser visto MUITO pequeno (32x32 na tela), desenhado em 1024x1024 com fundo transparente: 2 a 3 pepitas de ouro grandes, amarelo-dourado com brilho quase branco, contorno preto GROSSO, 3 tons + 1 brilho claro. Sem pedras em volta, sem brilho no fundo, sem detalhes pequenos, sem faíscas. Estilo ícone de Terraria.
+```
+
+`ferro.png`
+```
+Ícone de jogo para ser visto MUITO pequeno (32x32 na tela), desenhado em 1024x1024 com fundo transparente: 2 pedaços de rocha cinza-escura com manchas grandes cor de ferrugem, contorno preto GROSSO, 3 tons + 1 brilho claro. Sem pedras em volta, sem brilho no fundo, sem detalhes pequenos, sem faíscas. Estilo ícone de Terraria.
+```
+
+`prata.png`
+```
+Ícone de jogo para ser visto MUITO pequeno (32x32 na tela), desenhado em 1024x1024 com fundo transparente: 3 pepitas de prata grandes, branco-azulado metálico, contorno preto GROSSO, 3 tons + 1 brilho claro. Sem pedras em volta, sem brilho no fundo, sem detalhes pequenos, sem faíscas. Estilo ícone de Terraria.
+```
+
+`carvao.png`
+```
+Ícone de jogo para ser visto MUITO pequeno (32x32 na tela), desenhado em 1024x1024 com fundo transparente: 2 a 3 pedaços de carvão preto com arestas e reflexo cinza-azulado, contorno preto GROSSO, 3 tons + 1 brilho claro. Sem pedras em volta, sem brilho no fundo, sem detalhes pequenos, sem faíscas. Estilo ícone de Terraria.
+```
+
+`quartzo.png`
+```
+Ícone de jogo para ser visto MUITO pequeno (32x32 na tela), desenhado em 1024x1024 com fundo transparente: 3 cristais de quartzo branco-leitosos em ponta, saindo de uma base pequena, contorno preto GROSSO, 3 tons + 1 brilho claro. Sem pedras em volta, sem brilho no fundo, sem detalhes pequenos, sem faíscas. Estilo ícone de Terraria.
+```
+
+`cristal_azul.png`
+```
+Ícone de jogo para ser visto MUITO pequeno (32x32 na tela), desenhado em 1024x1024 com fundo transparente: 3 cristais azul-ciano em ponta, o do meio mais alto, contorno preto GROSSO, 3 tons + 1 brilho claro. Sem pedras em volta, sem brilho no fundo, sem detalhes pequenos, sem faíscas. Estilo ícone de Terraria.
+```
+
+`ametista.png`
+```
+Ícone de jogo para ser visto MUITO pequeno (32x32 na tela), desenhado em 1024x1024 com fundo transparente: 3 cristais roxos em ponta, o do meio mais alto, contorno preto GROSSO, 3 tons + 1 brilho claro. Sem pedras em volta, sem brilho no fundo, sem detalhes pequenos, sem faíscas. Estilo ícone de Terraria.
+```
+
+`bau.png`
+```
+Ícone de jogo para ser visto MUITO pequeno (32x32 na tela), desenhado em 1024x1024 com fundo transparente: baú de madeira pequeno e largo com tampa arredondada e ferragens douradas, de frente, contorno preto GROSSO, 3 tons + 1 brilho claro. Sem pedras em volta, sem brilho no fundo, sem detalhes pequenos, sem faíscas. Estilo ícone de Terraria.
+```
+
+`titanio.png`
+```
+Ícone de jogo para ser visto MUITO pequeno (32x32 na tela), desenhado em 1024x1024 com fundo transparente: 2 pedaços de rocha escura com placas metálicas azul-acinzentadas brilhantes, contorno preto GROSSO, 3 tons + 1 brilho claro. Sem pedras em volta, sem brilho no fundo, sem detalhes pequenos, sem faíscas. Estilo ícone de Terraria.
+```
+
+`uranio.png`
+```
+Ícone de jogo para ser visto MUITO pequeno (32x32 na tela), desenhado em 1024x1024 com fundo transparente: 2 pedras escuras com cristais verde-limão que brilham, contorno preto GROSSO, 3 tons + 1 brilho claro. Sem pedras em volta, sem brilho no fundo, sem detalhes pequenos, sem faíscas. Estilo ícone de Terraria.
+```
+
+`cristal_verde.png`
+```
+Ícone de jogo para ser visto MUITO pequeno (32x32 na tela), desenhado em 1024x1024 com fundo transparente: 3 esmeraldas verdes em prisma, o do meio mais alto, contorno preto GROSSO, 3 tons + 1 brilho claro. Sem pedras em volta, sem brilho no fundo, sem detalhes pequenos, sem faíscas. Estilo ícone de Terraria.
+```
+
+`diamante.png`
+```
+Ícone de jogo para ser visto MUITO pequeno (32x32 na tela), desenhado em 1024x1024 com fundo transparente: 2 diamantes brutos azul-gelo muito claros com faces bem marcadas, contorno preto GROSSO, 3 tons + 1 brilho claro. Sem pedras em volta, sem brilho no fundo, sem detalhes pequenos, sem faíscas. Estilo ícone de Terraria.
+```
+
+`cristal_vermelho.png`
+```
+Ícone de jogo para ser visto MUITO pequeno (32x32 na tela), desenhado em 1024x1024 com fundo transparente: 3 rubis vermelho-sangue em prisma, o do meio mais alto, contorno preto GROSSO, 3 tons + 1 brilho claro. Sem pedras em volta, sem brilho no fundo, sem detalhes pequenos, sem faíscas. Estilo ícone de Terraria.
+```
+
+`cristal_roxo.png`
+```
+Ícone de jogo para ser visto MUITO pequeno (32x32 na tela), desenhado em 1024x1024 com fundo transparente: 2 cristais altos e finos rosa-magenta translúcidos, núcleo mais claro, contorno preto GROSSO, 3 tons + 1 brilho claro. Sem pedras em volta, sem brilho no fundo, sem detalhes pequenos, sem faíscas. Estilo ícone de Terraria.
 ```
