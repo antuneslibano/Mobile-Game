@@ -6,6 +6,7 @@ extends RefCounted
 ## alguns milhares de amostras por quadro (modo de compatibilidade, sem threads).
 
 const RATE: int = 11025
+const TAIL_PAD: int = 512   ## Silêncio extra no fim (samples); ver Sfx.TAIL_PAD.
 const SECONDS: float = 24.0
 const CHORDS: Array = [[220.0, 261.63, 329.63], [174.61, 220.0, 261.63], [261.63, 329.63, 392.0], [196.0, 246.94, 293.66]]
 const BELLS: Array[float] = [440.0, 523.25, 587.33, 659.25, 783.99]
@@ -27,7 +28,9 @@ func _init(p_seconds: float = SECONDS) -> void:
 	seconds = p_seconds
 	n = int(seconds * RATE)
 	_buf.resize(n)
-	_data.resize(n * 2)
+	# Silêncio extra no fim (0.22.2): o mixer do Godot no Android lê um pouco além do
+	# último sample; com a sobra, a leitura cai em memória nossa (zerada).
+	_data.resize((n + TAIL_PAD) * 2)
 
 
 func done() -> bool:

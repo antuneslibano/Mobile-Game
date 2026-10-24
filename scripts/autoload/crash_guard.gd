@@ -126,21 +126,12 @@ func _load() -> void:
 	# modo volta a subir sozinho.
 	if crashed_last_time and compat_manual and crash_count >= 2 and compat_level < MAX_LEVEL:
 		compat_manual = false
-	# Modo gráfico (0.22): fechou sozinho no OpenGL → tenta o Vulkan com qualidade cheia;
-	# fechou no Vulkan → volta ao OpenGL e segue subindo a compatibilidade.
-	var last_renderer: String = String(_state.get("renderer", "opengl3"))
-	var tried_vulkan: bool = false
-	if crashed_last_time and not graphics_manual and OS.get_name() == "Android":
-		if last_renderer == "vulkan":
-			vulkan_failed = true
-			set_graphics(false, false)
-		elif not vulkan_failed:
-			set_graphics(true, false)
-			switched_to_vulkan = true
-			tried_vulkan = true
-			if not compat_manual:
-				compat_level = 0
-	if crashed_last_time and not compat_manual and not tried_vulkan:
+	# Modo gráfico (0.22.2): a troca automática para Vulkan foi desfeita (o fechamento era
+	# no áudio, não no vídeo). Quem foi trocado sozinho volta ao OpenGL; quem escolheu
+	# nas Configurações mantém.
+	if not graphics_manual and vulkan_next:
+		set_graphics(false, false)
+	if crashed_last_time and not compat_manual:
 		compat_level = mini(MAX_LEVEL, compat_level + 1)
 
 

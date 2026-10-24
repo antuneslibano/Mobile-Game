@@ -8,8 +8,13 @@ const RATE: int = 22050
 const VOICES: int = 10
 
 var _streams: Dictionary = {}          ## nome → AudioStreamWAV
-var _voices: Array[AudioStreamPlayer] = []
-var _next: int = 0
+## Um tocador por som (0.22.2): o som de um tocador nunca é trocado enquanto toca (antes
+## 16 vozes eram reaproveitadas trocando o som no meio da reprodução).
+var _players: Dictionary = {}
+const POLYPHONY: int = 4
+## Silêncio extra no fim de cada som (samples). O crash do S21 FE era o mixer do Godot
+## lendo além do fim do som (thread AudioTrack, leitura de 16 bits numa página protegida).
+const TAIL_PAD: int = 512
 var _drill: AudioStreamPlayer
 var _engine: AudioStreamPlayer
 var _drill_on: bool = false
@@ -61,11 +66,6 @@ func _ready() -> void:
 		_build_all()
 	EventBus.cargo_sold.connect(func(_v: int) -> void: play(&"coin", randf_range(0.97, 1.03)))
 	EventBus.upgrade_purchased.connect(func(_id: StringName, _lvl: int) -> void: play(&"workshop", randf_range(0.96, 1.04)))
-	for i in VOICES:
-		var p := AudioStreamPlayer.new()
-		p.bus = BUS_NAMES[&"sfx"]
-		add_child(p)
-		_voices.append(p)
 	_drill = _loop_player(&"drill")
 	_engine = _loop_player(&"engine")
 	_drill.bus = BUS_NAMES[&"machine"]
@@ -223,9 +223,14 @@ func play(name: StringName, pitch: float = 1.0, volume_db: float = 0.0, min_gap:
 	if not _last.has(name):
 		Guard.mark("som " + String(name))  # diagnóstico: primeira vez de cada som
 	_last[name] = now
-	var p: AudioStreamPlayer = _voices[_next]
-	_next = (_next + 1) % _voices.size()
-	p.stream = _streams[name]
+	var p: AudioStreamPlayer = _players.get(name)
+	if p == null:
+		p = AudioStreamPlayer.new()
+		p.bus = BUS_NAMES[&"sfx"]
+		p.stream = _streams[name]
+		p.max_polyphony = POLYPHONY
+		add_child(p)
+		_players[name] = p
 	p.pitch_scale = clampf(pitch, 0.3, 3.0)
 	p.volume_db = volume_db
 	p.play()
@@ -450,7 +455,7 @@ static func _square(phase: float) -> float:
 static func _synth(seconds: float, loop: bool, f: Callable, gain: float) -> AudioStreamWAV:
 	var n: int = int(seconds * RATE)
 	var data := PackedByteArray()
-	data.resize(n * 2)
+	data.resize((n + TAIL_PAD) * 2)  # sobra zerada no fim (ver TAIL_PAD)
 	var lp: float = 0.0
 	for i in n:
 		var t: float = float(i) / RATE

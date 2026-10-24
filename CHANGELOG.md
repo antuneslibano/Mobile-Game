@@ -3,6 +3,20 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.22.2] — Correção do fechamento sozinho (áudio)
+
+### Corrigido
+- **Jogo fechando sozinho no Galaxy S21 FE**: o leitor de crash da 0.22 mostrou que a
+  thread que quebrava era a de **áudio** (AudioTrack), lendo um sample de 16 bits além do
+  fim do som (página protegida pelo alocador do Android; no computador isso passa
+  despercebido). Agora todo som tem um trecho de silêncio extra no fim, e cada efeito tem
+  o próprio tocador (o som de um tocador nunca é trocado no meio da reprodução, o que
+  antes acontecia dezenas de vezes por segundo ao cavar ou limpar a nave).
+
+### Alterado
+- A troca automática para Vulkan foi desfeita (o problema não era o vídeo). Quem foi
+  trocado sozinho volta ao OpenGL; a opção nas Configurações continua.
+
 ## [0.22.1] — Guardião mais longo: 20 sementes duras
 
 ### Alterado

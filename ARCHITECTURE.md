@@ -561,4 +561,8 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
   `BossChase.seed_hp_mult`). `Game._check_seeds` conta cada semente uma vez pela célula
   central (`chase.broken_rows`) e limpa o bloco. `BOSS_SEEDS_TO_WIN`,
   `BOSS_SPIKE_DAMAGE_RATIO`, `BOSS_SEED_HEAL` em Balance.
+- **0.22.2**: crash do S21 FE = leitura além do fim de um AudioStreamWAV na thread
+  AudioTrack. `Sfx.TAIL_PAD`/`MusicSynth.TAIL_PAD`: silêncio extra no fim de todo som;
+  `Sfx._players`: um AudioStreamPlayer por efeito (`max_polyphony` 4), o stream nunca é
+  trocado. Troca automática para Vulkan removida (só manual).
 
