@@ -63,13 +63,21 @@ static func _load_png(path: String) -> Image:
 	return img
 
 
-## 8 colunas × 2 linhas de texturas 64×64 (ordem de TerrainSkins.TILES).
+## Lado das texturas de terreno no atlas (0.23: 128, arte importada com mais detalhe).
+## PNGs menores são ampliados sem filtro (pixel art).
+const TERRAIN_TILE: int = 128
+
+
+## 8 colunas × 2 linhas de texturas TERRAIN_TILE² (ordem de TerrainSkins.TILES).
 static func terrain_atlas() -> Image:
-	var t: int = EnvArt.TILE
+	var t: int = TERRAIN_TILE
 	var atlas := Image.create(t * 8, t * ceili(TerrainSkins.TILES.size() / 8.0), false, Image.FORMAT_RGBA8)
 	for i in TerrainSkins.TILES.size():
 		var img: Image = _load_png("%s/terrain/%s.png" % [TerrainSkins.ROOT, TerrainSkins.TILES[i]])
 		if img != null:
+			if img.get_width() != t:
+				img = img.duplicate()
+				img.resize(t, t, Image.INTERPOLATE_NEAREST)
 			atlas.blit_rect(img, Rect2i(0, 0, t, t), Vector2i((i % 8) * t, (i / 8) * t))
 	return atlas
 

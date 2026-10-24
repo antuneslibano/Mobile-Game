@@ -37,7 +37,7 @@ uniform float terrain_saturation = 0.85;
 uniform float blend_height = 0.55;                 // peso da altura na mistura de texturas
 uniform float material_warp2 = 0.65;               // segunda oitava da deformação dos materiais                     // primeira das 4 entradas de fóssil no atlas
 
-const int TILE = 64;
+const int TILE = 128;   // lado das texturas de terreno no atlas (TerrainTextures.TERRAIN_TILE)
 const int ORE_PX = 16;
 const int DECOR_CELL = 32;
 const int EMBED_SITE = 36;

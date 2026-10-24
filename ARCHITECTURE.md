@@ -566,3 +566,12 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
   `Sfx._players`: um AudioStreamPlayer por efeito (`max_polyphony` 4), o stream nunca é
   trocado. Troca automática para Vulkan removida (só manual).
 
+## 27. 0.23: arte importada
+
+- `tools/import_art.py terrain [nomes]`: `art_src/terrain/<nome>.png` (qualquer tamanho) →
+  `assets/environment/terrain/<nome>.png` 128×128 (emenda por mistura com a borda oposta,
+  redução BOX, paleta de 8 cores). `art_src/` tem `.gdignore` e fica fora do export.
+- `TerrainTextures.TERRAIN_TILE` = 128 e `TILE` no `terrain.gdshader` (devem bater); PNGs
+  menores são ampliados sem filtro.
+- Prompts para gerar a arte: `docs/PROMPTS_TEXTURAS.md`.
+

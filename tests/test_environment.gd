@@ -15,7 +15,7 @@ func _img(path: String) -> Image:
 func test_assets_exist_with_expected_sizes() -> void:
 	for name in TerrainSkins.TILES:
 		var img: Image = _img("%s/terrain/%s.png" % [TerrainSkins.ROOT, name])
-		check(img != null and img.get_size() == Vector2i(EnvArt.TILE, EnvArt.TILE), "textura %s 64×64" % name)
+		check(img != null and img.get_size() == Vector2i(TerrainTextures.TERRAIN_TILE, TerrainTextures.TERRAIN_TILE), "textura %s %d×%d" % [name, TerrainTextures.TERRAIN_TILE, TerrainTextures.TERRAIN_TILE])
 	for name in TerrainSkins.ORES:
 		for v in TerrainSkins.ORE_VARIANTS:
 			var img: Image = _img("%s/ores/%s_%d.png" % [TerrainSkins.ROOT, name, v + 1])
@@ -27,13 +27,13 @@ func test_assets_exist_with_expected_sizes() -> void:
 		var limit: int = 16 if e[2] == &"fossil" else TerrainSkins.DECOR_CELL
 		check(img != null and img.get_width() <= limit and img.get_height() <= limit, "decoração %s cabe na célula" % e[1])
 	var atlas: Image = TerrainTextures.terrain_atlas()
-	check_eq(atlas.get_size(), Vector2i(512, 128), "atlas de texturas 8×2")
+	check_eq(atlas.get_size(), Vector2i(TerrainTextures.TERRAIN_TILE * 8, TerrainTextures.TERRAIN_TILE * 2), "atlas de texturas 8×2")
 
 
 ## Repetível: a emenda (última → primeira coluna/linha) não destoa das fronteiras internas
 ## (no máximo 25% acima da pior delas: uma rachadura pode cair justo na linha da emenda).
 func test_terrain_tiles_are_seamless() -> void:
-	var t: int = EnvArt.TILE
+	var t: int = TerrainTextures.TERRAIN_TILE
 	for name in TerrainSkins.TILES:
 		var img: Image = _img("%s/terrain/%s.png" % [TerrainSkins.ROOT, name])
 		for vertical: bool in [false, true]:

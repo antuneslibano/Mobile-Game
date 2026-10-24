@@ -3,6 +3,16 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.23.0] — Texturas novas dos terrenos
+
+### Alterado
+- **Os 16 terrenos com arte nova** (terra, solos, areia, argila, pedras e rochas), feita a
+  partir de imagens geradas no ChatGPT e convertidas para o padrão do jogo por
+  `tools/import_art.py`: emenda nas bordas, redução por área e paleta de até 8 cores.
+- Texturas de terreno em 128×128 (antes 64×64): o pixel de arte continua do mesmo
+  tamanho na tela, com mais detalhe e menos repetição visível.
+- Originais em `art_src/` (fora do APK).
+
 ## [0.22.2] — Correção do fechamento sozinho (áudio)
 
 ### Corrigido
