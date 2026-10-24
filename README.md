@@ -95,6 +95,8 @@ Executa, em modo headless:
 | `--look=slot:id,...` | visual sem requisito (ex.: `shape:twin`; só depuração) |
 | `--sell=KEY` | com `--station=market`, abre a venda em quantidade |
 | `--fall-test` | com `--autotest`, abre um poço de 60 blocos abaixo da nave |
+| `SUITE=nome` (env) | `tests/run_tests.gd` roda só a suíte com esse nome |
+| `tools/bake_audio.tscn` | gera o banco de sons (rodar ao mudar um som) |
 | `--near-relic` | com `--autotest`, começa logo acima da relíquia da região |
 | `--relic-choice-at=T` | com `--autotest`, abre a escolha da relíquia na base em T segundos |
 | `--settings-at=T` | com `--autotest`, abre as Configurações em T segundos (`--diag` abre o Diagnóstico) |
@@ -210,6 +212,7 @@ Instalar: `adb install -r build/deepforge.apk`, ou copie o APK para o celular e 
 | 0.17 | Área segura em todas as telas (notch, cantos, barra de gestos, tablets), modo de compatibilidade automático, diagnóstico | ✅ |
 | 0.18 | Tutorial jogável, calor por profundidade com limite térmico, tema do guardião, couro vendável, Sobrecarga 2× combustível | ✅ |
 | 0.19 | Calor tremendo a tela, desgaste e cuidado da nave no Hangar, formatos de broca, vitória "ele retornará" com região refeita, relíquias por região | ✅ |
+| 0.21 | Novo combate do guardião (arena, sementes, espinhos, batimento), criaturas sólidas que rondam e batem, sons prontos (compatibilidade sem cortes), som de oficina, slider melhor | ✅ |
 | 0.20 | Venda em quantidade, brocas com função, sujeira na run, "!" no Laboratório, câmera de queda, telas responsivas | ✅ |
 | 0.10–0.11 | Base com construção, criaturas — ver [ROADMAP_EXPEDICOES.md](ROADMAP_EXPEDICOES.md) | planejado |
 | 5 | Arte, efeitos, áudio, otimização, exportação Android | pendente |

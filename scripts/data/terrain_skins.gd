@@ -21,6 +21,7 @@ const ORES: Array[String] = [
 	"ametista", "cristal_verde", "diamante", "cristal_vermelho", "cristal_roxo", "topazio", "bau",
 	# Relíquias (0.19.1, tools/gen_relic_art.py).
 	"relic_seed", "relic_amber", "relic_heart", "relic_pearl", "relic_magma", "relic_prism",
+	"boss_seed",
 ]
 const ORE_VARIANTS: int = 3
 
@@ -43,6 +44,8 @@ static func ore_sprite_for(block_id: int) -> String:
 		B.RUBY: return "cristal_vermelho"
 		B.RARE_CRYSTAL: return "cristal_roxo"
 		B.CHEST: return "bau"
+	if block_id == BlockRegistry.BOSS_SEED:
+		return "boss_seed"
 	if Relics.is_relic_block(block_id):
 		return String(Relics.DEFS[Relics.REGION_ORDER[block_id - Relics.FIRST_BLOCK]][8])
 	return ""

@@ -30,6 +30,13 @@ var _body_top_cy: int = 0          ## Primeira linha (células) do corpo.
 var _body_cx0: int = 0             ## Faixa de colunas (células) do corpo.
 var _body_cx1: int = 0
 var _floor_cy: int = 0
+## Arena do guardião (0.21): poço de terra macia, aberto no topo, com sementes que o
+## jogador quebra para ferir o guardião. Sem cavernas, minérios nem deformação.
+var arena: bool = false
+const ARENA_OPEN_ROWS: int = 9        ## Salão aberto no topo (onde o guardião aparece).
+const ARENA_FIRST_SEED_ROW: int = 16
+const ARENA_SEED_GAP: int = 8         ## Uma semente a cada tantas fileiras.
+
 ## Relíquia da região (bloco) e a câmara em volta (células). relic_id < 0 = sem relíquia.
 var relic_id: int = -1
 var relic_block: Vector2i = Vector2i(-100, -100)
@@ -162,6 +169,8 @@ func _near_boundary(y: int) -> bool:
 func generate_block(x: int, y: int) -> int:
 	if y < 0:
 		return BlockRegistry.AIR
+	if arena:
+		return arena_block(x, y)
 	return _cell(x, y, biome_at(x, y))
 
 
@@ -254,6 +263,10 @@ static func _resolve(warped: int, unwarped: int) -> int:
 func _forced_cell(cx: int, cy: int) -> int:
 	if cy < 0:
 		return BlockRegistry.AIR
+	if arena:
+		if cx < Balance.WALL_CELLS or cx >= Balance.WORLD_CELLS_X - Balance.WALL_CELLS:
+			return BlockRegistry.BEDROCK
+		return arena_block(floori(float(cx) / Balance.CELL_SUB), floori(float(cy) / Balance.CELL_SUB))
 	if cx < Balance.WALL_CELLS or cx >= Balance.WORLD_CELLS_X - Balance.WALL_CELLS \
 			or cy >= Balance.MAX_DEPTH_ROWS * Balance.CELL_SUB:
 		return BlockRegistry.BEDROCK
@@ -265,6 +278,25 @@ func _forced_cell(cx: int, cy: int) -> int:
 			return relic_id
 		return BlockRegistry.AIR
 	return -1
+
+
+## Bloco da arena: paredes de rocha-mãe, salão aberto no topo, terra macia e uma
+## semente a cada ARENA_SEED_GAP fileiras, numa coluna sorteada pela semente do mundo.
+func arena_block(x: int, y: int) -> int:
+	if y < 0:
+		return BlockRegistry.AIR
+	if x <= 0 or x >= Balance.WORLD_WIDTH - 1 or y >= Balance.MAX_DEPTH_ROWS:
+		return BlockRegistry.BEDROCK
+	if y < ARENA_OPEN_ROWS:
+		return BlockRegistry.AIR
+	if y >= ARENA_FIRST_SEED_ROW and (y - ARENA_FIRST_SEED_ROW) % ARENA_SEED_GAP == 0 and x == arena_seed_x(y):
+		return BlockRegistry.BOSS_SEED
+	return BlockRegistry.ARENA_SOIL
+
+
+func arena_seed_x(y: int) -> int:
+	var h: int = hash([seed_value, y]) & 0x7FFFFFFF
+	return 3 + h % (Balance.WORLD_WIDTH - 6)
 
 
 ## Micro-célula avulsa (usada para vizinhos fora de chunks carregados).

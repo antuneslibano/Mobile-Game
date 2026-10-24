@@ -164,6 +164,14 @@ static func fit(l: Label, min_px: int = 12) -> Label:
 	return l
 
 
+## Maior tamanho de fonte (até base) em que o texto cabe em max_w (texto desenhado à mão).
+static func fit_size(f: Font, text: String, base: int, max_w: float, min_px: int = 12) -> int:
+	var s: int = base
+	while s > min_px and f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, s).x > max_w:
+		s -= 1
+	return s
+
+
 ## Ícone pixel art (TextureRect nítido) do tamanho pedido.
 static func icon_rect(id: StringName, size: float) -> TextureRect:
 	var r := TextureRect.new()

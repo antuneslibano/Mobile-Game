@@ -34,6 +34,7 @@ var _next_shop: float = 12.0
 var _bought: int = 0
 var _rises: int = 0
 var _last_y: float = -INF
+var _was_arena: bool = false
 
 
 var _fight_dir: float = 1.0
@@ -58,12 +59,32 @@ func _physics_process(delta: float) -> void:
 	if game.drill.is_overlapping_solid():
 		_violations += 1
 		push_error("[autotest] perfuradora sobreposta a material sólido em %s" % [game.drill.position])
+	if game.in_arena() != _was_arena:
+		# Entrou/saiu da arena do guardião (mundo trocado): a altura recomeça.
+		_was_arena = game.in_arena()
+		_last_y = -INF
 	if game.drill.position.y < _last_y - 0.01:
 		_rises += 1
 		push_error("[autotest] a perfuradora subiu (%.2f → %.2f)" % [_last_y, game.drill.position.y])
 	_last_y = game.drill.position.y
 	var g: FinalGuardian = game.guardian
-	if drive and g != null and g.alive and g.in_arena(game.drill.position):
+	if drive and game.in_arena() and game.chase.active:
+		# Arena (0.21): desce rumo à próxima semente, desviando de leve dos espinhos.
+		var b: float = Balance.BLOCK_PX
+		var row: int = floori(game.drill.position.y / b) + 1
+		var gen: WorldGenerator = game.world.generator
+		var tx: float = game.drill.position.x
+		for r in range(row, row + WorldGenerator.ARENA_SEED_GAP + 1):
+			if r >= WorldGenerator.ARENA_FIRST_SEED_ROW and (r - WorldGenerator.ARENA_FIRST_SEED_ROW) % WorldGenerator.ARENA_SEED_GAP == 0:
+				tx = (gen.arena_seed_x(r) + 0.5) * b
+				break
+		var dx: float = clampf((tx - game.drill.position.x) / (b * 2.0), -1.0, 1.0)
+		for sp in game.chase.spikes:
+			if Geometry2D.get_closest_point_to_segment(game.drill.position, sp.pos, sp.pos + sp.dir * 900.0).distance_to(game.drill.position) < b:
+				dx = -signf(sp.dir.x if absf(sp.dir.x) > 0.05 else 1.0)
+		_intent.aim = Vector2(dx, 1.0).normalized()
+		_intent.boost = true
+	elif drive and g != null and g.alive and g.in_arena(game.drill.position):
 		# Na câmara final: anda por cima do guardião desviando das raízes avisadas.
 		_fight_dir = g.safe_dir(game.drill.position.x, _fight_dir, game.drill.radius)
 		_intent.aim = Vector2(_fight_dir, 0.35).normalized()

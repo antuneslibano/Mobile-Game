@@ -113,7 +113,7 @@ func _process(delta: float) -> void:
 		var beat: int = int((_t - T_OMEN) / 1.1)
 		if beat >= _beats:
 			_beats = beat + 1
-			Sfx.play(&"boss_hit", 0.55, -10.0)
+			Sfx.play(&"heartbeat", 0.9, -6.0)
 	# 3) contagem e botões.
 	if _t >= T_CHOICE:
 		_row.modulate.a = minf(1.0, (_t - T_CHOICE) * 3.0)

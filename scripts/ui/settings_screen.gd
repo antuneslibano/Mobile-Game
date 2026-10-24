@@ -105,7 +105,7 @@ func _build() -> void:
 	sv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sh.add_child(sv)
 	sv.add_child(UiTheme.label("Modo de compatibilidade", 24, UiTheme.TEXT, 700))
-	var compat_hint := UiTheme.label("Para celulares que fecham o jogo. Vale ao reabrir.", 18, UiTheme.TEXT_DIM, 500)
+	var compat_hint := UiTheme.label("Mais leve por dentro, sem perder música nem brilhos. Vale ao reabrir.", 18, UiTheme.TEXT_DIM, 500)
 	compat_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	compat_hint.custom_minimum_size = Vector2(300, 0)
 	sv.add_child(compat_hint)
@@ -193,7 +193,7 @@ func _volume_row(ch: StringName, name: String, hint: String) -> Control:
 		_update_label(ch))
 	# Ao soltar, um som de exemplo do canal (a música já está tocando).
 	s.drag_ended.connect(func(_changed: bool) -> void: _preview(ch))
-	v.add_child(s)
+	v.add_child(SliderGrip.wrap(s))
 	_sliders[ch] = s
 	return box
 

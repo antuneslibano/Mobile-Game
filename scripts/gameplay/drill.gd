@@ -48,6 +48,10 @@ var speed_mult: float = 1.0
 var heat_penalty: float = 0.0
 ## Perda de eficiência pelo desgaste (sujeira e ferrugem; Game atualiza).
 var wear_penalty: float = 0.0
+## Arena do guardião (0.21): sem gasto de combustível e sem calor; profundidade mostrada
+## continua a partir da câmara final (depth_offset_m).
+var arena: bool = false
+var depth_offset_m: int = 0
 ## Formato da broca (0.20): muda o tamanho da área cavada e, na Dupla, cava em dois pontos.
 var shape: StringName = &"cone"
 var radius: float = Balance.DRILL_RADIUS_PX
@@ -72,6 +76,8 @@ func setup(p_world: WorldModel, spawn: Vector2, p_seed: int = 0) -> void:
 	vitals.reset(stats)
 	disabled = false
 	strain = 0.0
+	arena = false
+	depth_offset_m = 0
 	modules.rng.seed = p_seed + 17
 
 
@@ -84,7 +90,7 @@ static func surface_spawn() -> Vector2:
 
 ## Profundidade em metros (base do corpo; 0 na superfície).
 func depth_m() -> int:
-	return maxi(0, floori((position.y + radius) / _b * Balance.METERS_PER_BLOCK))
+	return depth_offset_m + maxi(0, floori((position.y + radius) / _b * Balance.METERS_PER_BLOCK))
 
 
 func is_overlapping_solid() -> bool:
@@ -124,13 +130,13 @@ func physics_step(delta: float, intent: DrillIntent) -> void:
 	_dig_visual_t = maxf(0.0, _dig_visual_t - delta)
 	if energy.step(delta, stats, intent.boost):
 		boost_started.emit()
-	heat_penalty = HeatRules.penalty(depth_m(), stats.temp_limit)
+	heat_penalty = HeatRules.penalty(depth_m(), stats.temp_limit) if not arena else 0.0
 	speed_mult = energy.speed_mult(stats) * (1.0 - heat_penalty) * (1.0 - wear_penalty)
 
 	var a: Vector2 = DrillIntent.sanitize(intent.aim) if not disabled else Vector2.ZERO
 	var throttle: float = a.length()
 	var steering: bool = throttle > 0.05
-	if not disabled and vitals.step(delta, stats, steering or digging, energy.is_boosting(), HeatRules.over(depth_m(), stats.temp_limit)):
+	if not disabled and vitals.step(delta, stats, (steering or digging) and not arena, energy.is_boosting() and not arena, HeatRules.over(depth_m(), stats.temp_limit) if not arena else 0.0):
 		disabled = true
 		stranded.emit(&"fuel" if vitals.is_out_of_fuel() else &"hull")
 	if steering:

@@ -77,7 +77,7 @@ func _ready() -> void:
 	slider.editable = have > 1
 	SettingsScreen._style_slider(slider)
 	slider.value_changed.connect(func(_x: float) -> void: _update())
-	row.add_child(slider)
+	row.add_child(SliderGrip.wrap(slider))
 	row.add_child(_step_button("+", 1))
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 12)

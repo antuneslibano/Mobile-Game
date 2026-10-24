@@ -233,7 +233,7 @@ func _refresh() -> void:
 	var head := _panel("")
 	var row := HBoxContainer.new()
 	head.add_child(row)
-	var name := UiTheme.label(r.display_name.to_upper(), 38, r.ui_color, 700)
+	var name := UiTheme.fit(UiTheme.label(r.display_name.to_upper(), 38, r.ui_color, 700))
 	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(name)
 	var status: String = "BLOQUEADO"

@@ -74,6 +74,7 @@ func _ready() -> void:
 	game.input.hud = hud
 	hud.drill = game.drill
 	hud.guardian = game.guardian
+	hud.chase = game.chase
 	hud.sonar = game.sonar
 	hud.layer = 10
 	garage = Garage.new()
@@ -323,7 +324,7 @@ func _after_victory(next_region: StringName) -> void:
 
 func _on_extraction_finished() -> void:
 	Guard.step("relatório")
-	var r: Dictionary = GameState.end_expedition(_rescue, _rescue_reason if _rescue else &"extract", game.world.export_modifications())
+	var r: Dictionary = GameState.end_expedition(_rescue, _rescue_reason if _rescue else &"extract", game.region_world().export_modifications())
 	SaveService.save_now()
 	report.show_report(r)
 
@@ -439,12 +440,13 @@ func admin_jump(target: StringName) -> bool:
 		game.drill.vitals.fuel = game.drill.vitals.fuel_max
 		game.drill.vitals.hull = game.drill.vitals.hull_max
 		return true
-	var row: int = game.world.generator.relic_block.y - 4
-	var col: int = game.world.generator.relic_block.x
+	var rw: WorldModel = game.region_world()
+	var row: int = rw.generator.relic_block.y - 4
+	var col: int = rw.generator.relic_block.x
 	if target == &"jump_guardian":
 		row = RegionRegistry.chamber_top(GameState.region()) - 6
 		col = -1
-	game.start_run(GameState.world_seed, maxi(0, row), game.world.export_modifications(), false, col)
+	game.start_run(GameState.world_seed, maxi(0, row), rw.export_modifications(), false, col)
 	return true
 
 

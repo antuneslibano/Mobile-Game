@@ -54,7 +54,7 @@ static func plan(w: WorldModel, index: int) -> Dictionary:
 func build(p_world: WorldModel, index: int) -> void:
 	world = p_world
 	chunk_index = index
-	items = plan(world, index) if Guard.compat_level < 3 else {}  # nível 3: sem brilho
+	items = plan(world, index)
 	queue_redraw()
 
 
@@ -76,7 +76,8 @@ func _process(delta: float) -> void:
 	_redraw_cd -= delta
 	if _redraw_cd > 0.0:
 		return
-	_redraw_cd = REDRAW_SEC
+	# Compatibilidade nível 3 (0.21): o brilho continua, redesenhado menos vezes.
+	_redraw_cd = REDRAW_SEC if Guard.compat_level < 3 else REDRAW_SEC * 4.0
 	if _on_screen():
 		queue_redraw()
 
@@ -105,7 +106,7 @@ func _draw() -> void:
 		for ring in 3:
 			var r: float = ART * (7 + ring * 3)
 			draw_circle(_px(center), r, Color(col.r, col.g, col.b, (0.16 - ring * 0.045) * pulse * strength))
-		if tier >= 2:
+		if tier >= 2 and Guard.compat_level < 3:
 			# Partículas subindo e se apagando (algumas maiores).
 			for m in 6:
 				var mt: float = fposmod(_t * 0.32 + ph + m / 6.0, 1.0)

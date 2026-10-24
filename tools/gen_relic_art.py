@@ -136,6 +136,27 @@ ART = {
         "..r.o.y.g.b.....",
         "................",
     ]),
+    # Semente do guardião (0.21, arena): caroço vivo com veias e um núcleo pulsante.
+    "boss_seed": ({
+        "k": "1a0608", "d": "5a1424", "m": "9a2238", "r": "ff3a5a", "R": "ff9ab0", "w": "fff0f4", "v": "3a0c16",
+    }, [
+        "................",
+        "......kkkk......",
+        "....kkdmmdkk....",
+        "...kdmmvmmmdk...",
+        "...kmmrrrrmmk...",
+        "..kdmrRRRRrmdk..",
+        "..kmvrRwwRrvmk..",
+        "..kmmrRwRRrmmk..",
+        "..kdmrRRRRrmdk..",
+        "..kdmmrrrrmmdk..",
+        "...kdmmvmmmdk...",
+        "...kddmmmmddk...",
+        "....kkddddkk....",
+        "......kkkk......",
+        "................",
+        "................",
+    ]),
 }
 
 # Brilhos extras por variação (só em pixels vazios).

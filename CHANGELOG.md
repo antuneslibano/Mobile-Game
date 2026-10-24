@@ -3,6 +3,42 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.21.0] — Novo combate do guardião, criaturas sólidas e sons prontos
+
+### Adicionado
+- **Novo combate do guardião**: ao chegar na câmara final, um clarão com batimento leva a
+  nave para uma arena: um poço de terra macia, sem obstáculos. O guardião desce por
+  cima da nave (núcleo pulsando e tentáculos) e a acompanha, disparando espinhos que vêm
+  atrás dela, sempre com um aviso antes: um tiro mirado, depois em leque e, no fim,
+  uma chuva com brecha. Pelo caminho há **sementes vivas**, e cada uma quebrada com a
+  broca tira um pedaço da vida dele (6 no Vale, mais nas regiões difíceis). Na arena
+  não se gasta combustível e não há calor.
+- **Batimento do guardião** no lugar do som de dano: o núcleo pulsa ("tum-tum") e uma
+  onda passa pela tela, com as bordas brilhando; o coração acelera conforme ele
+  enfraquece.
+- **Som de oficina** (parafusadeira e batida de ferramenta) ao construir uma melhoria.
+
+### Alterado
+- **Criaturas sólidas**: nenhuma atravessa mais a nave. Aranha e minhoca rondam em volta,
+  dão um bote, batem e são arremessadas para trás, e voltam a rondar. Acertadas pela
+  broca, também são empurradas.
+- **Toupeira** mais solta: pulinhos frequentes, escala paredes mais altas, sobe na borda
+  ao chegar ao topo e, se ficar travada, pula para sair.
+- **Sons prontos** (banco `assets/audio/sound_bank.res`): efeitos, trilha e tema do guardião
+  vêm gerados no APK, sem síntese nem threads no celular. Por isso o **modo de
+  compatibilidade não tira mais a música, os sons, as criaturas nem os brilhos**: o
+  nível 2 só desliga o calor na tela, e o nível 3 deixa metade das criaturas e brilhos
+  sem partículas.
+- **Slider** de volume e de venda: segura o valor de onde está e segue o dedo mesmo
+  saindo da linha (a lista não rouba mais o arrasto); um toque sem arrastar anda 1.
+- **Nomes compridos** (ex.: "PÂNTANO DAS PROFUNDEZAS") encolhem para caber no mapa e no
+  carrossel. O teste de telas agora passa por todas as regiões, fichas do Laboratório,
+  alertas e vitórias, e acusa texto maior que a própria caixa.
+
+### Corrigido
+- "!" do Laboratório aceso sem nada novo (contava itens que não aparecem no catálogo,
+  como terra e pedra).
+
 ## [0.20.0] — Venda em quantidade, brocas que cavam diferente e telas que cabem
 
 ### Adicionado

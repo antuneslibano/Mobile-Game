@@ -100,6 +100,9 @@ var _bio := PackedVector2Array()
 
 func _update_bio() -> void:
 	var out := PackedVector2Array()
+	if Guard.compat_level >= 3:
+		_bio = out  # nível 3 (0.21): as plantas brilham, mas sem luz na névoa
+		return
 	for c: Vector2i in items:
 		var e: Array = items[c]
 		if is_bio(e):
@@ -125,11 +128,6 @@ func build(p_world: WorldModel, index: int) -> void:
 	world = p_world
 	chunk_index = index
 	items = plan(world, index, TerrainTextures.region_id)
-	if Guard.compat_level >= 3:
-		# Compatibilidade nível 3: sem plantas que brilham.
-		for c: Vector2i in items.keys():
-			if is_bio(items[c]):
-				items.erase(c)
 	for c: Vector2i in items:
 		if is_bio(items[c]):
 			Guard.mark("plantas que brilham")

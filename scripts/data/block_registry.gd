@@ -39,7 +39,10 @@ const FOSSIL: int = 31
 const METEORITE: int = 32
 # Relíquias (0.19): uma por região (Relics.DEFS), ids 33..38.
 const RELIC_FIRST: int = 33
-const COUNT: int = 39
+# Arena do guardião (0.21): semente que fere o guardião e terra macia do poço.
+const BOSS_SEED: int = 39
+const ARENA_SOIL: int = 40
+const COUNT: int = 41
 
 static var _defs: Array[BlockDef] = []
 
@@ -149,6 +152,12 @@ static func _build() -> void:
 				Color("2a2430"), Color("16121a"), acc)
 		relic.special = &"relic"
 		list[id] = relic
+	var seed := BlockDef.make(BOSS_SEED, &"boss_seed", "Semente do guardião", 36.0, 0.0, {}, BlockDef.Art.ORE,
+			Color("3a1a20"), Color("1e0c10"), Color("ff4a6a"))
+	seed.special = &"boss_seed"
+	list[BOSS_SEED] = seed
+	list[ARENA_SOIL] = BlockDef.make(ARENA_SOIL, &"arena_soil", "Terra viva", 7.0, 0.0, {}, BlockDef.Art.DIRT,
+			Color("5a3424"), Color("3a2016"), Color("7a4a32"))
 
 	_defs = list
 

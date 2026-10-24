@@ -8,9 +8,11 @@ extends Node
 ## - Depois de um fechamento, liga o modo de compatibilidade, que sobe um nível a cada
 ##   novo fechamento (0.17.2) até o jogo parar de fechar; o nível em que parou aponta a
 ##   causa. O jogador também pode escolher o nível nas Configurações.
-##     1: mundo e trilha sem threads, névoa simples;
-##     2: + sem trilha sonora e sem sons das criaturas;
-##     3: + sem criaturas, plantas que brilham e brilho dos minérios.
+##     1: mundo sem threads, névoa simples;
+##     2: + sem o efeito de calor na tela;
+##     3: + metade das criaturas, brilhos mais leves (sem partículas nem luz na névoa).
+##   Desde a 0.21 nenhum nível tira a música, os sons, as criaturas ou os brilhos: os sons
+##   vêm prontos do banco (SoundBank), sem síntese nem threads no aparelho.
 
 const PATH: String = "user://session.json"
 

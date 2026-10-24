@@ -53,6 +53,44 @@ func test_behaviours() -> void:
 	for i in 240:
 		bites += sp.step(DT, w, cave + Vector2(1.0 * b, 0), Balance.DRILL_RADIUS_PX)
 	check(bites > 0.0 and bites <= 4.0 * float(Creature.DEFS[&"spider"].dmg) + 0.01, "aranha morde a nave e espera a recarga (%.0f)" % bites)
+	# 0.21: ronda, bote, bate e é arremessada; nunca atravessa a nave.
+	var sp2 := Creature.new(&"spider", cave + Vector2(-2.5 * b, 0), 7)
+	var ship2: Vector2 = cave + Vector2(0.5 * b, 0)
+	var min_d: float = INF
+	var hits: int = 0
+	var after_hit_far: bool = false
+	var since_hit: float = -1.0
+	var hit_d: float = 0.0
+	var angles: Array[float] = []
+	for i in 600:
+		var bite: float = sp2.step(DT, w, ship2, Balance.DRILL_RADIUS_PX)
+		min_d = minf(min_d, sp2.pos.distance_to(ship2))
+		angles.append((sp2.pos - ship2).angle())
+		if bite > 0.0:
+			hits += 1
+			since_hit = 0.0
+			hit_d = sp2.pos.distance_to(ship2)
+		elif since_hit >= 0.0:
+			since_hit += DT
+			if since_hit > 0.3 and since_hit < 0.4 and sp2.pos.distance_to(ship2) > hit_d + b * 0.8:
+				after_hit_far = true
+	check(min_d >= Balance.DRILL_RADIUS_PX + sp2.radius * 0.9 - 0.5, "aranha não atravessa a nave (mín. %.0f px)" % min_d)
+	check(hits >= 2, "aranha dá botes repetidos (%d)" % hits)
+	check(after_hit_far, "depois de bater a aranha é arremessada para longe")
+	var span: float = 0.0
+	for k in range(1, angles.size()):
+		span += absf(wrapf(angles[k] - angles[k - 1], -PI, PI))
+	check(span > PI, "aranha ronda em volta da nave (%.1f rad)" % span)
+	# Toupeira: não fica travada (anda, pula e escala).
+	var mole_c := Creature.new(&"mole", cave + Vector2(0, 4.0 * b), 11)
+	var xs: Array[float] = []
+	var ys: Array[float] = []
+	for i in 1200:
+		mole_c.step(DT, w, cave + Vector2(40.0 * b, 0), Balance.DRILL_RADIUS_PX)
+		xs.append(mole_c.pos.x)
+		ys.append(mole_c.pos.y)
+	check(xs.max() - xs.min() > 3.0 * b, "toupeira anda pela caverna (%.1f blocos)" % ((xs.max() - xs.min()) / b))
+	check(ys.max() - ys.min() > 0.6 * b, "toupeira pula ou escala (%.1f blocos)" % ((ys.max() - ys.min()) / b))
 	var far := Creature.new(&"spider", cave, 3)
 	for i in 120:
 		far.step(DT, w, cave + Vector2(20.0 * b, 0), Balance.DRILL_RADIUS_PX)

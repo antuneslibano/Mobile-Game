@@ -210,8 +210,8 @@ func _draw_page(i: int, card: Rect2) -> void:
 	draw_texture_rect(tex, Rect2(p, sz), false, Color.WHITE if unlocked else Color(0.58, 0.58, 0.68))
 	# Placa com o nome + progresso ou cadeado.
 	var f: Font = UiTheme.font(700)
-	var fs: int = UiTheme.font_size(26, 700)
 	var name: String = UiTheme.display_text(r.display_name.to_upper())
+	var fs: int = UiTheme.fit_size(f, name, UiTheme.font_size(26, 700), inner.size.x - 70.0)
 	var tw: float = f.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var plate := Rect2(inner.get_center().x - tw * 0.5 - 22.0, inner.end.y - 92.0, tw + 44.0, 46.0)
 	draw_style_box(PixelArt.style(&"plate" if (unlocked and i == target) else &"inset"), plate)

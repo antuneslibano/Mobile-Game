@@ -83,6 +83,51 @@ func test_guardian_rules() -> void:
 	g.free()
 
 
+## 0.21: perseguição na arena: sementes ferem o guardião, espinhos acertam quem fica
+## parado, batimento e arena só com terra macia e sementes.
+func test_boss_chase() -> void:
+	var vale: RegionDef = RegionRegistry.get_def(RegionRegistry.VALE)
+	var b: float = Balance.BLOCK_PX
+	var g := FinalGuardian.new()
+	g.setup(vale, true)
+	var c := BossChase.new()
+	var view := Rect2(Vector2(0, 0), Vector2(720, 1280))
+	var ship := Vector2(12 * b, 900)
+	c.start(g, ship, view)
+	check(c.active and c.seeds_needed == BossChase.seeds_for(vale), "perseguição começa (%d sementes)" % c.seeds_needed)
+	var beats: Array[int] = [0]
+	c.beat.connect(func(_s: float) -> void: beats[0] += 1)
+	var hits: int = 0
+	for i in 60 * 20:
+		if c.step(1.0 / 60.0, ship, Vector2.ZERO, Balance.DRILL_RADIUS_PX, view) > 0.0:
+			hits += 1
+	check(hits >= 3, "parada, a nave leva espinhos (%d)" % hits)
+	check(hits <= int(20.0 / Balance.GUARDIAN_INVULN_SEC), "invulnerabilidade entre acertos")
+	check(beats[0] >= 12, "o núcleo bate como um coração (%d batidas)" % beats[0])
+	check(c.core.y < ship.y, "o guardião fica em cima da nave")
+	var killed: bool = false
+	for i in c.seeds_needed:
+		killed = c.seed_broken()
+	check(killed and not g.alive, "quebrar todas as sementes vence o guardião")
+	# Arena: salão aberto em cima, só terra macia e uma semente a cada ARENA_SEED_GAP fileiras.
+	var w := WorldModel.new(77, vale)
+	w.generator.arena = true
+	var seeds: int = 0
+	var other: int = 0
+	for y in range(0, 120):
+		for x in range(1, Balance.WORLD_WIDTH - 1):
+			var id: int = w.generator.arena_block(x, y)
+			if id == BlockRegistry.BOSS_SEED:
+				seeds += 1
+			elif not id in [BlockRegistry.AIR, BlockRegistry.ARENA_SOIL]:
+				other += 1
+	check(seeds == (120 - WorldGenerator.ARENA_FIRST_SEED_ROW - 1) / WorldGenerator.ARENA_SEED_GAP + 1 and other == 0, "arena: só terra e %d sementes" % seeds)
+	check(w.peek_cell(Vector2i(Balance.WORLD_CELLS_X / 2, 2)) == BlockRegistry.AIR, "arena aberta no topo")
+	check(BlockRegistry.get_def(BlockRegistry.ARENA_SOIL).max_hp < BlockRegistry.get_def(BlockRegistry.DIRT).max_hp, "terra da arena é macia")
+	c.free()
+	g.free()
+
+
 func test_fuel_upgrades() -> void:
 	var s: DrillStats = Progression.build_stats({&"fuel_tank": 2, &"fuel_eff": 2, &"hull": 3})
 	check(s.fuel_max > Balance.FUEL_BASE, "Tanque aumenta o combustível (%.0f)" % s.fuel_max)

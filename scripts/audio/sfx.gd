@@ -18,6 +18,8 @@ var _engine_on: bool = false
 var _last: Dictionary = {}             ## nome → último tempo tocado (limite de repetição)
 var enabled: bool = true
 var _music: AudioStreamPlayer
+const BANK_PATH: String = "res://assets/audio/sound_bank.res"
+var _bank: SoundBank = null
 ## Trilha pronta (gerada numa thread na abertura).
 var music_ready: bool = false
 var _music_task: int = -1
@@ -50,8 +52,15 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_make_buses()
 	load_settings()
-	_build_all()
+	# 0.21: sons pré-gerados (banco). Sem o arquivo, sintetiza como antes.
+	_bank = load(BANK_PATH) as SoundBank if ResourceLoader.exists(BANK_PATH) else null
+	if _bank != null and not _bank.streams.is_empty():
+		_streams = _bank.streams.duplicate()
+	else:
+		_bank = null
+		_build_all()
 	EventBus.cargo_sold.connect(func(_v: int) -> void: play(&"coin", randf_range(0.97, 1.03)))
+	EventBus.upgrade_purchased.connect(func(_id: StringName, _lvl: int) -> void: play(&"workshop", randf_range(0.96, 1.04)))
 	for i in VOICES:
 		var p := AudioStreamPlayer.new()
 		p.bus = BUS_NAMES[&"sfx"]
@@ -69,8 +78,14 @@ func _ready() -> void:
 	_boss.volume_db = -80.0
 	_boss.bus = BUS_NAMES[&"music"]
 	add_child(_boss)
-	if Guard.compat_level >= 2:
-		# Compatibilidade nível 2+: sem trilha sonora.
+	if _bank != null and _bank.music != null:
+		# Banco pré-gerado: trilha e tema prontos em qualquer nível de compatibilidade.
+		_start_music(_bank.music)
+		if _bank.boss != null:
+			_boss.stream = _bank.boss
+			boss_ready = true
+	elif Guard.compat_level >= 2:
+		# Compatibilidade nível 2+ sem banco: sem trilha sonora.
 		music_ready = true
 	elif Guard.compat:
 		# Modo de compatibilidade: sem threads; a trilha é gerada aos poucos, por quadro.
@@ -324,6 +339,43 @@ func _build_all() -> void:
 			out += (sin(TAU * f * lt) * 0.5 + sin(TAU * f * 2.76 * lt) * 0.22 + sin(TAU * f * 5.4 * lt) * 0.1) * exp(-lt * 11.0)
 		var jingle: float = (rng.randf() * 2.0 - 1.0) * exp(-t * 18.0) * 0.12
 		return out + jingle, 0.55)
+	# Oficina (0.21): parafusadeira acelerando (motor + dentes), duas apertadas e uma
+	# batida final de ferramenta no metal.
+	_streams[&"workshop"] = _synth(1.05, false, func(t: float, _i: int) -> float:
+		var out: float = 0.0
+		for seg: Array in [[0.0, 0.38], [0.45, 0.8]]:
+			var lt: float = t - float(seg[0])
+			var dur: float = float(seg[1]) - float(seg[0])
+			if lt < 0.0 or lt > dur:
+				continue
+			var k: float = lt / dur
+			var f: float = lerpf(170.0, 420.0, minf(1.0, k * 1.6))
+			var env: float = minf(1.0, lt * 40.0) * minf(1.0, (dur - lt) * 25.0)
+			var motor: float = _saw(t * f) * 0.3 + sin(TAU * f * 2.0 * t) * 0.12
+			var teeth: float = (rng.randf() * 2.0 - 1.0) * (0.5 + 0.5 * sin(TAU * f * 0.25 * t)) * 0.18
+			out += (motor + teeth) * env
+		var hit_t: float = t - 0.86
+		if hit_t >= 0.0:
+			out += (sin(TAU * 1250.0 * hit_t) * 0.4 + sin(TAU * 2890.0 * hit_t) * 0.2 + (rng.randf() * 2.0 - 1.0) * 0.3 * exp(-hit_t * 60.0)) * exp(-hit_t * 14.0)
+		return out, 0.55)
+	# Batimento do guardião (0.21): "tum-tum" grave, o segundo mais fraco.
+	_streams[&"heartbeat"] = _synth(0.7, false, func(t: float, _i: int) -> float:
+		var out: float = 0.0
+		for hb: Array in [[0.0, 1.0, 62.0], [0.2, 0.7, 54.0]]:
+			var lt: float = t - float(hb[0])
+			if lt < 0.0:
+				continue
+			var f: float = float(hb[2]) * (1.0 + 0.6 * exp(-lt * 30.0))
+			var env: float = minf(1.0, lt * 120.0) * exp(-lt * 11.0)
+			out += (sin(TAU * f * lt) + 0.35 * sin(TAU * f * 2.0 * lt)) * env * float(hb[1])
+			out += (rng.randf() * 2.0 - 1.0) * 0.08 * exp(-lt * 60.0) * float(hb[1])
+		return out * 0.9, 0.9)
+	# Semente do guardião quebrada: estalo úmido + brilho.
+	_streams[&"seed_pop"] = _synth(0.45, false, func(t: float, _i: int) -> float:
+		var crack: float = (rng.randf() * 2.0 - 1.0) * exp(-t * 35.0) * 0.7
+		var body: float = sin(TAU * (240.0 - 120.0 * minf(1.0, t * 4.0)) * t) * exp(-t * 8.0) * 0.6
+		var shine: float = (sin(TAU * 1568.0 * t) * 0.3 + sin(TAU * 2093.0 * t) * 0.2) * exp(-t * 6.0) * minf(1.0, t * 30.0)
+		return crack + body + shine, 0.7)
 	# Baú: arpejo brilhante.
 	_streams[&"chest"] = _synth(0.5, false, func(t: float, _i: int) -> float:
 		var notes: Array[float] = [523.3, 659.3, 784.0, 1046.5]

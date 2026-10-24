@@ -523,3 +523,27 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
 - **Telas**: `UiTheme.fit(label)` (texto encolhe para caber, sem largura mínima);
   `tests/overflow_check.tscn` abre as telas e falha se algo passar das laterais.
 
+## 25. 0.21: guardião na arena, criaturas sólidas e banco de sons
+
+- **Arena** (`Game._begin_arena_transition` → `_enter_arena`): clarão (CanvasLayer 30) e,
+  no auge, um `WorldModel` novo com `generator.arena = true` (`arena_block`: salão aberto
+  de `ARENA_OPEN_ROWS`, `ARENA_SOIL` macio, `BOSS_SEED` a cada `ARENA_SEED_GAP` fileiras).
+  O mundo da região fica em `_region_world`; `Game.region_world()` é o que vai para o
+  salvamento (`main` usa ao extrair). `Drill.arena` desliga combustível e calor;
+  `Drill.depth_offset_m` continua a profundidade. `DepthCamera.arena` põe a nave mais
+  para baixo. `start_run` chama `_leave_arena`.
+- **BossChase**: `start`, `step(delta, nave, vel, raio, vista)` → dano; espinhos
+  `{pos, dir, t, warn, from}` com aviso; padrões por `FinalGuardian.phase()` (mirado,
+  leque, chuva com brecha); `seed_broken()` tira `max_hp / seeds_needed`; sinal `beat`
+  → `Sfx heartbeat` + `PulseOverlay` (bordas e onda). O HUD mostra a barra com
+  `chase.active`.
+- **Criaturas**: corpo sólido em `Creature.step` (empurra para fora do raio da nave);
+  hostis com `mode` orbit/dash/recoil (`_combat_vel`, `knock`); toupeira com detecção de
+  travada e pulinhos.
+- **SoundBank** (`assets/audio/sound_bank.res`, `tools/bake_audio.tscn`): `Sfx` carrega
+  os streams prontos; sem o arquivo, sintetiza como antes. O teste de cena compara o
+  banco com os sintetizadores.
+- **SliderGrip**: envolve um HSlider; arrasto relativo, registrado em
+  `TouchScroll.no_scroll`.
+- **Telas**: `UiTheme.fit_size` para texto desenhado à mão (carrossel).
+

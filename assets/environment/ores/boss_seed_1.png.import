@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://y3muuklb5x2o"
+path="res://.godot/imported/boss_seed_1.png-3da29fcc998b1fc97b1a511e1a6e779b.image"
+
+[deps]
+
+source_file="res://assets/environment/ores/boss_seed_1.png"
+dest_files=["res://.godot/imported/boss_seed_1.png-3da29fcc998b1fc97b1a511e1a6e779b.image"]
+
+[params]
+

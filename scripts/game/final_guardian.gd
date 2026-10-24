@@ -76,6 +76,15 @@ func setup(r: RegionDef, is_alive: bool) -> void:
 	queue_redraw()
 
 
+## Arte do núcleo (usada também na perseguição, 0.21).
+func eye_texture() -> Texture2D:
+	return _eye_tex
+
+
+func flash_amount() -> float:
+	return _flash
+
+
 func hp_ratio() -> float:
 	return clampf(hp / max_hp, 0.0, 1.0)
 

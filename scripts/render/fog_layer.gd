@@ -40,7 +40,7 @@ func _process(_delta: float) -> void:
 	var xf: Transform2D = get_viewport().get_canvas_transform()
 	var sc: float = xf.get_scale().x
 	var vp: Vector2 = get_viewport().get_visible_rect().size
-	var s: float = strength_at(drill.depth_m())
+	var s: float = strength_at(drill.depth_m()) * (0.45 if drill.arena else 1.0)
 	_rect.visible = s > 0.01 and drill.visible
 	if not _rect.visible:
 		return

@@ -737,8 +737,13 @@ func sell_relic(key: StringName) -> int:
 ## Chaves de tudo o que o jogador já conhece no Laboratório.
 func lab_known() -> Array[String]:
 	var out: Array[String] = []
+	# Só o que aparece no catálogo (terra, pedra, couro... não têm célula: nunca seriam
+	# tocados e o "!" ficaria para sempre).
 	for k: StringName in economy.discovered:
-		out.append("r:" + String(k) if Relics.is_relic_key(k) else "m:" + String(k))
+		if Relics.is_relic_key(k):
+			out.append("r:" + String(k))
+		elif ResourceRegistry.has(k) and not k in ResourceRegistry.CATALOG_SKIP:
+			out.append("m:" + String(k))
 	for k: StringName in economy.relics:
 		out.append("r:" + String(k))
 	for k: StringName in creatures:

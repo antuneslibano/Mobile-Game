@@ -31,6 +31,24 @@ func _ready() -> void:
 			await _frames(10)
 			_scan("venda", garage)
 		if st == &"lab":
+			for k: StringName in ResourceRegistry.order():
+				GameState.economy.discovered[k] = true
+			for sp in Creature.ORDER:
+				GameState.creatures[sp] = {"seen": true, "defeated": 1}
+			for k: StringName in ResourceRegistry.order():
+				if not k in Garage.CATALOG_SKIP and not Relics.is_relic_key(k):
+					garage.call("_mineral_card", k, true)
+					await _frames(2)
+					_scan("ficha/" + String(k), garage)
+			for sp in Creature.ORDER:
+				garage.call("_creature_card", sp, true)
+				await _frames(2)
+				_scan("ficha/" + String(sp), garage)
+			for r in Relics.REGION_ORDER:
+				garage.call("_relic_card", r)
+				await _frames(2)
+				_scan("ficha/" + String(r), garage)
+			garage.call("_refresh")
 			for t in [&"creatures", &"plans", &"diary"]:
 				garage.set("_lab_tab", t)
 				garage.call("_refresh")
@@ -39,9 +57,13 @@ func _ready() -> void:
 		garage.close()
 		await _frames(3)
 	var wm: Node = main.get("world_map")
+	for r in RegionRegistry.all():
+		GameState.unlocked[r.id] = true
 	wm.call("open")
-	await _frames(10)
-	_scan("mapa", wm)
+	for i in RegionRegistry.all().size():
+		wm.call("go_to_page", i, true)
+		await _frames(8)
+		_scan("mapa/" + String(RegionRegistry.all()[i].id), wm)
 	wm.call("close")
 	var st2: SettingsScreen = main.get("settings")
 	st2.open()
@@ -58,21 +80,35 @@ func _ready() -> void:
 	main.call("_start_expedition", RegionRegistry.VALE, 0)
 	await _frames(10)
 	_scan("hud", main.get("hud"))
+	var hud: Node = main.get("hud")
+	var alerts: Array[String] = []
+	for sp in Creature.ORDER:
+		alerts.append(("Nova criatura: " + String(Creature.DEFS[sp].name)).to_upper())
+	for r in Relics.REGION_ORDER:
+		alerts.append("RELÍQUIA: %s!" % String(Relics.DEFS[r][1]).to_upper())
+	for rr in RegionRegistry.all():
+		alerts.append(("Câmara final: " + rr.display_name).to_upper())
+	alerts.append("SUPERAQUECENDO 320°/150°\nBROCA −50%  ·  CASCO −12/s")
+	for t in alerts:
+		hud.call("show_alert", t, Color.WHITE)
+		await _frames(2)
+		_scan("alerta: " + t.left(30), hud)
 	var rep: ExpeditionReport = main.get("report")
 	GameState.collect_drops(Vector2.ZERO, {&"copper": 40, &"gold": 9, &"leather": 2})
 	rep.show_report(GameState.end_expedition(false))
 	await _frames(10)
 	_scan("resumo", rep)
-	var vic := VictoryScreen.new()
-	vic.guardian_name = "o Coração da Raiz-Mãe"
-	vic.unlocked_name = "Dunas Escaldantes"
-	vic.next_region = &"dunas"
-	main.add_child(vic)
-	for i in 330:
-		await get_tree().process_frame
-	if is_instance_valid(vic):
-		_scan("vitória", vic)
+	for rr in RegionRegistry.all():
+		var vic := VictoryScreen.new()
+		vic.guardian_name = rr.guardian_name
+		vic.unlocked_name = rr.display_name
+		vic.next_region = &"dunas"
+		main.add_child(vic)
+		for i in 4:
+			await get_tree().process_frame
+		_scan("vitória/" + String(rr.id), vic)
 		vic.queue_free()
+		await get_tree().process_frame
 	get_tree().paused = false
 	GameState.economy.cargo[&"relic_seed"] = 1
 	main.call("show_relic_choice", &"relic_seed")
@@ -96,8 +132,20 @@ func _scan(label: String, root: Node) -> void:
 		var ctl := c as Control
 		if ctl is ScrollContainer or ctl.size.x <= 0.0:
 			continue
-		# Dentro de rolagem horizontal não conta.
 		var r: Rect2 = ctl.get_global_rect()
+		# Texto maior que a própria caixa (sem quebra de linha nem corte): vaza na tela.
+		if ctl is Label:
+			var lb := ctl as Label
+			if lb.autowrap_mode == TextServer.AUTOWRAP_OFF and not lb.clip_text and lb.text != "":
+				var f: Font = lb.get_theme_font("font")
+				var fs: int = lb.get_theme_font_size("font_size")
+				var widest: float = 0.0
+				for line in lb.text.split("\n"):
+					widest = maxf(widest, f.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x)
+				var cx: float = r.get_center().x
+				if cx - widest * 0.5 < -1.0 and lb.horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER or cx + widest * 0.5 > w + 1.0 and lb.horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER or (lb.horizontal_alignment != HORIZONTAL_ALIGNMENT_CENTER and r.position.x + widest > w + 1.0):
+					found.append("TEXTO '%s' (%.0f px) x=%.0f" % [lb.text.left(30), widest, r.position.x])
+					continue
 		if r.position.x < -1.0 or r.end.x > w + 1.0:
 			if _clipped_by_parent(ctl):
 				continue

@@ -35,14 +35,18 @@ func setup(w: WorldModel, r: RegionDef, p_seed: int) -> void:
 	world = w
 	region = r
 	_seed = p_seed
-	if not SPAWNS.has(r.id) or Guard.compat_level >= 3:
-		return  # compatibilidade nível 3: sem criaturas
+	if not SPAWNS.has(r.id):
+		return
 	w.chunk_loaded.connect(_on_chunk_loaded)
 	w.chunk_unloaded.connect(_on_chunk_unloaded)
 
 
 func _on_chunk_loaded(index: int) -> void:
+	var k: int = 0
 	for e: Dictionary in plan(world, index, region, _seed):
+		k += 1
+		if Guard.compat_level >= 3 and k % 2 == 0:
+			continue  # compatibilidade nível 3 (0.21): metade das criaturas
 		Guard.mark("nasce " + String(e.species))
 		creatures.append(Creature.new(e.species, e.pos, hash([_seed, index, e.species])))
 
@@ -128,8 +132,7 @@ func step(delta: float, drill: Drill, steering: bool) -> void:
 		if bite > 0.0:
 			Guard.mark("mordida " + String(c.species))
 			ship_bitten.emit(bite, c.species)
-			if Guard.compat_level < 2:
-				Sfx.play(&"bite", randf_range(0.9, 1.1))
+			Sfx.play(&"bite", randf_range(0.9, 1.1))
 		_maybe_sound(c, delta, c.pos.distance_to(ship) / b)
 		if c.pos.distance_to(ship) < SEE_BLOCKS * b:
 			Guard.mark("perto " + String(c.species))
@@ -139,6 +142,9 @@ func step(delta: float, drill: Drill, steering: bool) -> void:
 				if p.distance_to(bit) < bit_r + c.radius:
 					if c.take_damage(dps * delta):
 						dead.append(c)
+					elif c.mode != &"recoil" and c.species != &"firefly":
+						# Golpe da broca (0.21): a criatura é empurrada para longe.
+						c.knock(p - ship, 0.6)
 					break
 	for c in dead:
 		_kill(c)
@@ -147,8 +153,8 @@ func step(delta: float, drill: Drill, steering: bool) -> void:
 ## Sons das criaturas perto da nave (mais alto quanto mais perto), de tempos em tempos.
 func _maybe_sound(c: Creature, delta: float, dist_blocks: float) -> void:
 	c.sound_cd -= delta
-	if c.sound_cd > 0.0 or dist_blocks > 8.0 or Guard.compat_level >= 2:
-		return  # compatibilidade nível 2+: criaturas sem som
+	if c.sound_cd > 0.0 or dist_blocks > 8.0:
+		return
 	var vol: float = -4.0 - dist_blocks * 2.2
 	match c.species:
 		&"firefly":

@@ -535,6 +535,19 @@ func _run() -> void:
 	var cr0: int = GameState.economy.credits
 	_check(GameState.sell_relic(&"relic_seed") == 6000 and GameState.economy.credits == cr0 + 6000, "relíquia repetida vende por 6000")
 
+	# 0.21: banco de sons pré-gerado e atualizado (igual ao que os sintetizadores geram).
+	var bank: SoundBank = load(Sfx.BANK_PATH)
+	var live: Dictionary = (Sfx.get("_streams") as Dictionary).duplicate()
+	Sfx.call("_build_all")
+	var fresh: Dictionary = Sfx.get("_streams")
+	var stale: Array[String] = []
+	for k: Variant in fresh:
+		if not bank.streams.has(k) or (bank.streams[k] as AudioStreamWAV).data != (fresh[k] as AudioStreamWAV).data:
+			stale.append(String(k))
+	Sfx.set("_streams", live)
+	_check(bank != null and stale.is_empty() and bank.music != null and bank.boss != null, "banco de sons atualizado (rode tools/bake_audio.tscn) %s" % str(stale))
+	_check(Sfx.music_ready, "trilha tocando a partir do banco")
+
 	# 0.20: venda em quantidade com slider e som de moeda.
 	var g2: Garage = main.get("garage")
 	GameState.economy.cargo[&"iron"] = 90

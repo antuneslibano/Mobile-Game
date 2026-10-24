@@ -23,6 +23,9 @@ const COMBAT_ZOOM: float = 0.75
 const COMBAT_FLOOR_SCREEN_Y: float = 0.8
 ## Queda livre (0.20), 0..1: aproxima a câmera, olha mais para baixo e treme de leve.
 var fall: float = 0.0
+## Arena do guardião (0.21): a nave fica mais para baixo na tela (o guardião vem por cima).
+var arena: bool = false
+const ARENA_LOOK: float = -0.14
 const FALL_ZOOM: float = 0.14
 const FALL_LOOK: float = 0.1
 var _ease_t: float = 0.0
@@ -104,7 +107,8 @@ static func step_for_scale(sc: float) -> float:
 
 func _desired() -> Vector2:
 	var view: Vector2 = get_viewport_rect().size / zoom
-	var p: Vector2 = target.global_position + Vector2(0.0, view.y * (Balance.CAMERA_LOOK_AHEAD_RATIO + FALL_LOOK * fall))
+	var look: float = ARENA_LOOK if arena else Balance.CAMERA_LOOK_AHEAD_RATIO + FALL_LOOK * fall
+	var p: Vector2 = target.global_position + Vector2(0.0, view.y * look)
 	if intro:
 		p.y = -view.y * (INTRO_SURFACE_SCREEN_Y - 0.5)
 	if combat:

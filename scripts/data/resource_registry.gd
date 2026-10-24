@@ -4,6 +4,9 @@ extends RefCounted
 ## Minérios são raros e valiosos (vale desviar até eles); terra/pedra/basalto/pedra abissal
 ## ficam registrados só para salvamentos antigos — o terreno não rende mais nada.
 
+## Fora do catálogo do Laboratório (materiais de entulho, couro).
+const CATALOG_SKIP: Array[StringName] = [&"dirt", &"stone", &"basalt", &"abyss_stone", &"bio_sample", &"leather"]
+
 static var _defs: Dictionary = {}     ## StringName → ResourceDef
 static var _order: Array[StringName] = []
 

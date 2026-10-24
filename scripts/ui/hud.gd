@@ -58,6 +58,7 @@ var _combat: bool = false
 var drill: Drill
 ## Guardião da câmara final (somente leitura) para a barra de vida.
 var guardian: FinalGuardian
+var chase: BossChase
 
 
 func _ready() -> void:
@@ -471,12 +472,12 @@ func _on_final_chamber(region_id: StringName, alive: bool) -> void:
 
 
 func _update_guardian() -> void:
-	var show: bool = guardian != null and guardian.alive and guardian.in_arena(drill.position)
+	var show: bool = guardian != null and guardian.alive and chase != null and chase.active
 	_boss.visible = show
 	if show:
 		_boss_name.text = UiTheme.display_text(guardian.region.guardian_name.to_upper())
 		_boss_bar.value = guardian.hp_ratio()
-		_boss.modulate = Color(1.4, 1.4, 1.4) if guardian.danger() and int(Time.get_ticks_msec() / 110) % 2 == 0 else Color.WHITE
+		_boss.modulate = Color(1.4, 1.4, 1.4) if chase.danger() and int(Time.get_ticks_msec() / 110) % 2 == 0 else Color.WHITE
 
 
 var _weak_t: float = 0.0

@@ -52,7 +52,7 @@ var _thumbs: Dictionary = {}             ## chave do visual → textura da minia
 var _lab_tab: StringName = &"minerals"
 const TITLES: Dictionary = {&"bench": "BANCADA", &"hangar": "HANGAR", &"market": "MERCADO", &"lab": "LABORATÓRIO"}
 ## Minerais do catálogo (sem os materiais antigos de entulho).
-const CATALOG_SKIP: Array[StringName] = [&"dirt", &"stone", &"basalt", &"abyss_stone", &"bio_sample", &"leather"]
+const CATALOG_SKIP: Array[StringName] = ResourceRegistry.CATALOG_SKIP
 
 
 func _ready() -> void:

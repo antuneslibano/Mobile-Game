@@ -22,7 +22,10 @@ func _initialize() -> void:
 	var total: int = 0
 	var failed: int = 0
 	var t0: int = Time.get_ticks_msec()
+	var only: String = OS.get_environment("SUITE")  # ex.: SUITE=test_creatures roda só uma
 	for path in SUITES:
+		if only != "" and not path.contains(only):
+			continue
 		var script: GDScript = load(path)
 		if script == null:
 			print("ERRO  não foi possível carregar %s" % path)

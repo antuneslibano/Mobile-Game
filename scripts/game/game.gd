@@ -33,6 +33,13 @@ var _crumb_depth: int = -1
 var _fall_t: float = 0.0
 var _fall: float = 0.0
 var fall_fx: FallFx
+## Combate do guardião (0.21): perseguição numa arena (mundo à parte). _region_world guarda
+## o mundo da região enquanto a nave está na arena.
+var chase: BossChase
+var pulse: PulseOverlay
+var _region_world: WorldModel
+var _flash_layer: CanvasLayer
+var _flash_rect: ColorRect
 const FALL_SPEED_BLOCKS: float = 8.0   ## Acima disto (blocos/s, para baixo) conta como queda.
 const FALL_DELAY_SEC: float = 0.3      ## Só depois deste tempo caindo o efeito começa.
 
@@ -94,12 +101,29 @@ func _ready() -> void:
 	fall_fx = FallFx.new()
 	fall_fx.name = "FallFx"
 	drill.add_child(fall_fx)
+	chase = BossChase.new()
+	chase.name = "BossChase"
+	chase.visible = false
+	add_child(chase)
+	chase.beat.connect(_on_boss_beat)
+	pulse = PulseOverlay.new()
+	pulse.name = "PulseOverlay"
+	add_child(pulse)
+	_flash_layer = CanvasLayer.new()
+	_flash_layer.layer = 30
+	add_child(_flash_layer)
+	_flash_rect = ColorRect.new()
+	_flash_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_flash_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_flash_rect.color = Color(1, 1, 1, 0)
+	_flash_layer.add_child(_flash_rect)
 
 
 ## Começa uma expedição: mundo fixo da região (com a escavação salva) e a nave na
 ## superfície (start_row > 0 só em testes). mods vazio = mundo intocado.
 ## guardian_defeated: o guardião da câmara final já foi vencido (núcleo aberto).
 func start_run(world_seed: int, start_row: int = -1, mods: Dictionary = {}, guardian_defeated: bool = false, start_x: int = -1) -> void:
+	_leave_arena()
 	if world != null:
 		world.shutdown()
 	extracting = false
@@ -189,9 +213,12 @@ func _physics_process(delta: float) -> void:
 	if camera.intro and (drill.depth_m() > 0 or DrillIntent.sanitize(intent.aim).length() > 0.05):
 		camera.end_intro()
 	_update_fall(delta)
-	GameState.update_depth(drill.depth_m())
-	GameState.check_final_chamber(floori(drill.position.x / Balance.BLOCK_PX), drill.depth_m())
-	_guardian_step(delta, intent)
+	if in_arena():
+		_chase_step(delta)
+	else:
+		GameState.update_depth(drill.depth_m())
+		GameState.check_final_chamber(floori(drill.position.x / Balance.BLOCK_PX), drill.depth_m())
+		_guardian_step(delta, intent)
 	creatures.step(delta, drill, DrillIntent.sanitize(intent.aim).length() > 0.05)
 	sonar.step(delta)
 	if intent.sonar and not drill.disabled:
@@ -244,35 +271,9 @@ func _on_creature_defeated(species: StringName, at: Vector2) -> void:
 ## sobem de baixo ferem o casco; andar por cima do corpo (movendo-se) o desgasta.
 func _guardian_step(delta: float, intent: DrillIntent) -> void:
 	_update_boss_music()
-	var fighting: bool = guardian.alive and guardian.in_arena(drill.position) and not drill.disabled
-	if fighting != camera.combat:
-		camera.combat = fighting
-		camera.combat_anchor = Vector2(guardian.center.x, guardian.floor_y)
-		EventBus.guardian_combat.emit(fighting)
-	if not guardian.alive or drill.disabled:
-		return
-	var hit: float = guardian.step(delta, drill.position, drill.radius)
-	if hit > 0.0:
-		drill.apply_hull_damage(hit)
-		camera.add_shake(0.7)
-		fx.emit_burst(drill.position, guardian.glow_color, 16, 300.0, 0.6, 4.0, 300.0)
-		fx.emit_burst(drill.position, Color("ff5a3a"), 10, 240.0, 0.5, 3.0, 300.0)
-		EventBus.ship_hit.emit(hit)
-		Sfx.play(&"ship_hit")
-	var steering: bool = DrillIntent.sanitize(intent.aim).length() > 0.05
-	if not steering or not guardian.on_body(drill.position, drill.radius):
-		return
-	var s: DrillStats = drill.stats
-	var dps: float = s.damage * s.hits_per_second * drill.speed_mult * (1.0 + s.crit_chance * (s.crit_mult - 1.0))
-	_spark_t -= delta
-	if _spark_t <= 0.0:
-		_spark_t = 0.08
-		var p := Vector2(drill.position.x, guardian.body_top)
-		fx.emit_burst(p, guardian.glow_color, 4, 220.0, 0.35, 3.0, 600.0)
-		camera.add_shake(0.05)
-		Sfx.play(&"boss_hit", randf_range(0.85, 1.1), -3.0, 0.16)
-	if guardian.take_damage(dps * delta):
-		_on_guardian_defeated()
+	# 0.21: ao chegar à câmara final com o guardião vivo, a nave vai para a arena.
+	if guardian.alive and not drill.disabled and not extracting and _flash_t < 0.0 and guardian.in_arena(drill.position):
+		_begin_arena_transition()
 
 
 ## Tema do guardião (0.18): começa antes de vê-lo, a BOSS_MUSIC_RANGE_M acima da câmara
@@ -294,11 +295,12 @@ func _update_boss_music() -> void:
 
 
 func _on_guardian_defeated() -> void:
-	var c: Vector2 = guardian.center + Vector2(0, Balance.BLOCK_PX)
-	world.fill_cells(guardian.body_cells(), BlockRegistry.AIR)
+	var c: Vector2 = chase.core if chase.active else guardian.center + Vector2(0, Balance.BLOCK_PX)
+	region_world().fill_cells(guardian.body_cells(), BlockRegistry.AIR)
 	for i in 5:
-		fx.emit_burst(Vector2(lerpf(guardian.x0, guardian.x1, i / 4.0), guardian.body_top + 30.0), guardian.glow_color, 20, 420.0, 1.1, 5.0, 400.0)
+		fx.emit_burst(c + Vector2.from_angle(i * TAU / 5.0) * 60.0, guardian.glow_color, 20, 420.0, 1.1, 5.0, 400.0)
 	fx.emit_burst(c, Color("fff2a8"), 40, 420.0, 1.0, 3.0, 150.0)
+	Sfx.play(&"heartbeat", 0.7, 4.0)
 	camera.add_shake(1.0)
 	camera.combat = false
 	EventBus.guardian_combat.emit(false)
@@ -357,18 +359,20 @@ func _on_dug(counts: Dictionary, at: Vector2) -> void:
 	if special:
 		fx.emit_burst(at, Color("fff2a8"), 10, 300.0, 0.8, 3.0, 150.0)
 		camera.add_shake(0.25)
+	# Semente do guardião (arena): cada uma quebrada fere o guardião.
+	if counts.has(BlockRegistry.BOSS_SEED) and chase.active:
+		Sfx.play(&"seed_pop", randf_range(0.95, 1.05))
+		fx.emit_burst(at, guardian.glow_color, 30, 380.0, 0.9, 4.0, 200.0)
+		camera.add_shake(0.45)
+		pickups.show_text(at + Vector2(0, -40), "%d/%d" % [chase.seeds_broken + 1, chase.seeds_needed], guardian.glow_color)
+		if chase.seed_broken():
+			_on_guardian_defeated()
 	GameState.register_cells_dug(removed)
 	EventBus.material_dug.emit(at, counts)
 	GameState.collect_drops(at, Drill.drops_for(counts))
 
 
 func _on_unbreakable(point: Vector2) -> void:
-	# No corpo do guardião (0.19): som próprio de acerto, não o "clank" da rocha-mãe.
-	if guardian.alive and guardian.on_body(drill.position, drill.radius + 10.0):
-		Sfx.play(&"boss_hit", randf_range(0.85, 1.1), -3.0, 0.16)
-		fx.emit_burst(point, guardian.glow_color, 6, 240.0, 0.4, 3.0, 400.0)
-		camera.add_shake(0.1)
-		return
 	Sfx.play(&"clank", randf_range(0.9, 1.1), -6.0, 0.2)
 	fx.sparks(point, 5)
 	camera.add_shake(0.08)
@@ -404,4 +408,101 @@ func _update_fall(delta: float) -> void:
 	_fall = move_toward(_fall, target, delta * (1.5 if falling else 4.0))
 	camera.fall = _fall
 	fall_fx.amount = _fall
+
+
+# --- Arena do guardião (0.21) -----------------------------------------------------------
+
+var _flash_t: float = -1.0
+const FLASH_SEC: float = 0.7
+
+
+## A nave está na arena (perseguição do guardião).
+func in_arena() -> bool:
+	return _region_world != null
+
+
+## Mundo da região (o da arena fica à parte): é ele que vai para o salvamento.
+func region_world() -> WorldModel:
+	return _region_world if _region_world != null else world
+
+
+## Clarão com batimento; no auge a nave passa para a arena (a troca fica escondida).
+func _begin_arena_transition() -> void:
+	_flash_t = 0.0
+	Sfx.play(&"heartbeat", 0.85, 2.0)
+	camera.add_shake(0.6)
+	var tw := create_tween()
+	tw.tween_property(_flash_rect, "color:a", 1.0, FLASH_SEC * 0.45).set_ease(Tween.EASE_IN)
+	tw.tween_callback(_enter_arena)
+	tw.tween_property(_flash_rect, "color:a", 0.0, FLASH_SEC * 0.8).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func() -> void: _flash_t = -1.0)
+	_flash_rect.color = Color(guardian.glow_color.lightened(0.6), 0.0)
+
+
+func _enter_arena() -> void:
+	if not guardian.alive or extracting or in_arena():
+		return
+	Guard.mark("arena do guardião")
+	var depth: int = drill.depth_m()
+	_region_world = world
+	world = WorldModel.new(hash([GameState.world_seed, GameState.region_id, "arena"]) & 0x7FFFFFFF, GameState.region())
+	world.generator.arena = true
+	world.threaded = not Guard.compat
+	creatures.creatures.clear()
+	sonar.world = world
+	sonar.reset()
+	var spawn := Vector2(Balance.WORLD_CELLS_X * Balance.CELL_PX * 0.5, (WorldGenerator.ARENA_OPEN_ROWS - 2) * Balance.BLOCK_PX)
+	drill.world = world
+	drill.position = spawn
+	drill.velocity = Vector2.ZERO
+	drill.arena = true
+	drill.depth_offset_m = depth - (WorldGenerator.ARENA_OPEN_ROWS - 2)
+	camera.combat = false
+	camera.bottom_limit = INF
+	camera.arena = true
+	camera.snap_to_target()
+	terrain.setup(world, camera)
+	var view: Rect2 = _view_rect()
+	chase.start(guardian, drill.position, view)
+	EventBus.guardian_combat.emit(true)
+
+
+func _leave_arena() -> void:
+	if _region_world == null:
+		return
+	if world != null:
+		world.shutdown()
+	world = _region_world
+	_region_world = null
+	chase.stop()
+	camera.arena = false
+	drill.arena = false
+	drill.depth_offset_m = 0
+
+
+func _view_rect() -> Rect2:
+	var vs: Vector2 = get_viewport_rect().size / camera.zoom
+	return Rect2(camera.get_screen_center_position() - vs * 0.5, vs)
+
+
+func _chase_step(delta: float) -> void:
+	_update_boss_music()
+	EventBus.depth_changed.emit(drill.depth_m(), maxi(GameState.max_depth_m, drill.depth_m()))
+	if drill.disabled:
+		return
+	var hit: float = chase.step(delta, drill.position, drill.velocity, drill.radius, _view_rect())
+	if hit > 0.0:
+		drill.apply_hull_damage(hit)
+		camera.add_shake(0.7)
+		fx.emit_burst(drill.position, guardian.glow_color, 16, 300.0, 0.6, 4.0, 300.0)
+		fx.emit_burst(drill.position, Color("ff5a3a"), 10, 240.0, 0.5, 3.0, 300.0)
+		EventBus.ship_hit.emit(hit)
+		Sfx.play(&"ship_hit")
+
+
+func _on_boss_beat(strength: float) -> void:
+	Sfx.play(&"heartbeat", randf_range(0.97, 1.03), -2.0 + 4.0 * strength)
+	camera.add_shake(0.12 * strength)
+	var screen: Vector2 = get_viewport().get_canvas_transform() * chase.core
+	pulse.pulse(strength, guardian.glow_color, screen)
 
