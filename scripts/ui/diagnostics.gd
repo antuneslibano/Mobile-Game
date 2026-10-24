@@ -25,6 +25,8 @@ static func report(vp: Viewport) -> String:
 			str(vp.get_visible_rect().size if vp != null else Vector2.ZERO), DisplayServer.screen_get_scale()])
 	lines.append("Área segura: %s · margens %s" % [str(DisplayServer.get_display_safe_area()), str(SafeArea.insets(vp))])
 	lines.append("Modo de compatibilidade: %s%s" % ["nível %d" % Guard.compat_level if Guard.compat else "desligado", " (escolhido)" if Guard.compat_manual else " (automático)"])
+	lines.append("Modo gráfico: %s agora · %s na próxima abertura%s%s" % [Guard.renderer, "vulkan" if Guard.vulkan_next else "opengl3",
+			" (escolhido)" if Guard.graphics_manual else " (automático)", " · Vulkan já falhou" if Guard.vulkan_failed else ""])
 	lines.append("Etapa atual: %s" % Guard.step_name)
 	if Guard.crashed_last_time:
 		lines.append("FECHOU SOZINHO na última vez, em: %s (seguidas: %d)" % [Guard.last_step, Guard.crash_count])
@@ -211,6 +213,10 @@ static func _trace_summary(stream: Object, native: bool) -> String:
 			if keep.size() >= 25:
 				break
 		return "\n".join(keep)
+	# 0.22: leitura de verdade do protobuf (thread que quebrou); se falhar, trechos soltos.
+	var parsed: String = Tombstone.summary(bytes)
+	if parsed != "":
+		return parsed
 	# Trechos ASCII imprimíveis com pelo menos 6 caracteres; ficam os que parecem frames.
 	var parts: PackedStringArray = []
 	var run := PackedByteArray()

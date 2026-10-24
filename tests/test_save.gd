@@ -75,3 +75,14 @@ func test_economy_from_dict_validates() -> void:
 	check(bad.cargo.is_empty(), "carga inválida descartada")
 	check_eq(bad.get_level(&"damage"), UpgradeRegistry.get_def(&"damage").max_level, "nível limitado ao máximo")
 	check(bad.equipped_modules.is_empty(), "módulo não comprado não é equipado")
+
+
+## 0.22: leitura do tombstone do Android (thread que quebrou, sinal e pilha).
+func test_tombstone_summary() -> void:
+	var bytes: PackedByteArray = "0803120b73616d73756e672f723971286330c8015221080b1207534947534547561801220b534547565f4d415045525240014890dafa0682013c08641238086412046d61696e222e08b42410b4a48080800e2211707468726561645f636f6e645f776169742800320d2f617065782f6c6962632e736f8201980108c80112920108c801120b474c546872656164203432224708c4c72210c4c7a280800e2215676c65735f647261775f647261775f617272617973280c32212f76656e646f722f6c696236342f65676c2f6c6962474c45535f6d616c692e736f223708805e1080de8080800e280032292f646174612f6170702f782f6c69622f61726d36342f6c6962676f646f745f616e64726f69642e736f".hex_decode()
+	var txt: String = Tombstone.summary(bytes)
+	check(txt.contains("SIGSEGV") and txt.contains("SEGV_MAPERR") and txt.contains("0xdead10"), "sinal e endereço")
+	check(txt.contains("GLThread 42") and txt.contains("libGLES_mali.so +0x8a3c4 gles_draw_draw_arrays+12"), "thread que quebrou e o quadro do driver")
+	check(txt.contains("libgodot_android.so +0x2f00") and not txt.contains("pthread_cond_wait"), "só a pilha da thread que quebrou")
+	check(Tombstone.summary("lixo qualquer".to_utf8_buffer()) == "" or not Tombstone.summary("lixo qualquer".to_utf8_buffer()).contains("thread que quebrou"), "bytes inválidos não quebram")
+

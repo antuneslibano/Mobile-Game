@@ -18,6 +18,7 @@ var _sliders: Dictionary = {}   ## canal → HSlider
 var _values: Dictionary = {}    ## canal → Label (porcentagem)
 var _was_paused: bool = false
 var _compat: Button
+var _gfx: Button
 
 
 func _ready() -> void:
@@ -119,6 +120,31 @@ func _build() -> void:
 		_update_compat())
 	sh.add_child(_compat)
 	_update_compat()
+	# Modo gráfico (0.22): OpenGL ou Vulkan (vale ao reabrir).
+	var gsys := PanelContainer.new()
+	gsys.add_theme_stylebox_override("panel", PixelArt.style(&"inset"))
+	v.add_child(gsys)
+	var gh := HBoxContainer.new()
+	gh.add_theme_constant_override("separation", 10)
+	gsys.add_child(gh)
+	var gv := VBoxContainer.new()
+	gv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	gh.add_child(gv)
+	gv.add_child(UiTheme.label("Modo gráfico", 24, UiTheme.TEXT, 700))
+	var gfx_hint := UiTheme.label("Vulkan resolve o jogo fechando em alguns celulares. Vale ao reabrir.", 18, UiTheme.TEXT_DIM, 500)
+	gfx_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	gfx_hint.custom_minimum_size = Vector2(300, 0)
+	gv.add_child(gfx_hint)
+	_gfx = Button.new()
+	_gfx.name = "GraphicsToggle"
+	_gfx.custom_minimum_size = Vector2(150, 70)
+	_gfx.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_gfx.add_theme_font_size_override("font_size", UiTheme.font_size(20, 700))
+	_gfx.pressed.connect(func() -> void:
+		Guard.set_graphics(not Guard.vulkan_next)
+		_update_gfx())
+	gh.add_child(_gfx)
+	_update_gfx()
 	var diag := Button.new()
 	diag.name = "DiagnosticsButton"
 	diag.text = UiTheme.display_text("DIAGNÓSTICO")
@@ -243,6 +269,11 @@ static func _grabber() -> ImageTexture:
 		img.fill_rect(Rect2i(17, 10, 6, 16), Color("5a6378"))
 		_grabber_tex = ImageTexture.create_from_image(img)
 	return _grabber_tex
+
+
+func _update_gfx() -> void:
+	_gfx.text = UiTheme.display_text("VULKAN" if Guard.vulkan_next else "OPENGL")
+	UiTheme.style_button(_gfx, &"green" if Guard.vulkan_next else &"steel")
 
 
 func _update_compat() -> void:

@@ -15,6 +15,10 @@ extends Node
 ##   vêm prontos do banco (SoundBank), sem síntese nem threads no aparelho.
 
 const PATH: String = "user://session.json"
+## Modo gráfico (0.22): arquivo lido pelo Godot ao abrir (project_settings_override).
+## Com ele, o jogo usa o renderizador Mobile (Vulkan) em vez do OpenGL. Num Mali-G78 o
+## fechamento sozinho era um crash dentro do driver OpenGL; o Vulkan usa outro driver.
+const GRAPHICS_PATH: String = "user://graphics.cfg"
 
 ## Sessão anterior fechou sozinha.
 var crashed_last_time: bool = false
@@ -36,6 +40,15 @@ var compat: bool:
 		return compat_level >= 1
 ## O jogador escolheu o modo nas Configurações (não muda sozinho).
 var compat_manual: bool = false
+## Renderizador em uso agora ("opengl3" ou "vulkan") e o escolhido para a próxima vez.
+var renderer: String = "opengl3"
+var vulkan_next: bool = false
+## O jogador escolheu o modo gráfico nas Configurações (não muda sozinho).
+var graphics_manual: bool = false
+## Mudou sozinho para Vulkan nesta abertura (avisar para reabrir).
+var switched_to_vulkan: bool = false
+## Já fechou sozinho também no Vulkan (não tenta de novo sozinho).
+var vulkan_failed: bool = false
 ## Desligado nos testes (não grava nada).
 var enabled: bool = true
 var step_name: String = "iniciando"
@@ -71,6 +84,8 @@ func _init() -> void:
 		for a in args:
 			if a.begins_with("--safe-area="):
 				SafeArea.parse_debug(a.trim_prefix("--safe-area="))
+	renderer = RenderingServer.get_current_rendering_driver_name()
+	vulkan_next = FileAccess.file_exists(GRAPHICS_PATH)
 	_load()
 
 
@@ -93,6 +108,8 @@ func _load() -> void:
 		return
 	_state = parsed
 	compat_manual = bool(_state.get("compat_manual", false))
+	graphics_manual = bool(_state.get("graphics_manual", false))
+	vulkan_failed = bool(_state.get("vulkan_failed", false))
 	crash_count = int(_state.get("crash_count", 0))
 	if bool(_state.get("running", false)):
 		crashed_last_time = true
@@ -109,7 +126,21 @@ func _load() -> void:
 	# modo volta a subir sozinho.
 	if crashed_last_time and compat_manual and crash_count >= 2 and compat_level < MAX_LEVEL:
 		compat_manual = false
-	if crashed_last_time and not compat_manual:
+	# Modo gráfico (0.22): fechou sozinho no OpenGL → tenta o Vulkan com qualidade cheia;
+	# fechou no Vulkan → volta ao OpenGL e segue subindo a compatibilidade.
+	var last_renderer: String = String(_state.get("renderer", "opengl3"))
+	var tried_vulkan: bool = false
+	if crashed_last_time and not graphics_manual and OS.get_name() == "Android":
+		if last_renderer == "vulkan":
+			vulkan_failed = true
+			set_graphics(false, false)
+		elif not vulkan_failed:
+			set_graphics(true, false)
+			switched_to_vulkan = true
+			tried_vulkan = true
+			if not compat_manual:
+				compat_level = 0
+	if crashed_last_time and not compat_manual and not tried_vulkan:
 		compat_level = mini(MAX_LEVEL, compat_level + 1)
 
 
@@ -146,6 +177,23 @@ func mark(key: String) -> void:
 ## Detalhe que muda com frequência (profundidade etc.): gravado no máximo a cada 5 s.
 func detail(extra: String) -> void:
 	_extra = extra
+
+
+## Liga/desliga o Vulkan para a próxima abertura (grava ou apaga graphics.cfg).
+func set_graphics(vulkan: bool, manual: bool = true) -> void:
+	vulkan_next = vulkan
+	if manual:
+		graphics_manual = true
+	if vulkan:
+		var cfg := ConfigFile.new()
+		cfg.set_value("rendering", "renderer/rendering_method", "mobile")
+		cfg.set_value("rendering", "renderer/rendering_method.mobile", "mobile")
+		cfg.set_value("rendering", "rendering_device/driver.android", "vulkan")
+		cfg.save(GRAPHICS_PATH)
+	elif FileAccess.file_exists(GRAPHICS_PATH):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(GRAPHICS_PATH))
+	if manual:
+		_write(true)
 
 
 ## Escolha do jogador (vale ao reabrir o jogo; não sobe mais sozinho).
@@ -192,6 +240,9 @@ func _write(running: bool) -> void:
 		"compat": compat,
 		"level": compat_level,
 		"compat_manual": compat_manual,
+		"renderer": renderer,
+		"graphics_manual": graphics_manual,
+		"vulkan_failed": vulkan_failed,
 		"version": String(ProjectSettings.get_setting("application/config/version", "")),
 	}
 	var f := FileAccess.open(PATH, FileAccess.WRITE)

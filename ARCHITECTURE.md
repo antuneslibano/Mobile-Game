@@ -547,3 +547,14 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
   `TouchScroll.no_scroll`.
 - **Telas**: `UiTheme.fit_size` para texto desenhado à mão (carrossel).
 
+## 26. 0.22: modo gráfico
+
+- `project.godot`: `application/config/project_settings_override="user://graphics.cfg"` e
+  `rendering_device/fallback_to_opengl3=true`. `Guard.set_graphics(vulkan)` grava (ou
+  apaga) esse arquivo com `rendering_method="mobile"`; o Godot o lê ao abrir.
+  `Guard.renderer` é o driver em uso; `session.json` guarda `renderer`,
+  `graphics_manual` e `vulkan_failed`. Fechou no OpenGL (Android, sem escolha manual) →
+  Vulkan e compatibilidade 0; fechou no Vulkan → OpenGL e a compatibilidade sobe.
+- `Tombstone.summary(bytes)`: leitor de protobuf (campos 6 tid, 10 sinal, 14 abort, 15
+  causas, 16 threads → quadros 4 com rel_pc, função e arquivo).
+

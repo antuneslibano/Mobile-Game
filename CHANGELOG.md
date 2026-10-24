@@ -3,6 +3,23 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.22.0] — Modo gráfico Vulkan contra o fechamento sozinho
+
+### Adicionado
+- **Modo gráfico (Configurações › Modo gráfico: OPENGL / VULKAN)**, que vale ao reabrir o
+  jogo. O diagnóstico da 0.21 mostrou que, no Galaxy S21 FE (Mali-G78), o jogo fechava
+  com um crash nativo dentro do driver OpenGL do celular. O Vulkan usa outro driver.
+  Celulares sem Vulkan voltam ao OpenGL sozinhos.
+- **Troca automática**: se o jogo fechar sozinho no OpenGL, a próxima abertura passa para
+  o Vulkan com qualidade cheia (o aviso pede para fechar e abrir de novo). Se fechar
+  também no Vulkan, volta ao OpenGL e segue com os níveis de compatibilidade.
+- **Diagnóstico**: o crash nativo agora é lido de verdade (formato tombstone do Android):
+  sinal, endereço, a thread que quebrou e a pilha dela (biblioteca, deslocamento e
+  função). Mostra também o modo gráfico atual e o da próxima abertura.
+
+### Alterado
+- O efeito de calor só copia a tela enquanto aparece (antes copiava sempre).
+
 ## [0.21.0] — Novo combate do guardião, criaturas sólidas e sons prontos
 
 ### Adicionado

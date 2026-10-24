@@ -400,7 +400,9 @@ func _show_crash_notice() -> void:
 	panel.add_child(v)
 	v.add_child(UiTheme.label(UiTheme.display_text("O JOGO FECHOU SOZINHO"), 30, UiTheme.ORANGE, 700))
 	var msg: String = "Da última vez o jogo fechou de repente (%s). Seu progresso salvo foi mantido." % Guard.last_step
-	if Guard.compat and not Guard.compat_manual:
+	if Guard.switched_to_vulkan:
+		msg += "\n\nVamos usar o modo gráfico Vulkan, mais estável no seu celular. FECHE E ABRA O JOGO DE NOVO para valer."
+	elif Guard.compat and not Guard.compat_manual:
 		msg += "\n\nModo de compatibilidade ligado (nível %d)." % Guard.compat_level
 	msg += "\n\nSe continuar: Configurações › Diagnóstico › COPIAR."
 	var l := UiTheme.label(msg, 22, UiTheme.TEXT, 500)

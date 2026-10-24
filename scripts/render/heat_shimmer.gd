@@ -6,6 +6,7 @@ extends CanvasLayer
 
 var drill: Drill
 var _rect: ColorRect
+var _copy: BackBufferCopy
 var _mat: ShaderMaterial
 var _strength: float = 0.0
 var _t: float = 0.0
@@ -14,9 +15,10 @@ var _t: float = 0.0
 func _ready() -> void:
 	layer = 4
 	# Copia a tela aqui (já com o mundo e a névoa desenhados) para o shader ler.
-	var copy := BackBufferCopy.new()
-	copy.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
-	add_child(copy)
+	_copy = BackBufferCopy.new()
+	_copy.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
+	_copy.visible = false  # 0.22: só copia a tela enquanto o efeito aparece
+	add_child(_copy)
 	_rect = ColorRect.new()
 	_rect.name = "HeatShimmer"
 	_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -36,11 +38,13 @@ static func target_strength(penalty: float) -> float:
 func _process(delta: float) -> void:
 	if drill == null or Guard.compat_level >= 2:
 		_rect.visible = false
+		_copy.visible = false
 		return
 	var target: float = target_strength(drill.heat_penalty) if drill.is_inside_tree() and drill.visible else 0.0
 	# Entra devagar e sai devagar (sem "piscar" ao cruzar o limite).
 	_strength = move_toward(_strength, target, delta * 0.8)
 	_rect.visible = _strength > 0.01
+	_copy.visible = _rect.visible
 	if not _rect.visible:
 		return
 	_t += delta
