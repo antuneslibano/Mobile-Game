@@ -23,6 +23,9 @@ var guardian: FinalGuardian
 var active: bool = false
 var seeds_needed: int = 6
 var seeds_broken: int = 0
+## Fileiras das sementes já contadas (cada semente conta uma vez só).
+var broken_rows: Dictionary = {}
+var hits_taken: int = 0
 ## Espinhos: {pos, dir, t, warn, from} (t < warn = aviso; depois voando).
 var spikes: Array[Dictionary] = []
 var appear: float = 0.0
@@ -41,8 +44,13 @@ func _init() -> void:
 	z_index = 20
 
 
-static func seeds_for(r: RegionDef) -> int:
-	return 5 + r.difficulty
+static func seeds_for(_r: RegionDef) -> int:
+	return Balance.BOSS_SEEDS_TO_WIN
+
+
+## Dureza das sementes na arena da região (multiplicador da vida da célula).
+static func seed_hp_mult(r: RegionDef) -> float:
+	return Balance.BOSS_SEED_HP_MULT * (1.0 + Balance.BOSS_SEED_HP_PER_DIFFICULTY * (r.difficulty - 1))
 
 
 func start(g: FinalGuardian, ship: Vector2, view: Rect2) -> void:
@@ -50,6 +58,8 @@ func start(g: FinalGuardian, ship: Vector2, view: Rect2) -> void:
 	active = true
 	seeds_needed = seeds_for(g.region)
 	seeds_broken = 0
+	broken_rows.clear()
+	hits_taken = 0
 	spikes.clear()
 	appear = 0.0
 	invuln = 0.0
@@ -100,8 +110,9 @@ func step(delta: float, ship: Vector2, ship_vel: Vector2, ship_r: float, view: R
 		if sp.t >= sp.warn:
 			sp.pos += sp.dir * SPIKE_SPEED * delta
 			if invuln <= 0.0 and dmg == 0.0 and _spike_hits(sp, ship, ship_r):
-				dmg = guardian.hit_damage
+				dmg = guardian.hit_damage * Balance.BOSS_SPIKE_DAMAGE_RATIO
 				invuln = Balance.GUARDIAN_INVULN_SEC
+				hits_taken += 1
 		if sp.pos.y < view.end.y + 300.0 and sp.pos.y > view.position.y - 400.0 and sp.t < 6.0:
 			keep.append(sp)
 	spikes = keep
@@ -161,6 +172,10 @@ func _attack(ship: Vector2, ship_vel: Vector2, view: Rect2) -> void:
 
 func _add_spike(from: Vector2, dir: Vector2, warn: float) -> void:
 	spikes.append({"pos": from, "dir": dir.normalized(), "t": 0.0, "warn": warn, "from": from})
+
+
+func elapsed() -> float:
+	return _t
 
 
 static func _ease(k: float) -> float:

@@ -124,6 +124,27 @@ func test_boss_chase() -> void:
 	check(seeds == (120 - WorldGenerator.ARENA_FIRST_SEED_ROW - 1) / WorldGenerator.ARENA_SEED_GAP + 1 and other == 0, "arena: só terra e %d sementes" % seeds)
 	check(w.peek_cell(Vector2i(Balance.WORLD_CELLS_X / 2, 2)) == BlockRegistry.AIR, "arena aberta no topo")
 	check(BlockRegistry.get_def(BlockRegistry.ARENA_SOIL).max_hp < BlockRegistry.get_def(BlockRegistry.DIRT).max_hp, "terra da arena é macia")
+	# 0.22.1: 20 sementes, duras (vários golpes), mais duras nas regiões difíceis.
+	check_eq(BossChase.seeds_for(vale), 20, "20 sementes para vencer")
+	var abismo: RegionDef = RegionRegistry.get_def(RegionRegistry.ABISMO)
+	check(BossChase.seed_hp_mult(abismo) > BossChase.seed_hp_mult(vale), "sementes mais duras no Abismo")
+	var y0: int = WorldGenerator.ARENA_FIRST_SEED_ROW
+	var sx: int = w.generator.arena_seed_x(y0)
+	var core := Vector2i(sx * Balance.CELL_SUB + 2, y0 * Balance.CELL_SUB + 2)
+	w.get_chunk(WorldModel.chunk_index_for_row(core.y))
+	w.hp_scale = {BlockRegistry.BOSS_SEED: BossChase.seed_hp_mult(vale)}
+	var seed_hits: int = 0
+	var dmg: float = 15.0  # broca típica ao chegar no guardião do Vale
+	while w.peek_cell(core) == BlockRegistry.BOSS_SEED and seed_hits < 200:
+		w.dig_cells([core] as Array[Vector2i], dmg)
+		seed_hits += 1
+	check(seed_hits >= 8 and seed_hits <= 30, "semente pede vários golpes (%d com dano %.0f)" % [seed_hits, dmg])
+	var hits_strong: int = 0
+	w.set_cell(core, BlockRegistry.BOSS_SEED)
+	while w.peek_cell(core) == BlockRegistry.BOSS_SEED and hits_strong < 200:
+		w.dig_cells([core] as Array[Vector2i], dmg * 3.0)
+		hits_strong += 1
+	check(hits_strong < seed_hits, "broca mais forte quebra mais rápido (%d × %d)" % [hits_strong, seed_hits])
 	c.free()
 	g.free()
 

@@ -50,6 +50,8 @@ const NO_CELL := Vector2i(-99999, -99999)
 var generator: WorldGenerator
 ## Geração antecipada em threads de trabalho. Desligue para testes determinísticos de quadro.
 var threaded: bool = true
+## Vida extra por material neste mundo (0.22.1): id → multiplicador. Arena: sementes duras.
+var hp_scale: Dictionary = {}
 var _chunks: Dictionary = {}       ## int → ChunkData
 var _pending: Dictionary = {}      ## int → _Job
 var _mods: Dictionary = {}         ## int (chunk) → Dictionary[int (local), int (id)]
@@ -394,7 +396,7 @@ func dig_cells(cells: Array[Vector2i], raw_damage: float, min_y: float = -INF, d
 			continue
 		res.touched += 1
 		touched_by_id[id] = int(touched_by_id.get(id, 0)) + 1
-		var cell_hp: float = def.max_hp / Balance.CELL_SUB
+		var cell_hp: float = def.max_hp / Balance.CELL_SUB * float(hp_scale.get(id, 1.0))
 		var frac: float = float(ch.dmg[local]) / 255.0 + MiningRules.effective_damage(raw_damage, def.hardness) / cell_hp
 		if frac >= 1.0:
 			_set_raw(c, BlockRegistry.AIR)

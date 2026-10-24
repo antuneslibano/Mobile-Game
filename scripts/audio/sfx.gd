@@ -370,6 +370,12 @@ func _build_all() -> void:
 			out += (sin(TAU * f * lt) + 0.35 * sin(TAU * f * 2.0 * lt)) * env * float(hb[1])
 			out += (rng.randf() * 2.0 - 1.0) * 0.08 * exp(-lt * 60.0) * float(hb[1])
 		return out * 0.9, 0.9)
+	# Golpe na semente (0.22.1): "tum" grave e úmido, curto.
+	_streams[&"seed_hit"] = _synth(0.16, false, func(t: float, _i: int) -> float:
+		var f: float = 95.0 + 140.0 * exp(-t * 40.0)
+		var thump: float = (sin(TAU * f * t) + 0.4 * sin(TAU * f * 2.1 * t)) * exp(-t * 24.0)
+		var squish: float = (rng.randf() * 2.0 - 1.0) * exp(-t * 45.0) * 0.35
+		return thump * 0.9 + squish, 0.85)
 	# Semente do guardião quebrada: estalo úmido + brilho.
 	_streams[&"seed_pop"] = _synth(0.45, false, func(t: float, _i: int) -> float:
 		var crack: float = (rng.randf() * 2.0 - 1.0) * exp(-t * 35.0) * 0.7

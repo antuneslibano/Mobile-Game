@@ -333,6 +333,11 @@ func _apply_wear_visual() -> void:
 
 
 func _on_dig_hit(point: Vector2, material_id: int, crit: bool, removed: int) -> void:
+	if material_id == BlockRegistry.BOSS_SEED and chase.active:
+		# Golpe na semente (0.22.1): baque grave, tremor e brilho a cada "tum".
+		Sfx.play(&"seed_hit", randf_range(0.9, 1.1), 0.0, 0.08)
+		fx.emit_burst(point, guardian.glow_color, 6, 240.0, 0.4, 3.0, 300.0)
+		camera.add_shake(0.12)
 	var def: BlockDef = BlockRegistry.get_def(material_id)
 	Sfx.play(&"hit", randf_range(0.85, 1.15) * (1.2 if crit else 1.0), -8.0, 0.05)
 	if removed > 0:
@@ -361,12 +366,7 @@ func _on_dug(counts: Dictionary, at: Vector2) -> void:
 		camera.add_shake(0.25)
 	# Semente do guardião (arena): cada uma quebrada fere o guardião.
 	if counts.has(BlockRegistry.BOSS_SEED) and chase.active:
-		Sfx.play(&"seed_pop", randf_range(0.95, 1.05))
-		fx.emit_burst(at, guardian.glow_color, 30, 380.0, 0.9, 4.0, 200.0)
-		camera.add_shake(0.45)
-		pickups.show_text(at + Vector2(0, -40), "%d/%d" % [chase.seeds_broken + 1, chase.seeds_needed], guardian.glow_color)
-		if chase.seed_broken():
-			_on_guardian_defeated()
+		_check_seeds(at)
 	GameState.register_cells_dug(removed)
 	EventBus.material_dug.emit(at, counts)
 	GameState.collect_drops(at, Drill.drops_for(counts))
@@ -447,6 +447,7 @@ func _enter_arena() -> void:
 	_region_world = world
 	world = WorldModel.new(hash([GameState.world_seed, GameState.region_id, "arena"]) & 0x7FFFFFFF, GameState.region())
 	world.generator.arena = true
+	world.hp_scale = {BlockRegistry.BOSS_SEED: BossChase.seed_hp_mult(GameState.region())}
 	world.threaded = not Guard.compat
 	creatures.creatures.clear()
 	sonar.world = world
@@ -505,4 +506,35 @@ func _on_boss_beat(strength: float) -> void:
 	camera.add_shake(0.12 * strength)
 	var screen: Vector2 = get_viewport().get_canvas_transform() * chase.core
 	pulse.pulse(strength, guardian.glow_color, screen)
+
+
+## Sementes perto de onde a broca cavou: conta cada uma (uma vez) quando o miolo dela
+## (célula central do bloco) é quebrado.
+func _check_seeds(at: Vector2) -> void:
+	var gen: WorldGenerator = world.generator
+	var b: float = Balance.BLOCK_PX
+	var sub: int = Balance.CELL_SUB
+	var row0: int = floori(at.y / b) - 2
+	for row in range(row0, row0 + 5):
+		if row < WorldGenerator.ARENA_FIRST_SEED_ROW or (row - WorldGenerator.ARENA_FIRST_SEED_ROW) % WorldGenerator.ARENA_SEED_GAP != 0:
+			continue
+		if chase.broken_rows.has(row):
+			continue
+		var x: int = gen.arena_seed_x(row)
+		var core := Vector2i(x * sub + sub / 2, row * sub + sub / 2)
+		if world.peek_cell(core) == BlockRegistry.BOSS_SEED and world.peek_cell(core - Vector2i(1, 1)) == BlockRegistry.BOSS_SEED:
+			continue
+		chase.broken_rows[row] = true
+		# O resto da semente some junto (sem pedaços soltos no cenário).
+		world.fill_cells(Rect2i(x * sub, row * sub, sub, sub), BlockRegistry.AIR)
+		var c := Vector2((x + 0.5) * b, (row + 0.5) * b)
+		Sfx.play(&"seed_pop", randf_range(0.95, 1.05))
+		fx.emit_burst(c, guardian.glow_color, 30, 380.0, 0.9, 4.0, 200.0)
+		camera.add_shake(0.45)
+		pickups.show_text(c + Vector2(0, -40), "%d/%d" % [chase.seeds_broken + 1, chase.seeds_needed], guardian.glow_color)
+		# Semente viva: devolve um pouco do casco.
+		drill.vitals.hull = minf(drill.vitals.hull_max, drill.vitals.hull + drill.vitals.hull_max * Balance.BOSS_SEED_HEAL)
+		if chase.seed_broken():
+			_on_guardian_defeated()
+			return
 

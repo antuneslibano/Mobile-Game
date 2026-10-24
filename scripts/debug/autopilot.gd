@@ -79,6 +79,14 @@ func _physics_process(delta: float) -> void:
 				tx = (gen.arena_seed_x(r) + 0.5) * b
 				break
 		var dx: float = clampf((tx - game.drill.position.x) / (b * 2.0), -1.0, 1.0)
+		# Semente logo à frente: segura a broca nela até quebrar (como uma pessoa faria).
+		for r2 in range(row - 2, row + 2):
+			if r2 >= WorldGenerator.ARENA_FIRST_SEED_ROW and (r2 - WorldGenerator.ARENA_FIRST_SEED_ROW) % WorldGenerator.ARENA_SEED_GAP == 0 and not game.chase.broken_rows.has(r2):
+				var sc := Vector2((gen.arena_seed_x(r2) + 0.5) * b, (r2 + 0.5) * b)
+				if sc.distance_to(game.drill.position) < b * 2.2 and not _spike_near(b):
+					_intent.aim = (sc - game.drill.position).normalized()
+					_intent.boost = true
+					return
 		for sp in game.chase.spikes:
 			if Geometry2D.get_closest_point_to_segment(game.drill.position, sp.pos, sp.pos + sp.dir * 900.0).distance_to(game.drill.position) < b:
 				dx = -signf(sp.dir.x if absf(sp.dir.x) > 0.05 else 1.0)
@@ -170,8 +178,19 @@ func _finish() -> void:
 			Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1048576.0,
 			int(Performance.get_monitor(Performance.OBJECT_COUNT)), int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))])
 	print("[autotest] música: %s (tema do guardião %s)" % ["guardião" if Sfx.boss_mode else "normal", "pronto" if Sfx.boss_ready else "gerando"])
+	if game.chase.seeds_broken > 0 or game.in_arena():
+		print("[autotest] arena: sementes %d/%d · guardião %.0f%% · casco %.0f%% · espinhos levados %d · tempo na arena %.0f s" % [game.chase.seeds_broken, game.chase.seeds_needed, game.guardian.hp_ratio() * 100.0, game.drill.vitals.hull_ratio() * 100.0, game.chase.hits_taken, game.chase.elapsed()])
 	print("[autotest] RESULTADO: %s" % ("PASSOU" if ok else "FALHOU"))
 	# Aguarda capturas pendentes.
 	await get_tree().process_frame
 	await get_tree().process_frame
 	get_tree().quit(0 if ok else 1)
+
+
+## Algum espinho vindo na direção da nave (arena).
+func _spike_near(b: float) -> bool:
+	for sp in game.chase.spikes:
+		if Geometry2D.get_closest_point_to_segment(game.drill.position, sp.pos, sp.pos + sp.dir * 900.0).distance_to(game.drill.position) < b * 1.2:
+			return true
+	return false
+

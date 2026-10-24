@@ -557,4 +557,8 @@ Detalhes medidos ficam no `README.md` (seção Desempenho) após cada fase.
   Vulkan e compatibilidade 0; fechou no Vulkan → OpenGL e a compatibilidade sobe.
 - `Tombstone.summary(bytes)`: leitor de protobuf (campos 6 tid, 10 sinal, 14 abort, 15
   causas, 16 threads → quadros 4 com rel_pc, função e arquivo).
+- **0.22.1**: `WorldModel.hp_scale` (vida extra por material; arena: `BOSS_SEED` ×
+  `BossChase.seed_hp_mult`). `Game._check_seeds` conta cada semente uma vez pela célula
+  central (`chase.broken_rows`) e limpa o bloco. `BOSS_SEEDS_TO_WIN`,
+  `BOSS_SPIKE_DAMAGE_RATIO`, `BOSS_SEED_HEAL` em Balance.
 

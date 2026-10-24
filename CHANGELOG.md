@@ -3,6 +3,20 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: `0.<fase>.<correção>` até o 1.0.
 
+## [0.22.1] — Guardião mais longo: 20 sementes duras
+
+### Alterado
+- **Sementes do guardião duras**: precisam de vários golpes ("tum, tum, tum…"), cada um
+  com baque, tremor e brilho. Broca mais forte quebra mais rápido (no Vale, ~16 golpes
+  com uma broca média e ~5 com uma forte); nas regiões difíceis são mais duras.
+- **20 sementes** para vencer (cada uma tira 1/20 da vida), uma a cada 6 fileiras.
+- Semente quebrada devolve 6% do casco; espinhos da arena tiram 70% do dano normal
+  (briga longa sem virar só desgaste).
+
+### Corrigido
+- Uma semente contava várias vezes (cada mordida que arrancava um pedaço dela tirava
+  vida do guardião). Agora conta uma vez, quando o miolo quebra, e o resto some junto.
+
 ## [0.22.0] — Modo gráfico Vulkan contra o fechamento sozinho
 
 ### Adicionado

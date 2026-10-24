@@ -130,6 +130,13 @@ const GUARDIAN_HP: float = 4000.0            ## Vida no Vale (dificuldade 1)…
 const GUARDIAN_HP_PER_DIFFICULTY: float = 0.9  ## …+90% por nível de dificuldade acima de 1.
 const GUARDIAN_HIT_DAMAGE: float = 22.0      ## Dano no casco por acerto no Vale…
 const GUARDIAN_HIT_DAMAGE_PER_DIFFICULTY: float = 8.0  ## …+8 por nível de dificuldade.
+## Arena (0.22.1): sementes para vencer o guardião e dureza delas (× vida da célula,
+## +70% por nível de dificuldade acima de 1). Broca mais forte quebra mais rápido.
+const BOSS_SEEDS_TO_WIN: int = 20
+const BOSS_SPIKE_DAMAGE_RATIO: float = 0.7   ## Espinho da arena: fração do dano do guardião.
+const BOSS_SEED_HEAL: float = 0.06           ## Semente quebrada devolve esta fração do casco.
+const BOSS_SEED_HP_MULT: float = 24.0
+const BOSS_SEED_HP_PER_DIFFICULTY: float = 0.7
 const GUARDIAN_INVULN_SEC: float = 1.0       ## Casco sem novo dano logo após um acerto.
 const GUARDIAN_INTERVALS: Array[float] = [1.7, 1.3, 0.95]  ## Entre ataques, por fase.
 const GUARDIAN_WARNS: Array[float] = [0.85, 0.75, 0.65]    ## Aviso antes de subir, por fase.

@@ -35,7 +35,7 @@ var _floor_cy: int = 0
 var arena: bool = false
 const ARENA_OPEN_ROWS: int = 9        ## Salão aberto no topo (onde o guardião aparece).
 const ARENA_FIRST_SEED_ROW: int = 16
-const ARENA_SEED_GAP: int = 8         ## Uma semente a cada tantas fileiras.
+const ARENA_SEED_GAP: int = 6         ## Uma semente a cada tantas fileiras.
 
 ## Relíquia da região (bloco) e a câmara em volta (células). relic_id < 0 = sem relíquia.
 var relic_id: int = -1
